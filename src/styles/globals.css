@@ -1,0 +1,525 @@
+* { box-sizing: border-box; }
+
+html, body {
+  font-family: 'DM Sans', sans-serif;
+  background-color: #F9FAFB;
+  color: #111827;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-primary:       #1A6B5A;
+  --color-primary-light: #E8F5F1;
+  --color-accent:        #2FA98C;
+  --color-neutral-900:   #111827;
+  --color-neutral-600:   #4B5563;
+  --color-neutral-200:   #E5E7EB;
+  --color-neutral-50:    #F9FAFB;
+  --color-warning:       #F59E0B;
+  --color-danger:        #EF4444;
+  --color-success:       #10B981;
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   72px;
+}
+
+/* Typography */
+.font-display { font-family: 'DM Serif Display', serif; }
+.font-mono    { font-family: 'JetBrains Mono', monospace; }
+
+/* Card */
+.card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 24px;
+}
+
+/* Buttons */
+.btn-primary {
+  background: #1A6B5A;
+  color: #fff;
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 18px;
+  font-weight: 800;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-primary:hover { background: #155a4a; box-shadow: 0 4px 12px rgba(26,107,90,0.25); }
+
+.btn-secondary {
+  background: #fff;
+  color: #1A6B5A;
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 18px;
+  font-weight: 800;
+  font-size: 14px;
+  border: 1.5px solid #1A6B5A;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-secondary:hover { background: #E8F5F1; }
+
+.btn-ghost {
+  background: transparent;
+  color: #1A6B5A;
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 18px;
+  font-weight: 800;
+  font-size: 14px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-ghost:hover { background: #E8F5F1; }
+
+.btn-danger {
+  background: #EF4444;
+  color: #fff;
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 18px;
+  font-weight: 800;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-danger:hover { background: #dc2626; }
+
+/* Inputs */
+.input {
+  background: #F3F4F6;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  width: 100%;
+  color: #111827;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+.input:focus { border-color: #1A6B5A; box-shadow: 0 0 0 3px rgba(26,107,90,0.12); background: #fff; }
+.input::placeholder { color: #9CA3AF; }
+textarea.input { resize: vertical; min-height: 80px; }
+select.input { cursor: pointer; }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; gap: 4px; }
+.badge-green  { background: #D1FAE5; color: #065F46; }
+.badge-amber  { background: #FEF3C7; color: #92400E; }
+.badge-red    { background: #FEE2E2; color: #991B1B; }
+.badge-blue   { background: #DBEAFE; color: #1E40AF; }
+.badge-gray   { background: #F3F4F6; color: #4B5563; }
+.badge-teal   { background: #E8F5F1; color: #1A6B5A; }
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  background: #fff;
+  border-right: 1px solid #E5E7EB;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  transition: width 0.2s ease;
+}
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4B5563;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  text-decoration: none;
+  margin: 2px 8px;
+}
+.sidebar-nav-item:hover { background: #E8F5F1; color: #1A6B5A; }
+.sidebar-nav-item.active { background: #E8F5F1; color: #1A6B5A; font-weight: 600; }
+
+/* Dashboard Layout */
+.dashboard-layout { display: flex; min-height: 100vh; }
+.dashboard-main { margin-left: var(--sidebar-width); flex: 1; padding: 32px; background: #F9FAFB; min-height: 100vh; transition: margin-left 0.2s ease; }
+.dashboard-main.collapsed { margin-left: var(--sidebar-collapsed); }
+
+/* Team Chat — message hover reveals its delete control */
+.tc-message-row .tc-msg-delete { opacity: 0; transition: opacity .12s ease, color .12s ease; }
+.tc-message-row:hover .tc-msg-delete { opacity: 1; }
+.tc-msg-delete:hover { color: #DC2626 !important; }
+@media (hover: none) { .tc-message-row .tc-msg-delete { opacity: 1; } }
+
+/* Team Chat — conversation row hover + reveal delete */
+.tc-conversation-row:hover { background: #F8FAFC !important; }
+.tc-conversation-row .tc-delete-btn { opacity: 0; transition: opacity .12s ease, color .12s ease, background .12s ease; }
+.tc-conversation-row:hover .tc-delete-btn { opacity: 1; }
+.tc-delete-btn:hover { color: #DC2626 !important; background: #FEF2F2 !important; }
+@media (hover: none) { .tc-conversation-row .tc-delete-btn { opacity: 1; } }
+
+/* Table */
+.table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #E5E7EB; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.data-table thead { background: #F9FAFB; border-bottom: 1px solid #E5E7EB; }
+table.data-table th { padding: 12px 16px; text-align: left; font-weight: 600; color: #4B5563; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+table.data-table td { padding: 14px 16px; color: #111827; border-bottom: 1px solid #F3F4F6; }
+table.data-table tbody tr:nth-child(even) { background: #F9FAFB; }
+table.data-table tbody tr:hover { background: #E8F5F1; }
+table.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* Stat Cards */
+.stat-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 24px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+/* Toast */
+.toast { position: fixed; top: 24px; right: 24px; z-index: 1000; min-width: 300px; padding: 14px 18px; border-radius: 10px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.15); animation: slideInRight 0.3s ease; }
+.toast-success { background: #D1FAE5; color: #065F46; border-left: 4px solid #10B981; }
+.toast-error   { background: #FEE2E2; color: #991B1B; border-left: 4px solid #EF4444; }
+.toast-warning { background: #FEF3C7; color: #92400E; border-left: 4px solid #F59E0B; }
+.toast-info    { background: #E8F5F1; color: #1A6B5A; border-left: 4px solid #1A6B5A; }
+
+/* CSS chart bars */
+.chart-bar { background: linear-gradient(to top, #1A6B5A, #2FA98C); border-radius: 4px 4px 0 0; transition: opacity 0.2s; }
+.chart-bar:hover { opacity: 0.8; }
+
+/* AI Chat */
+.ai-chat-bubble { position: fixed; bottom: 28px; right: 28px; width: 56px; height: 56px; background: #1A6B5A; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(26,107,90,0.4); z-index: 100; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.ai-chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(26,107,90,0.5); }
+.ai-chat-panel { position: fixed; bottom: 96px; right: 28px; width: 360px; max-height: 520px; background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: column; overflow: hidden; animation: slideUp 0.25s ease; }
+
+/* AI Chat — left-edge drag-to-resize handle.
+   The hit area is deliberately wider than the visible grip so the edge is easy
+   to grab; only the inner grip paints. */
+.ka-chat-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 3;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 0.15s ease;
+  touch-action: none;
+}
+.ka-chat-resize-grip {
+  width: 3px;
+  height: 42px;
+  border-radius: 999px;
+  background: #CBD5E1;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, height 0.15s ease;
+}
+.ka-chat-resize-handle:hover { background: rgba(15,118,110,0.06); }
+.ka-chat-resize-handle:hover .ka-chat-resize-grip { opacity: 1; }
+.ka-chat-resize-handle.is-resizing { background: rgba(15,118,110,0.12); }
+.ka-chat-resize-handle.is-resizing .ka-chat-resize-grip {
+  opacity: 1;
+  background: #0F766E;
+  height: 72px;
+}
+/* Touch devices get no hover, so keep the grip faintly visible as the only
+   affordance that the edge is draggable. */
+@media (hover: none) { .ka-chat-resize-grip { opacity: 0.5; } }
+
+/* Chat History rows — same reveal-on-hover delete pattern as Team Chat. */
+.ka-chat-session-row .ka-chat-session-delete { opacity: 0; transition: opacity .12s ease, color .12s ease, background .12s ease; }
+.ka-chat-session-row:hover .ka-chat-session-delete { opacity: 1; }
+.ka-chat-session-delete:hover { color: #DC2626 !important; background: #FEF2F2 !important; }
+@media (hover: none) { .ka-chat-session-row .ka-chat-session-delete { opacity: 1; } }
+
+/* Skeleton */
+.skeleton { background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+
+/* Animations */
+@keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+
+.page-enter { animation: fadeIn 0.2s ease; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F9FAFB; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .dashboard-main, .dashboard-main.collapsed { margin-left: 0; padding: 16px; }
+}
+/* Leaflet map fixes */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  z-index: 0;
+  font-family: inherit;
+  background: #e5e7eb;
+}
+
+.leaflet-container img,
+.leaflet-container .leaflet-tile {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-tile {
+  width: 256px !important;
+  height: 256px !important;
+}
+
+.leaflet-control-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content {
+  font-family: inherit;
+  line-height: 1.5;
+}
+.ka-lang-switcher {
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #dbe7e3;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #075f4c;
+  font-weight: 800;
+}
+
+.ka-lang-switcher select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #075f4c;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  white-space: nowrap;
+  color: #475569;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+td {
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+td,
+th {
+  padding: 14px 16px;
+}
+
+.long-text,
+.clamp-2,
+.clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.clamp-2 {
+  -webkit-line-clamp: 2;
+}
+
+.clamp-3 {
+  -webkit-line-clamp: 3;
+}
+
+.card,
+.panel,
+.table-card {
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+button {
+  border-radius: 12px;
+  font-weight: 800;
+}
+
+input,
+select,
+textarea {
+  border-radius: 10px;
+}
+
+@media (max-width: 900px) {
+  main {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  td {
+    min-width: 140px;
+  }
+}
+
+/* =====================================================================
+   RESPONSIVE UTILITIES — Telemedicine + Appointments boards
+   Prevent whole-page horizontal overflow; tables scroll inside their card.
+   ===================================================================== */
+
+/* No element should be able to push the whole page wider than the viewport. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Flex/grid children default to min-width:auto, which lets a wide table force
+   the entire layout wider (overflowing behind the sidebar). Reset it so the
+   table's own scroll container takes over instead. */
+.dashboard-layout,
+.dashboard-main,
+.no-page-overflow {
+  min-width: 0;
+}
+
+.no-page-overflow {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Scrollable table container — the table may have a min-width, but only this
+   wrapper scrolls, never the page. */
+.responsive-table {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+}
+
+/* Action button groups wrap cleanly instead of overflowing the row. */
+.responsive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Auto-fitting responsive card grid (stats, filters, etc.). */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 14px;
+}
+
+/* Board card wrapper that never exceeds its column. */
+.board-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+/* Status filter tabs (Active / Needs SOAP / Completed / History). */
+.status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.status-tab {
+  appearance: none;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.status-tab:hover {
+  background: #ecfdf5;
+  border-color: #99f6e4;
+  color: #0f766e;
+}
+
+.status-tab.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #ffffff;
+}
+
+/* Clamp long free text to a few lines with ellipsis. */
+.clamp-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Filter rows stack cleanly on smaller widths. */
+@media (max-width: 900px) {
+  .responsive-actions {
+    justify-content: flex-start;
+  }
+}

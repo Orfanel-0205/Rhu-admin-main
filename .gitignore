@@ -1,0 +1,61 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Local env files
+#
+# Ignore EVERY .env variant, then re-admit only the committed template.
+# The previous list named .env.production.local but not .env.production, and a
+# real .env.production existed in this directory -- on a first-ever commit that
+# would have been captured with no history to hide the mistake in.
+.env
+.env.*
+!.env.example
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Deployment archives
+#
+# The web admin has no CI/CD: it is built locally, zipped and scp'd to the
+# droplet (see docs/OPERATIONS.md in the backend repo). Those zips are build
+# output, not source -- three of them totalling ~14 MB were sitting here.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Credential material -- never source, always an accident
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*service-account*.json
+
+# Tooling
+.qodo/
