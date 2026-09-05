@@ -80,9 +80,11 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Advisory only: the remaining advisories need a react-router major bump,
-    # which no individual PR should be blocked on.
-    continue-on-error: true
+    # Advisory, and deliberately NOT allowed to go red. The remaining
+    # advisories need a react-router major bump, so this could never pass until
+    # that lands -- and a permanently-red check teaches people to ignore the red
+    # X, which is how a real failure gets missed. Findings go to the run summary
+    # instead, where they are read rather than dismissed.
 
     steps:
       - uses: actions/checkout@v4
@@ -94,4 +96,10 @@ jobs:
 
       - run: npm ci
 
-      - run: npm audit
+      - name: npm audit
+        run: |
+          echo "## Web admin dependency advisories" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm audit 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Advisory only -- see the workflow comments for why this does not fail the build." >> "$GITHUB_STEP_SUMMARY"
