@@ -1,0 +1,97 @@
+# .github/workflows/ci.yml -- Ka-Agapay web admin (React + Vite + TypeScript)
+#
+# WHY THIS EXISTS
+# ---------------
+# This repo had no version control at all until 2026-09-02 and no CI until
+# 2026-09-05. It also has zero automated tests, so this pipeline cannot check
+# behaviour -- but it CAN check the two things that actually broke here before:
+# that the code still typechecks, and that it still produces a real build.
+#
+# Deploy for this app is manual (build -> zip -> scp to the droplet, no CI/CD),
+# which means a broken build is discovered on the server rather than before
+# leaving the laptop. Running the same build here, on a clean checkout from the
+# lockfile, catches "works on my machine" before it reaches production.
+#
+# The build step is not a formality: it is the only gate this repo has. A
+# checkout that typechecks but fails to bundle is a deploy that produces a blank
+# page.
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` so the lockfile is authoritative. This checkout is clean --
+      # unlike a laptop, which on 2026-09-03 had 43 uncommitted files sitting in
+      # the tree at deploy time.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npx vite build
+
+      # Guard against a "successful" build that produced nothing usable -- the
+      # same class of silent failure this project has been bitten by elsewhere.
+      - name: Verify build output
+        run: |
+          test -f dist/index.html || { echo "FAIL: dist/index.html missing after build"; exit 1; }
+          js_count=$(find dist/assets -name '*.js' 2>/dev/null | wc -l)
+          if [ "$js_count" -eq 0 ]; then
+            echo "FAIL: build produced no JS bundle in dist/assets"
+            exit 1
+          fi
+          echo "ok: dist/index.html present, $js_count JS bundle(s)"
+          du -sh dist | sed 's/^/build size: /'
+
+      # Makes the deployable artifact downloadable from the run, so a deploy can
+      # use exactly what CI verified instead of a locally rebuilt copy.
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-admin-dist-${{ github.run_id }}
+          path: dist/
+          retention-days: 7
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Advisory only: the remaining advisories need a react-router major bump,
+    # which no individual PR should be blocked on.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm audit
