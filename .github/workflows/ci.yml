@@ -54,18 +54,72 @@ jobs:
       - name: Build
         run: npx vite build
 
-      # Guard against a "successful" build that produced nothing usable -- the
-      # same class of silent failure this project has been bitten by elsewhere.
+      # Assert the build produced a WORKING app, not merely some files.
+      #
+      # STRENGTHENED AFTER A PROVEN BLIND SPOT. This step used to check only
+      # that dist/index.html existed and that at least one .js file was present.
+      # Gutting src/main.tsx so the app never mounts still produced a build that
+      # passed: index.html was there, a 0.71 kB JS file was there, and it even
+      # reported a reassuring "build size: 5.0M" -- which is the copied public/
+      # images, not the app. A completely blank page sailed through.
+      #
+      # That is the same failure shape as the APK boot test's false positive:
+      # superficial signals instead of expected content. These checks assert
+      # what has to be true for the app to actually run.
       - name: Verify build output
         run: |
+          set -euo pipefail
+
           test -f dist/index.html || { echo "FAIL: dist/index.html missing after build"; exit 1; }
-          js_count=$(find dist/assets -name '*.js' 2>/dev/null | wc -l)
-          if [ "$js_count" -eq 0 ]; then
-            echo "FAIL: build produced no JS bundle in dist/assets"
+
+          # 1. index.html must actually reference a built JS bundle. Vite emits
+          #    a hashed filename, so this also catches a stale or empty shell.
+          bundle_ref=$(grep -oE 'src="/assets/[^"]+\.js"' dist/index.html | head -1 | sed 's/src="//; s/"//')
+          if [ -z "$bundle_ref" ]; then
+            echo "FAIL: dist/index.html references no JS bundle -- the app cannot start."
+            echo "--- index.html ---"; cat dist/index.html
             exit 1
           fi
-          echo "ok: dist/index.html present, $js_count JS bundle(s)"
-          du -sh dist | sed 's/^/build size: /'
+
+          # 2. Everything index.html points at must exist on disk. A dangling
+          #    reference is a 404 at runtime and a blank page for the user.
+          for ref in $(grep -oE '(src|href)="/[^"]+"' dist/index.html | sed 's/.*="//; s/"//'); do
+            if [ ! -f "dist${ref}" ]; then
+              echo "FAIL: index.html references ${ref}, which does not exist in dist/."
+              exit 1
+            fi
+          done
+
+          # 3. The bundle must be a plausible size. The real app is ~2 MB; an
+          #    app that never mounts is under 1 kB. 500 kB sits far below the
+          #    real figure and far above a broken one, so it will not flake on
+          #    ordinary size drift.
+          bundle_bytes=$(wc -c < "dist${bundle_ref}")
+          if [ "$bundle_bytes" -lt 500000 ]; then
+            echo "FAIL: JS bundle is only ${bundle_bytes} bytes (expected > 500000)."
+            echo "The build succeeded but produced almost no application code --"
+            echo "usually the entry point stopped mounting the app."
+            exit 1
+          fi
+
+          # 4. The app's own routes must be in the bundle. This is the content
+          #    check: it is what distinguishes 'a real app was built' from
+          #    'something was built'.
+          missing=""
+          for route in /dashboard /appointments /queue /consultations /telemedicine; do
+            grep -q "\"${route}\"" "dist${bundle_ref}" || missing="${missing} ${route}"
+          done
+          if [ -n "$missing" ]; then
+            echo "FAIL: these routes are missing from the built bundle:${missing}"
+            echo "Screens that vanish from the bundle are screens users cannot reach."
+            exit 1
+          fi
+
+          echo "ok: index.html -> ${bundle_ref}"
+          echo "ok: all referenced assets exist"
+          echo "ok: bundle is ${bundle_bytes} bytes"
+          echo "ok: expected routes present in the bundle"
+          du -sh dist | sed 's/^/build size (incl. public assets): /'
 
       # Makes the deployable artifact downloadable from the run, so a deploy can
       # use exactly what CI verified instead of a locally rebuilt copy.
