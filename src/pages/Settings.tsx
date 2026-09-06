@@ -9,8 +9,6 @@ import {
   CheckCircle,
   Clock3,
   Database,
-  Eye,
-  EyeOff,
   KeyRound,
   Mail,
   MapPin,
@@ -20,7 +18,6 @@ import {
   Save,
   ShieldAlert,
   ShieldCheck,
-  Send,
   Shield,
   Smartphone,
 } from "lucide-react";
@@ -30,50 +27,111 @@ import backupsService, {
   formatRunTime,
 } from "../services/backups";
 import type { BackupHealth, BackupStatus } from "../services/backups";
+import settingsService, { settingsErrorMessages } from "../services/settings";
+import type { AdminSettings, SettingsMeta } from "../services/settings";
+
+// Form state is STRINGS because these are text inputs; it is converted at the
+// boundary in toPayload() below. What it is NOT is a source of truth -- every
+// value here arrives from GET /admin/settings and goes back on save.
+//
+// Backup state is not part of this either. It is reported by the server from
+// backup_runs, never stored in the browser, so this panel cannot claim a
+// backup happened unless one actually did.
+
+type FacilityForm = {
+  facility_name: string;
+  address: string;
+  contact_number: string;
+  email: string;
+  operating_hours: string;
+};
+
+type NotificationsForm = {
+  sms_provider: string;
+  appointment_reminder_hours: string;
+  queue_alert_ahead: string;
+};
+
+type SecurityForm = {
+  max_login_attempts: string;
+  session_timeout_minutes: string;
+};
 
 type SettingsForm = {
-  facilityName: string;
-  address: string;
-  contactNumber: string;
-  email: string;
-  operatingHours: string;
-
-  smsProvider: string;
-  smsApiKey: string;
-  smsApiKeyConfigured: boolean;
-  appointmentReminderHours: string;
-  queueAlertAhead: string;
-
-  sessionTimeoutMinutes: string;
-  maxLoginAttempts: string;
-
-  lastSavedAt: string;
+  facility: FacilityForm;
+  notifications: NotificationsForm;
+  security: SecurityForm;
 };
 
-// Backup state is NOT part of SettingsForm. It is reported by the server from
-// backup_runs, never stored in the browser -- the whole point of Phase 1 is
-// that this panel cannot claim a backup happened unless one actually did.
+type SectionName = keyof SettingsForm;
 
-const STORAGE_KEY = "ka_agapay_admin_settings_v2";
-
-const defaultSettings: SettingsForm = {
-  facilityName: "RHU Malasiqui 1",
-  address: "Malasiqui, Pangasinan",
-  contactNumber: "+63 75 XXX XXXX",
-  email: "rhu@malasiqui.gov.ph",
-  operatingHours: "8:00 AM – 5:00 PM",
-
-  smsProvider: "Semaphore PH",
-  smsApiKey: "",
-  smsApiKeyConfigured: true,
-  appointmentReminderHours: "24",
-  queueAlertAhead: "3",
-
-  sessionTimeoutMinutes: "60",
-  maxLoginAttempts: "5",
-
-  lastSavedAt: "",
+/**
+ * EMPTY, NOT PLAUSIBLE.
+ *
+ * The previous version of this file shipped defaults that read as real
+ * configuration on a browser where nobody had configured anything --
+ * "RHU Malasiqui 1", "rhu@malasiqui.gov.ph", "8:00 AM - 5:00 PM", and a
+ * contact number of "+63 75 XXX XXXX". Staff had no way to tell a configured
+ * facility from an unconfigured one.
+ *
+ * These blanks are only ever shown before the first load resolves; after that
+ * the server's values (which may themselves be empty) are what render.
+ */
+const emptyForm: SettingsForm = {
+  facility: {
+    facility_name: "",
+    address: "",
+    contact_number: "",
+    email: "",
+    operating_hours: "",
+  },
+  notifications: {
+    sms_provider: "",
+    appointment_reminder_hours: "",
+    queue_alert_ahead: "",
+  },
+  security: {
+    max_login_attempts: "",
+    session_timeout_minutes: "",
+  },
 };
+
+function toForm(data: AdminSettings): SettingsForm {
+  const text = (value: string | number | null) =>
+    value === null || value === undefined ? "" : String(value);
+
+  return {
+    facility: {
+      facility_name: text(data.facility.facility_name),
+      address: text(data.facility.address),
+      contact_number: text(data.facility.contact_number),
+      email: text(data.facility.email),
+      operating_hours: text(data.facility.operating_hours),
+    },
+    notifications: {
+      sms_provider: text(data.notifications.sms_provider),
+      appointment_reminder_hours: text(data.notifications.appointment_reminder_hours),
+      queue_alert_ahead: text(data.notifications.queue_alert_ahead),
+    },
+    security: {
+      max_login_attempts: text(data.security.max_login_attempts),
+      session_timeout_minutes: text(data.security.session_timeout_minutes),
+    },
+  };
+}
+
+// An emptied optional field means "unset", so it is sent as null rather than
+// as "" -- otherwise clearing a field would store an empty string that the UI
+// could not distinguish from never-configured.
+function orNull(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+function orNullInt(value: string): number | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : Number.parseInt(trimmed, 10);
+}
 
 function copyForLang(lang: string) {
   const pag = lang === "pag";
@@ -89,22 +147,16 @@ function copyForLang(lang: string) {
 
     eyebrow: "Ka-Agapay System Control",
     heroSteps: pag
-      ? "Step 1: Suriin so detalye   Step 2: I-save so valid settings   Step 3: I-test so SMS tan backup"
+      ? "Step 1: Suriin so detalye   Step 2: I-save so settings   Step 3: Suriin so backup status"
       : tag
-      ? "Step 1: Suriin ang detalye   Step 2: I-save ang valid settings   Step 3: I-test ang SMS at backup"
-      : "Step 1: Review details   Step 2: Save valid settings   Step 3: Test SMS and backup",
+      ? "Step 1: Suriin ang detalye   Step 2: I-save ang settings   Step 3: Suriin ang backup status"
+      : "Step 1: Review details   Step 2: Save settings   Step 3: Check backup status",
 
     saveAll: pag ? "I-save Amin" : tag ? "I-save Lahat" : "Save All",
     reset: pag ? "I-reset Changes" : tag ? "I-reset ang Changes" : "Reset Changes",
-    testSms: pag ? "I-test SMS" : tag ? "I-test SMS" : "Test SMS",
 
     saved: pag ? "Na-save so settings." : tag ? "Na-save ang settings." : "Settings saved successfully.",
     resetDone: pag ? "Na-reset so unsaved changes." : tag ? "Na-reset ang unsaved changes." : "Unsaved changes were reset.",
-    smsLooksValid: pag
-      ? "Mukhang valid so SMS configuration. Actual sending et depende ed backend provider."
-      : tag
-      ? "Mukhang valid ang SMS configuration. Ang actual sending ay depende pa rin sa backend provider."
-      : "SMS configuration looks valid. Actual sending still depends on the backend provider.",
 
     unsaved: pag ? "Walay unsaved changes" : tag ? "May unsaved changes" : "Unsaved changes",
     noUnsaved: pag ? "Saved" : tag ? "Saved" : "Saved",
@@ -279,7 +331,6 @@ function copyForLang(lang: string) {
     backupRefresh: pag ? "I-refresh" : tag ? "I-refresh" : "Refresh",
     backupLoading: pag ? "Manlolodá..." : tag ? "Nilo-load..." : "Loading backup status…",
     backupOffsite: pag ? "Kopya ed labas" : tag ? "Kopya sa labas" : "Off-site copy",
-    lastSaved: pag ? "Last Saved" : tag ? "Last Saved" : "Last Saved",
 
     configured: pag ? "Configured" : tag ? "Configured" : "Configured",
     notConfigured: pag ? "Not configured" : tag ? "Not configured" : "Not configured",
@@ -292,76 +343,39 @@ function copyForLang(lang: string) {
       : "Do not casually change the SMS key, security rules, or backup settings. These affect reminders, login safety, and data recovery.",
 
     errorsTitle: pag ? "Ayosen ni saraya:" : tag ? "Ayusin muna ang mga ito:" : "Fix these first:",
-    apiReplacePlaceholder: pag
-      ? "Enter new key only if replacing"
-      : tag
-      ? "Ilagay lang kung papalitan"
-      : "Enter new key only if replacing",
 
     yes: pag ? "On" : tag ? "Oo" : "Yes",
     no: pag ? "Andi" : tag ? "Hindi" : "No",
   };
 }
 
-function loadInitialSettings(): SettingsForm {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (!saved) {
-      return defaultSettings;
-    }
-
-    const parsed = JSON.parse(saved);
-
-    return {
-      ...defaultSettings,
-      ...parsed,
-      smsApiKey: "",
-    };
-  } catch {
-    return defaultSettings;
-  }
-}
-
-function stripSecret(settings: SettingsForm) {
-  return {
-    ...settings,
-    smsApiKey: "",
-  };
-}
-
-function nowText() {
-  return new Date().toLocaleString("en-PH", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function toInt(value: string) {
-  return Number.parseInt(String(value || "").trim(), 10);
-}
-
-function isValidEmail(value: string) {
-  if (!value.trim()) return true;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
+// Field validation is NOT duplicated here.
+//
+// The old page validated ranges in the browser (Max Login Attempts 3-10,
+// Session Timeout 10-480) while the server enforced its own hardcoded numbers,
+// so the two could disagree without anyone noticing -- and they did. The API
+// is now the single authority; its 422 responses carry per-field messages,
+// which settingsErrorMessages() surfaces verbatim.
 
 export default function Settings() {
   const lang = useLangStore((state) => state.lang);
   const c = copyForLang(lang);
 
-  const [settings, setSettings] = useState<SettingsForm>(() =>
-    loadInitialSettings()
-  );
+  const [settings, setSettings] = useState<SettingsForm>(emptyForm);
 
-  const [snapshot, setSnapshot] = useState(() =>
-    JSON.stringify(stripSecret(loadInitialSettings()))
-  );
+  // The server's version of what is stored, kept so each section can be
+  // compared independently. Only sections that actually changed get written --
+  // which also stops an MHO (who may read settings but not edit Security
+  // Rules) from being refused for a section they never touched.
+  const [snapshot, setSnapshot] = useState<SettingsForm>(emptyForm);
 
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [meta, setMeta] = useState<SettingsMeta | null>(null);
+  const [rhuLabel, setRhuLabel] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const [saved, setSaved] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [backup, setBackup] = useState<BackupStatus | null>(null);
@@ -370,17 +384,19 @@ export default function Settings() {
 
   useEffect(() => {
     void loadBackupStatus();
+    void loadSettings();
     // Mount-only: the panel has an explicit Refresh control rather than polling,
     // because backups change once a night.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasChanges = useMemo(() => {
-    return (
-      JSON.stringify(stripSecret(settings)) !== snapshot ||
-      settings.smsApiKey.trim().length > 0
+  const changedSections = useMemo<SectionName[]>(() => {
+    return (Object.keys(settings) as SectionName[]).filter(
+      (section) => JSON.stringify(settings[section]) !== JSON.stringify(snapshot[section]),
     );
   }, [settings, snapshot]);
+
+  const hasChanges = changedSections.length > 0;
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -395,12 +411,16 @@ export default function Settings() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [hasChanges]);
 
-  const apiStatus = settings.smsApiKeyConfigured ? c.configured : c.notConfigured;
+  const apiStatus = meta?.sms_api_key_configured ? c.configured : c.notConfigured;
 
-  function update<K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) {
+  function update<S extends SectionName, K extends keyof SettingsForm[S]>(
+    section: S,
+    key: K,
+    value: SettingsForm[S][K],
+  ) {
     setSettings((current) => ({
       ...current,
-      [key]: value,
+      [section]: { ...current[section], [key]: value },
     }));
   }
 
@@ -409,102 +429,95 @@ export default function Settings() {
     window.setTimeout(() => setSaved(""), 2800);
   }
 
-  function validate(): string[] {
-    const nextErrors: string[] = [];
+  function applyServerState(data: AdminSettings) {
+    const form = toForm(data);
 
-    if (!settings.facilityName.trim()) {
-      nextErrors.push("Facility Name is required.");
-    }
-
-    if (!settings.address.trim()) {
-      nextErrors.push("Address is required.");
-    }
-
-    if (!settings.contactNumber.trim()) {
-      nextErrors.push("Contact Number is required.");
-    }
-
-    if (!isValidEmail(settings.email)) {
-      nextErrors.push("Email format is invalid.");
-    }
-
-    if (!settings.operatingHours.trim()) {
-      nextErrors.push("Operating Hours is required.");
-    }
-
-    if (!settings.smsProvider.trim()) {
-      nextErrors.push("SMS Provider is required.");
-    }
-
-    const reminder = toInt(settings.appointmentReminderHours);
-    if (Number.isNaN(reminder) || reminder < 1 || reminder > 168) {
-      nextErrors.push("Appointment Reminder must be between 1 and 168 hours.");
-    }
-
-    const queueAlert = toInt(settings.queueAlertAhead);
-    if (Number.isNaN(queueAlert) || queueAlert < 1 || queueAlert > 20) {
-      nextErrors.push("Queue Alert must be between 1 and 20.");
-    }
-
-    const timeout = toInt(settings.sessionTimeoutMinutes);
-    if (Number.isNaN(timeout) || timeout < 10 || timeout > 480) {
-      nextErrors.push("Session Timeout must be between 10 and 480 minutes.");
-    }
-
-    const maxLogin = toInt(settings.maxLoginAttempts);
-    if (Number.isNaN(maxLogin) || maxLogin < 3 || maxLogin > 10) {
-      nextErrors.push("Max Login Attempts must be between 3 and 10.");
-    }
-
-    return nextErrors;
+    // Both are seeded from the SAME server response, so "unsaved changes" can
+    // only mean the person edited something -- never that the browser and the
+    // server disagree about what was stored.
+    setSettings(form);
+    setSnapshot(form);
+    setMeta(data.meta);
+    setRhuLabel(data.rhu_label);
   }
 
-  function saveSettings() {
-    const nextErrors = validate();
+  async function loadSettings() {
+    setLoading(true);
+    setLoadError("");
 
-    setErrors(nextErrors);
+    try {
+      applyServerState(await settingsService.get());
+    } catch (error) {
+      setLoadError(settingsErrorMessages(error).join(" "));
+    } finally {
+      setLoading(false);
+    }
+  }
 
-    if (nextErrors.length > 0) {
-      return;
+  async function saveSettings() {
+    if (!hasChanges || saving) return;
+
+    setSaving(true);
+    setErrors([]);
+
+    const failures: string[] = [];
+    let latest: AdminSettings | null = null;
+
+    // Sections are written one at a time so a rejection names the section that
+    // was rejected, and so an unchanged section is never sent at all.
+    for (const section of changedSections) {
+      try {
+        if (section === "facility") {
+          latest = await settingsService.saveFacility({
+            facility_name: settings.facility.facility_name.trim(),
+            address: settings.facility.address.trim(),
+            contact_number: settings.facility.contact_number.trim(),
+            email: orNull(settings.facility.email),
+            operating_hours: settings.facility.operating_hours.trim(),
+          });
+        } else if (section === "notifications") {
+          latest = await settingsService.saveNotifications({
+            sms_provider: orNull(settings.notifications.sms_provider),
+            appointment_reminder_hours: Number(settings.notifications.appointment_reminder_hours),
+            queue_alert_ahead: Number(settings.notifications.queue_alert_ahead),
+          });
+        } else {
+          latest = await settingsService.saveSecurity({
+            max_login_attempts: Number(settings.security.max_login_attempts),
+            session_timeout_minutes: orNullInt(settings.security.session_timeout_minutes),
+          });
+        }
+      } catch (error) {
+        failures.push(...settingsErrorMessages(error));
+      }
     }
 
-    const toSave: SettingsForm = {
-      ...settings,
-      smsApiKey: "",
-      smsApiKeyConfigured:
-        settings.smsApiKeyConfigured || settings.smsApiKey.trim().length > 0,
-      lastSavedAt: nowText(),
-    };
+    // Re-seed from whatever the server last returned, so the fields show what
+    // was actually stored rather than what was typed. A partial failure leaves
+    // the successful sections saved and the failing ones still dirty.
+    if (latest) {
+      const form = toForm(latest);
+      setMeta(latest.meta);
+      setRhuLabel(latest.rhu_label);
+      setSnapshot(form);
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-    setSettings(toSave);
-    setSnapshot(JSON.stringify(stripSecret(toSave)));
+      if (failures.length === 0) {
+        setSettings(form);
+      }
+    }
 
-    flash(c.saved);
+    setErrors(failures);
+    setSaving(false);
+
+    if (failures.length === 0) {
+      flash(c.saved);
+    }
   }
 
   function resetChanges() {
-    const loaded = loadInitialSettings();
-    setSettings(loaded);
-    setSnapshot(JSON.stringify(stripSecret(loaded)));
+    setSettings(snapshot);
     setErrors([]);
     flash(c.resetDone);
-  }
-
-  function testSmsConfiguration() {
-    const nextErrors = validate();
-
-    if (!settings.smsApiKeyConfigured && !settings.smsApiKey.trim()) {
-      nextErrors.push("SMS API Key is not configured.");
-    }
-
-    setErrors(nextErrors);
-
-    if (nextErrors.length > 0) {
-      return;
-    }
-
-    flash(c.smsLooksValid);
   }
 
   async function loadBackupStatus() {
@@ -539,26 +552,46 @@ export default function Settings() {
 
         <div className="hero-status-card">
           <strong>{hasChanges ? c.unsaved : c.noUnsaved}</strong>
-          <span>{settings.lastSavedAt || c.lastSaved}</span>
+          {/* The old card showed a "last saved" timestamp generated in the
+              browser at save time -- it described a localStorage write, not
+              anything on the server. The facility being edited is a fact the
+              server reports, so that is shown instead. */}
+          <span>{loading ? "Loading…" : rhuLabel ?? ""}</span>
         </div>
       </section>
 
       <div className="top-actions">
-        <button className="btn-secondary" onClick={resetChanges} disabled={!hasChanges}>
+        <button className="btn-secondary" onClick={resetChanges} disabled={!hasChanges || saving}>
           <RotateCcw size={16} />
           {c.reset}
         </button>
 
-        <button className="btn-secondary" onClick={testSmsConfiguration}>
-          <Send size={16} />
-          {c.testSms}
-        </button>
+        {/* The "Test SMS" button that used to sit here sent nothing. It re-ran
+            the same client-side field validation and flashed "SMS
+            configuration looks valid", which is why an install with no API key
+            could still report success. Whether the server actually holds a
+            credential is now shown in the Notifications section, sourced from
+            the server rather than asserted by the browser. */}
 
-        <button className="btn-primary" onClick={saveSettings}>
+        <button className="btn-primary" onClick={() => void saveSettings()} disabled={!hasChanges || saving}>
           <Save size={16} />
-          {c.saveAll}
+          {saving ? "Saving…" : c.saveAll}
         </button>
       </div>
+
+      {loadError && (
+        <div className="error-panel">
+          <div>
+            <AlertTriangle size={18} />
+          </div>
+          <div>
+            <strong>Could not load settings from the server</strong>
+            <ul>
+              <li>{loadError}</li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {saved && (
         <div className="success-message">
@@ -601,32 +634,32 @@ export default function Settings() {
           <Field
             label={c.facilityName}
             helper={c.facilityNameHelp}
-            value={settings.facilityName}
-            onChange={(value) => update("facilityName", value)}
+            value={settings.facility.facility_name}
+            onChange={(value) => update("facility", "facility_name", value)}
             icon={<Building2 size={16} />}
           />
 
           <Field
             label={c.address}
             helper={c.addressHelp}
-            value={settings.address}
-            onChange={(value) => update("address", value)}
+            value={settings.facility.address}
+            onChange={(value) => update("facility", "address", value)}
             icon={<MapPin size={16} />}
           />
 
           <Field
             label={c.contactNumber}
             helper={c.contactNumberHelp}
-            value={settings.contactNumber}
-            onChange={(value) => update("contactNumber", value)}
+            value={settings.facility.contact_number}
+            onChange={(value) => update("facility", "contact_number", value)}
             icon={<Phone size={16} />}
           />
 
           <Field
             label={c.email}
             helper={c.emailHelp}
-            value={settings.email}
-            onChange={(value) => update("email", value)}
+            value={settings.facility.email}
+            onChange={(value) => update("facility", "email", value)}
             type="email"
             icon={<Mail size={16} />}
           />
@@ -634,8 +667,8 @@ export default function Settings() {
           <Field
             label={c.hours}
             helper={c.hoursHelp}
-            value={settings.operatingHours}
-            onChange={(value) => update("operatingHours", value)}
+            value={settings.facility.operating_hours}
+            onChange={(value) => update("facility", "operating_hours", value)}
             icon={<Clock3 size={16} />}
           />
         </SettingsSection>
@@ -648,43 +681,52 @@ export default function Settings() {
           <Field
             label={c.smsProvider}
             helper={c.smsProviderHelp}
-            value={settings.smsProvider}
-            onChange={(value) => update("smsProvider", value)}
+            value={settings.notifications.sms_provider}
+            onChange={(value) => update("notifications", "sms_provider", value)}
             icon={<Smartphone size={16} />}
           />
 
+          {/* This used to be an editable password input. It was doubly
+              misleading: the value was discarded on save (never persisted,
+              never sent anywhere), and the "Configured" status beside it came
+              from a hardcoded default of `true`, so an install with no key at
+              all still reported that one was set.
+
+              The credential lives in the server environment, which is where a
+              production secret belongs. What is shown here is what the server
+              reports about it -- never the value. */}
           <div className="field">
             <label>{c.smsApiKey}</label>
 
-            <div className="secret-row">
+            <div className="secret-row secret-row--readonly">
               <KeyRound size={16} />
-
-              <input
-                type={showApiKey ? "text" : "password"}
-                value={settings.smsApiKey}
-                placeholder={c.apiReplacePlaceholder}
-                onChange={(event) => update("smsApiKey", event.target.value)}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowApiKey((value) => !value)}
-                aria-label="Toggle API key visibility"
-              >
-                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+              <b>{loading ? "…" : apiStatus}</b>
             </div>
 
             <small>
-              {c.smsApiKeyHelp} Status: <b>{apiStatus}</b>
+              Set on the server as <code>SEMAPHORE_API_KEY</code>; it cannot be
+              viewed or changed from this page. Messages are sent under the
+              sender name <b>{meta?.sms_sender_name || "—"}</b>.
             </small>
           </div>
+
+          {meta && !meta.sms_settings_enforced && (
+            <div className="field">
+              <small className="not-enforced">
+                <AlertTriangle size={14} />
+                The values below are saved, but the SMS pipeline does not read
+                them yet — reminder timing is still controlled in code. Changing
+                them does not currently affect when messages are sent. Contact
+                your developer to apply these values.
+              </small>
+            </div>
+          )}
 
           <Field
             label={c.reminderHours}
             helper={c.reminderHoursHelp}
-            value={settings.appointmentReminderHours}
-            onChange={(value) => update("appointmentReminderHours", value)}
+            value={settings.notifications.appointment_reminder_hours}
+            onChange={(value) => update("notifications", "appointment_reminder_hours", value)}
             type="number"
             icon={<Bell size={16} />}
           />
@@ -692,8 +734,8 @@ export default function Settings() {
           <Field
             label={c.queueAlert}
             helper={c.queueAlertHelp}
-            value={settings.queueAlertAhead}
-            onChange={(value) => update("queueAlertAhead", value)}
+            value={settings.notifications.queue_alert_ahead}
+            onChange={(value) => update("notifications", "queue_alert_ahead", value)}
             type="number"
             icon={<Bell size={16} />}
           />
@@ -707,20 +749,42 @@ export default function Settings() {
           <Field
             label={c.sessionTimeout}
             helper={c.sessionTimeoutHelp}
-            value={settings.sessionTimeoutMinutes}
-            onChange={(value) => update("sessionTimeoutMinutes", value)}
+            value={settings.security.session_timeout_minutes}
+            onChange={(value) => update("security", "session_timeout_minutes", value)}
             type="number"
             icon={<Clock3 size={16} />}
           />
 
+          {/* Stated on screen, not just in a code comment. Anyone reading this
+              panel needs to know the number they just typed is recorded but
+              inert -- otherwise this is the old fake-settings problem wearing a
+              database. */}
+          {meta && !meta.session_timeout_enforced && (
+            <small className="not-enforced">
+              <AlertTriangle size={14} />
+              Changing this value does not currently affect session length —
+              contact your developer to apply this change. Sessions currently
+              last {Math.round(meta.session_lifetime_minutes_actual / 60 / 24)} days,
+              set in the server configuration.
+            </small>
+          )}
+
           <Field
             label={c.maxLogin}
             helper={c.maxLoginHelp}
-            value={settings.maxLoginAttempts}
-            onChange={(value) => update("maxLoginAttempts", value)}
+            value={settings.security.max_login_attempts}
+            onChange={(value) => update("security", "max_login_attempts", value)}
             type="number"
             icon={<Shield size={16} />}
           />
+
+          {meta?.max_login_attempts_enforced && (
+            <small className="is-enforced">
+              <ShieldCheck size={14} />
+              This limit is applied to every login attempt as soon as it is
+              saved.
+            </small>
+          )}
         </SettingsSection>
 
         <SettingsSection
@@ -1244,6 +1308,51 @@ const pageStyles = `
   color: #64748B;
   font-size: 12px;
   line-height: 1.35;
+}
+
+.secret-row--readonly {
+  color: #0F172A;
+  font-size: 14px;
+}
+
+/* Enforcement labels.
+   These carry real meaning -- whether a saved value changes behaviour -- so
+   they are styled to be read, not to blend into the helper text. */
+.not-enforced,
+.is-enforced {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: 11px;
+  padding: 9px 11px;
+  margin-top: -2px;
+}
+
+.not-enforced {
+  color: #92400E;
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+}
+
+.is-enforced {
+  color: #166534;
+  background: #DCFCE7;
+  border: 1px solid #BBF7D0;
+}
+
+.not-enforced svg,
+.is-enforced svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.field code {
+  background: #E2E8F0;
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 11px;
 }
 
 .toggle-card {
