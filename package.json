@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/check-api-url.mjs",
     "build": "tsc && vite build",
+    "postbuild": "node scripts/check-api-url.mjs --artifact",
     "preview": "vite preview"
   },
   "dependencies": {
