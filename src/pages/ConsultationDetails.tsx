@@ -43,6 +43,7 @@ import {
 } from "../services/followups";
 
 import {
+  downloadPrescriptionPdf,
   scanPrescriptionForConsultation,
   type PrescriptionOcrResult,
 } from "../services/prescriptions";
@@ -1972,15 +1973,20 @@ export default function ConsultationDetails() {
             ) : null}
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {prescriptionResult.pdf_url ? (
-                <a
-                  href={prescriptionResult.pdf_url}
-                  target="_blank"
-                  rel="noreferrer"
+              {/* Fetched with the staff login token: the PDF endpoint requires auth,
+                  so a plain link would open a 401. */}
+              {prescriptionResult.prescription_id ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadPrescriptionPdf(prescriptionResult.prescription_id).catch(() => {
+                      window.alert("Could not open the prescription PDF. Please try again.");
+                    });
+                  }}
                   style={openPdfButtonStyle}
                 >
                   Open Prescription PDF
-                </a>
+                </button>
               ) : null}
 
               <button
