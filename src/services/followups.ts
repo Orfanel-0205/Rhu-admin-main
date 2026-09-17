@@ -41,7 +41,8 @@ export interface FollowUpReminder {
   created_at?: string | null;
   user?: any;
   rhu?: any;
-  created_by?: number | null;
+  /** The staff record, or just the id: Laravel serialises the createdBy relation over this column. */
+  created_by?: number | Record<string, any> | null;
   createdBy?: any;
 }
 

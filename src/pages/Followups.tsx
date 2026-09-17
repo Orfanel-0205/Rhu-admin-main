@@ -75,11 +75,17 @@ function diagnosisLabel(item: FollowUpReminder): string {
 }
 
 function staffLabel(item: FollowUpReminder): string {
-  const c = (item as any).createdBy || (item as any).created_by_user;
+  // The server sends the staff record under `created_by`, the same name as the
+  // numeric column (Laravel renames the createdBy relation to snake_case and it
+  // wins). So this field is either the staff record or just the id.
+  const raw = (item as any).createdBy ?? (item as any).created_by_user ?? item.created_by;
+  const staff = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const id = typeof raw === "number" ? raw : (staff?.user_id ?? staff?.id ?? null);
+
   return (
-    safe(c?.full_name) ||
-    [c?.first_name, c?.last_name].filter(Boolean).join(" ").trim() ||
-    (item.created_by ? `Staff #${item.created_by}` : "—")
+    safe(staff?.full_name) ||
+    [staff?.first_name, staff?.last_name].filter(Boolean).join(" ").trim() ||
+    (id ? `Staff #${id}` : "—")
   );
 }
 
