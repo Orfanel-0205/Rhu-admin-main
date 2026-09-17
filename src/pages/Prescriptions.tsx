@@ -37,6 +37,7 @@ import {
   type LabTestsInput,
   type MedicineSearchResult,
   type MedicationInput,
+  type MedicineReceiver,
   type Prescription,
   type PrescriptionFormType,
 } from "../services/prescriptions";
@@ -235,6 +236,20 @@ function toNullablePositiveId(
 
 function readQueryValue(params: URLSearchParams, key: string): string {
   return String(params.get(key) ?? "").trim();
+}
+
+// Quantity of each medicine still to be handed over. Mirrors the server's
+// Prescription::remainingQuantities(): prescribed minus the running total given.
+function remainingMedicines(item: Prescription): { name: string; remaining: number }[] {
+  return (item.medications ?? [])
+    .map((medicine) => {
+      const raw = medicine as MedicationInput & { dispense_quantity?: number; qty?: number };
+      const prescribed = Math.max(1, parseInt(String(raw.dispense_quantity ?? raw.quantity ?? raw.qty ?? 1), 10) || 1);
+      const given = parseInt(String(raw.dispensed_quantity ?? 0), 10) || 0;
+
+      return { name: String(raw.name ?? "").trim(), remaining: Math.max(0, prescribed - given) };
+    })
+    .filter((medicine) => medicine.name !== "" && medicine.remaining > 0);
 }
 
 function isLabRequest(item: Prescription): boolean {
@@ -773,6 +788,12 @@ export default function Prescriptions() {
           "Will this medicine be dispensed from the RHU drug room now?\n\nOK = Release PDF and deduct inventory\nCancel = Release PDF only"
         );
 
+    const receiver = dispenseFromRhu ? askReceiver() : null;
+
+    if (dispenseFromRhu && !receiver) {
+      return;
+    }
+
     setActionId(item.id);
 
     try {
@@ -782,6 +803,7 @@ export default function Prescriptions() {
         dispensing_notes: dispenseFromRhu
           ? "Released and dispensed from RHU drug room."
           : undefined,
+        ...(receiver ?? {}),
       });
 
       flash(
@@ -805,10 +827,86 @@ export default function Prescriptions() {
     }
   }
 
+  // Every dispense records who took the medicine home. Cancelling stops the dispense.
+  function askReceiver(): MedicineReceiver | null {
+    const name = window.prompt(
+      "Who received the medicine? Enter the patient's name, or the name of the person collecting for them."
+    );
+
+    if (name === null) {
+      return null;
+    }
+
+    if (!name.trim()) {
+      toast.error("Enter who received the medicine before dispensing.");
+      return null;
+    }
+
+    const relationship =
+      window.prompt("Relationship to the patient (leave blank if the patient collected it):") ?? "";
+
+    return {
+      received_by_name: name.trim(),
+      received_by_relationship: relationship.trim() || undefined,
+    };
+  }
+
   async function onDispense(item: Prescription) {
     if (isLabRequest(item)) {
       toast.success("Lab requests cannot be dispensed from inventory.");
       return;
+    }
+
+    const remaining = remainingMedicines(item);
+
+    if (remaining.length === 0) {
+      toast.error("Everything on this prescription has already been dispensed.");
+      return;
+    }
+
+    const receiver = askReceiver();
+
+    if (!receiver) {
+      return;
+    }
+
+    // Record only what is actually handed over; the rest can be dispensed later.
+    let dispensedItems: { name: string; quantity_dispensed: number }[] | undefined;
+    const summary = remaining.map((m) => `${m.name}: ${m.remaining}`).join("\n");
+
+    if (
+      !window.confirm(
+        `Is all of this being handed over now?\n\n${summary}\n\nOK = all of it\nCancel = enter the quantity given for each medicine`
+      )
+    ) {
+      dispensedItems = [];
+
+      for (const medicine of remaining) {
+        const answer = window.prompt(
+          `Quantity of ${medicine.name} handed over now (0 to ${medicine.remaining}):`,
+          String(medicine.remaining)
+        );
+
+        if (answer === null) {
+          return;
+        }
+
+        const quantity = Number(answer.trim());
+
+        if (!Number.isInteger(quantity) || quantity < 0 || quantity > medicine.remaining) {
+          toast.error(`Enter a whole number from 0 to ${medicine.remaining} for ${medicine.name}.`);
+          return;
+        }
+
+        if (quantity > 0) {
+          dispensedItems.push({ name: medicine.name, quantity_dispensed: quantity });
+        }
+      }
+
+      if (dispensedItems.length === 0) {
+        toast.error("Enter a quantity for at least one medicine.");
+        return;
+      }
     }
 
     const notes = window.prompt(t("rx_dispense_prompt", lang)) || "";
@@ -816,7 +914,11 @@ export default function Prescriptions() {
     setActionId(item.id);
 
     try {
-      await dispensePrescription(item.id, notes);
+      await dispensePrescription(item.id, {
+        ...receiver,
+        notes,
+        dispensed_items: dispensedItems,
+      });
 
       flash(t("rx_dispensed", lang));
 

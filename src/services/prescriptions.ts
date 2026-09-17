@@ -7,6 +7,8 @@ export interface MedicationInput {
   dosage?: string;
   dosage_form?: string;
   quantity?: number;
+  /** Set by the server: running total already handed over from the drug room. */
+  dispensed_quantity?: number;
   frequency?: string;
   duration?: string;
   route?: string;
@@ -235,24 +237,40 @@ export async function releasePrescription(
     dispense_from_rhu?: boolean;
     strict_inventory?: boolean;
     dispensing_notes?: string;
-  }
+  } & Partial<MedicineReceiver>
 ): Promise<Prescription> {
   const response = await apiClient.post(`/prescriptions/${id}/release`, {
     dispense_from_rhu: Boolean(options?.dispense_from_rhu),
     strict_inventory: options?.strict_inventory ?? true,
     dispensing_notes: options?.dispensing_notes,
+    received_by_name: options?.received_by_name,
+    received_by_relationship: options?.received_by_relationship,
   });
 
   return response.data?.data ?? response.data;
 }
 
+/** Who took the medicine home: the patient, or someone collecting for them. */
+export interface MedicineReceiver {
+  received_by_name: string;
+  received_by_relationship?: string;
+}
+
 export async function dispensePrescription(
   id: number,
-  notes = ""
+  options: MedicineReceiver & {
+    notes?: string;
+    /** Omit to hand over everything still remaining. */
+    dispensed_items?: { name: string; quantity_dispensed: number }[];
+  }
 ): Promise<Prescription> {
+  const notes = options.notes ?? "";
   const response = await apiClient.post(`/prescriptions/${id}/dispense`, {
     notes,
     dispensing_notes: notes,
+    received_by_name: options.received_by_name,
+    received_by_relationship: options.received_by_relationship,
+    dispensed_items: options.dispensed_items,
     deduct_inventory: true,
     strict_inventory: true,
     fail_on_insufficient_stock: true,
