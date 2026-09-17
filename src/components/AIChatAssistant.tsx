@@ -44,7 +44,7 @@ import {
   speak,
   stopSpeaking,
 } from "../lib/assistantVoice";
-import { useLangStore } from "../store/langStore";
+import { useLangStore, type Lang } from "../store/langStore";
 import {
   deleteAdminChatSession,
   endAdminChatSession,
@@ -90,6 +90,15 @@ const LAUNCHER_SIZE = 58;
 // Lowest point the launcher may be dragged to. Above this sits the top bar,
 // which spans the full width and would hide it.
 const LAUNCHER_TOP_MIN = 76;
+
+// The chat's own language menu, remembered per device. It drives everything:
+// what the microphone listens for, what language the answer comes back in, and
+// which voice reads it aloud.
+const CHAT_LANGUAGE_KEY = "ka_agapay_admin_chatbot_language";
+
+// How long a pause ends dictation. Long enough to think mid-sentence, short
+// enough that staff are not left waiting with the microphone open.
+const VOICE_SILENCE_MS = 2500;
 
 // Simple mode: bigger text, big one-tap buttons, replies read aloud, and the
 // assistant does the opening and searching itself. For staff who are not
@@ -233,6 +242,33 @@ const LANGUAGE_OPTIONS: Array<{ value: ChatLanguage; label: string; code: string
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+/** The chat menu uses "tl"; the dashboard calls the same language "tag". */
+function chatLanguageToLang(value: ChatLanguage): Lang {
+  if (value === "tl") return "tag";
+  if (value === "pag") return "pag";
+  return "en";
+}
+
+function langToChatLanguage(value: Lang): ChatLanguage {
+  if (value === "tag") return "tl";
+  if (value === "pag") return "pag";
+  return "en";
+}
+
+function readSavedChatLanguage(): ChatLanguage {
+  try {
+    const saved = window.localStorage.getItem(CHAT_LANGUAGE_KEY);
+
+    if (saved === "en" || saved === "tl" || saved === "pag") {
+      return saved;
+    }
+  } catch {
+    // Blocked site data: fall through to the dashboard language.
+  }
+
+  return langToChatLanguage(useLangStore.getState().lang);
 }
 
 function clampChatLayout(layout: {
@@ -1407,22 +1443,30 @@ export default function AIChatAssistant() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [layout, setLayout] = useState(readSavedChatLayout);
   const [launcherPos, setLauncherPos] = useState<LauncherPosition>(readSavedLauncherPosition);
-  const [chatLanguage, setChatLanguage] = useState<ChatLanguage>("en");
+  const [chatLanguage, setChatLanguage] = useState<ChatLanguage>(readSavedChatLanguage);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [voiceMessage, setVoiceMessage] = useState("");
 
   // Browser-native speech-to-text. Recognized text fills the chatbot input;
   // the user reviews it and presses Send (no auto-send). en-US is used because
   // Chrome rejects many regional tags (e.g. fil-PH) with language-not-supported.
-  const lang = useLangStore((state) => state.lang);
+  // Everything language-related follows the chat's own menu.
+  const lang = chatLanguageToLang(chatLanguage);
+
+  // Dictation keeps running through pauses and stops itself after a silence,
+  // instead of cutting out the moment the speaker draws breath.
+  const scheduleVoiceStopRef = useRef<() => void>(() => {});
 
   const voice = useWebSpeechRecognition({
-    // Listens in the dashboard's language. No browser has a Pangasinan
-    // recogniser, so Pangasinan is heard with the Filipino one.
+    // No browser has a Pangasinan recogniser, so Pangasinan is heard with the
+    // Filipino one.
     lang: recognitionLanguage(lang),
-    interimResults: false,
-    continuous: false,
-    onResult: (finalText) => setInput(finalText),
+    interimResults: true,
+    continuous: true,
+    onResult: (finalText) => {
+      setInput((current) => (current ? `${current} ${finalText}` : finalText).trim());
+      scheduleVoiceStopRef.current();
+    },
   });
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -1543,7 +1587,11 @@ export default function AIChatAssistant() {
   useEffect(() => {
     if (voice.isListening) {
       setVoiceState("listening");
-      setVoiceMessage("Listening...");
+      // Showing the words as they are heard is the only way to tell that the
+      // microphone is working before the answer arrives.
+      setVoiceMessage(
+        voice.interimTranscript ? `Listening… ${voice.interimTranscript}` : "Listening…"
+      );
     } else if (voice.error) {
       setVoiceState("error");
       setVoiceMessage(voice.error);
@@ -1551,7 +1599,7 @@ export default function AIChatAssistant() {
       setVoiceState("idle");
       setVoiceMessage("");
     }
-  }, [voice.isListening, voice.error]);
+  }, [voice.isListening, voice.error, voice.interimTranscript]);
 
   const loadSessions = async () => {
     setHistoryLoading(true);
@@ -1628,6 +1676,13 @@ export default function AIChatAssistant() {
 
     if (!finalText || loading) return;
 
+    // Sending ends dictation: no half-heard sentence arrives after the answer.
+    clearSilenceTimer();
+
+    if (voice.isListening) {
+      voice.stopListening();
+    }
+
     const userMessage: ChatMessage = {
       id: `local-${Date.now()}`,
       role: "user",
@@ -1695,6 +1750,54 @@ export default function AIChatAssistant() {
       setLoading(false);
     }
   };
+
+  // ── Dictation ──────────────────────────────────────────────────────────────
+  //
+  // Chrome ends a non-continuous recognition at the first pause, which cut
+  // people off after about three seconds. Listening now carries on through
+  // pauses; after a short silence the microphone closes and whatever was said
+  // is sent, so a staff member can ask a whole question, wait, and get the
+  // answer without touching the keyboard.
+  const inputRef = useRef(input);
+  const silenceTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
+
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current !== null) {
+      window.clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  };
+
+  const scheduleVoiceStop = () => {
+    clearSilenceTimer();
+
+    silenceTimerRef.current = window.setTimeout(() => {
+      silenceTimerRef.current = null;
+      voice.stopListening();
+
+      const spoken = inputRef.current.trim();
+
+      if (spoken) {
+        void sendMessage(spoken);
+      }
+    }, VOICE_SILENCE_MS);
+  };
+
+  scheduleVoiceStopRef.current = scheduleVoiceStop;
+
+  // Still talking: keep the microphone open.
+  useEffect(() => {
+    if (voice.isListening && voice.interimTranscript) {
+      scheduleVoiceStop();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.interimTranscript, voice.isListening]);
+
+  useEffect(() => clearSilenceTimer, []);
 
   /**
    * Hand the drafted content to the Events page. Works from ANY route — the
@@ -2015,9 +2118,18 @@ export default function AIChatAssistant() {
       return;
     }
 
-    // Toggle: clicking the mic again while listening stops it.
+    // Toggle: clicking the mic again while listening stops it and sends what
+    // was heard, so the button both starts and finishes dictation.
     if (voice.isListening) {
+      clearSilenceTimer();
       voice.stopListening();
+
+      const spoken = inputRef.current.trim();
+
+      if (spoken) {
+        void sendMessage(spoken);
+      }
+
       return;
     }
 
@@ -2223,7 +2335,18 @@ export default function AIChatAssistant() {
               >
                 <select
                   value={chatLanguage}
-                  onChange={(event) => setChatLanguage(event.target.value as ChatLanguage)}
+                  onChange={(event) => {
+                    const next = event.target.value as ChatLanguage;
+
+                    setChatLanguage(next);
+                    stopSpeaking();
+
+                    try {
+                      window.localStorage.setItem(CHAT_LANGUAGE_KEY, next);
+                    } catch {
+                      // The choice still applies for this session.
+                    }
+                  }}
                   title="Chat language"
                   style={{
                     height: 32,
