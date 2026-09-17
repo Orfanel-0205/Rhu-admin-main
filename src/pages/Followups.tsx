@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   CalendarClock,
@@ -133,7 +133,9 @@ export default function Followups() {
   });
 
   const [status, setStatus] = useState<FollowUpBoardStatus>("all");
-  const [search, setSearch] = useState("");
+  // ?search=... lets the assistant open this page with the name already typed in.
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);

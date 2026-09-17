@@ -4,7 +4,7 @@
 // and RHU-scoped by the backend (facility-locked staff see only their RHU).
 
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Users, Search, Eye, RefreshCw } from "lucide-react";
 import { color, radius } from "../theme/tokens";
 import TablePagination from "../components/ui/TablePagination";
@@ -41,7 +41,9 @@ export default function PatientRegistry() {
     total: 0,
     per_page: PER_PAGE,
   });
-  const [search, setSearch] = useState("");
+  // ?search=... lets the assistant open this page with the name already typed in.
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 

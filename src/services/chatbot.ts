@@ -60,6 +60,11 @@ export interface ChatResponse {
   audience?: "staff" | "resident";
   intent?: string;
   suggested_action?: AdminSuggestedAction;
+  /**
+   * Extra instructions for the page being opened. Only `search` is supported,
+   * so the assistant can arrive with the search box already filled in.
+   */
+  action_params?: Record<string, string> | null;
   tutorial_cards?: TutorialCard[];
   /**
    * Present only when the assistant drafted CMS content: a structured version
@@ -94,6 +99,10 @@ export async function sendAdminChatMessage(params: {
   currentPage?: string;
   currentButton?: string;
   assistantMode?: AssistantMode;
+  /** Dashboard language (en / tag / pag): the reply comes back in this language. */
+  uiLanguage?: string;
+  /** Short, spoken-style answers for staff who are not comfortable with computers. */
+  simpleMode?: boolean;
 }): Promise<ChatResponse> {
   const response = await apiClient.post<ChatResponse>("/chat/message", {
     message: params.message,
@@ -106,6 +115,8 @@ export async function sendAdminChatMessage(params: {
       current_button: params.currentButton,
       app_section: "rhu_admin_dashboard",
       assistant_mode: params.assistantMode ?? "operations",
+      ui_language: params.uiLanguage,
+      simple_mode: params.simpleMode ? 1 : undefined,
     },
   });
 

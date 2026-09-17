@@ -391,7 +391,8 @@ export default function Prescriptions() {
   const autoOpenHandledRef = useRef(false);
 
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [search, setSearch] = useState("");
+  // ?search=... lets the assistant open this page with the search already typed in.
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [status, setStatus] = useState("all");
 
   const [modal, setModal] = useState(false);

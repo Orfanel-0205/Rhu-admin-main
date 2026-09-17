@@ -1,6 +1,13 @@
 // src/components/AIChatAssistant.tsx
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   Bot,
   X,
@@ -15,6 +22,8 @@ import {
   MessageSquare,
   Mic,
   MicOff,
+  Volume2,
+  VolumeX,
   RotateCcw,
   Maximize2,
   Minimize2,
@@ -25,6 +34,17 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { stashCmsDraft, type CmsDraft } from "../utils/cmsDraftHandoff";
 import { useWebSpeechRecognition } from "../hooks/useWebSpeechRecognition";
+import {
+  hasNativeVoice,
+  isSpeechOutputSupported,
+  isVoiceOutputEnabled,
+  primeVoices,
+  recognitionLanguage,
+  setVoiceOutputEnabled,
+  speak,
+  stopSpeaking,
+} from "../lib/assistantVoice";
+import { useLangStore } from "../store/langStore";
 import {
   deleteAdminChatSession,
   endAdminChatSession,
@@ -66,6 +86,54 @@ const CHATBOT_LAYOUT_KEY = "ka_agapay_admin_chatbot_layout_v1";
 // localStorage keys — production app, not an artifact.
 const CHATBOT_LAUNCHER_KEY = "ka_agapay_admin_chatbot_launcher_v1";
 const LAUNCHER_SIZE = 58;
+
+// Simple mode: bigger text, big one-tap buttons, replies read aloud, and the
+// assistant does the opening and searching itself. For staff who are not
+// comfortable with computers.
+const SIMPLE_MODE_KEY = "ka_agapay_admin_assistant_simple_mode";
+
+// A beat between the reply appearing and the page opening, so the staff member
+// sees what is about to happen instead of the screen jumping under them.
+const AUTO_ACTION_DELAY_MS = 900;
+
+// The big buttons shown in simple mode: the four things staff do all day.
+function chipStyle(active: boolean): CSSProperties {
+  return {
+    border: `1px solid ${active ? "#5EEAD4" : "#E5E7EB"}`,
+    background: active ? "#F0FDF9" : "#FFFFFF",
+    color: active ? "#0F766E" : "#475569",
+    borderRadius: 999,
+    padding: "6px 10px",
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+  };
+}
+
+const SIMPLE_ACTIONS: {
+  action: Exclude<AdminSuggestedAction, null>;
+  label: Record<"en" | "tag" | "pag", string>;
+}[] = [
+  {
+    action: "open_queue",
+    label: { en: "Queue today", tag: "Pila ngayon", pag: "Pila natan" },
+  },
+  {
+    action: "open_appointments",
+    label: { en: "Appointments", tag: "Mga appointment", pag: "Saray appointment" },
+  },
+  {
+    action: "open_patient_registry",
+    label: { en: "Find a patient", tag: "Hanapin ang pasyente", pag: "Anapen so pasyente" },
+  },
+  {
+    action: "open_notifications",
+    label: { en: "New messages", tag: "Bagong mensahe", pag: "Balon mensahe" },
+  },
+];
 
 type LauncherPosition = { left: number; top: number };
 
@@ -1315,6 +1383,15 @@ export default function AIChatAssistant() {
   // or the header toggle.
   const [firstLoginWelcome, setFirstLoginWelcome] = useState(false);
   const [suggestedAction, setSuggestedAction] = useState<AdminSuggestedAction>(null);
+  const [actionParams, setActionParams] = useState<Record<string, string>>({});
+  const [speakReplies, setSpeakReplies] = useState<boolean>(isVoiceOutputEnabled);
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(SIMPLE_MODE_KEY) === "on";
+    } catch {
+      return false;
+    }
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -1327,14 +1404,32 @@ export default function AIChatAssistant() {
   // Browser-native speech-to-text. Recognized text fills the chatbot input;
   // the user reviews it and presses Send (no auto-send). en-US is used because
   // Chrome rejects many regional tags (e.g. fil-PH) with language-not-supported.
+  const lang = useLangStore((state) => state.lang);
+
   const voice = useWebSpeechRecognition({
-    lang: "en-US",
+    // Listens in the dashboard's language. No browser has a Pangasinan
+    // recogniser, so Pangasinan is heard with the Filipino one.
+    lang: recognitionLanguage(lang),
     interimResults: false,
     continuous: false,
     onResult: (finalText) => setInput(finalText),
   });
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // Chrome loads its voice list asynchronously, so warm it up before the first
+  // reply arrives. Closing the chat stops it mid-sentence.
+  useEffect(() => {
+    primeVoices();
+
+    return () => stopSpeaking();
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      stopSpeaking();
+    }
+  }, [open]);
   const dragRef = useRef<{
     startX: number;
     startY: number;
@@ -1539,14 +1634,32 @@ export default function AIChatAssistant() {
         currentPage: location.pathname,
         currentButton,
         assistantMode,
+        uiLanguage: lang,
+        simpleMode,
       });
 
       setMessages((previous) => [...previous, response.message]);
       setCurrentSessionId(response.session_id ?? currentSessionId);
       setTutorialCards(response.tutorial_cards ?? []);
       setSuggestedAction(response.suggested_action ?? null);
+      setActionParams(response.action_params ?? {});
       setCmsDraft(response.cms_draft ?? null);
       void loadSessions();
+
+      if (speakReplies) {
+        speak(response.message.content, lang);
+      }
+
+      // The assistant opens the page and fills the search itself. Both are
+      // harmless: nothing is saved, so a misheard word only shows the wrong
+      // list, and the staff member can type again. Not during a Getting
+      // Started lesson, where jumping pages would interrupt the walkthrough.
+      if (response.suggested_action && assistantMode !== "tutorial") {
+        const action = response.suggested_action;
+        const params = response.action_params ?? {};
+
+        window.setTimeout(() => runAction(action, params), AUTO_ACTION_DELAY_MS);
+      }
     } catch (error: any) {
       console.error("[AIChatAssistant] Send failed:", error);
 
@@ -1625,14 +1738,70 @@ export default function AIChatAssistant() {
     navigate(route);
   };
 
+  /**
+   * Open a page, and fill its search box when the assistant understood what to
+   * look for. In simple mode the chat stays open, so the staff member can keep
+   * talking to it instead of hunting for the button again.
+   */
+  const runAction = (
+    action: Exclude<AdminSuggestedAction, null>,
+    params: Record<string, string> = {}
+  ) => {
+    const route = ACTION_ROUTES[action];
+
+    if (!route) return;
+
+    const term = (params.search ?? "").trim();
+    // The Users page names its search "q"; every other page uses "search".
+    const key = action === "open_users" ? "q" : "search";
+
+    navigate(term ? `${route}?${key}=${encodeURIComponent(term)}` : route);
+
+    if (!simpleMode) {
+      setOpen(false);
+    }
+  };
+
   const goToSuggestedAction = () => {
     if (!suggestedAction) return;
 
-    const route = ACTION_ROUTES[suggestedAction];
+    runAction(suggestedAction, actionParams);
+  };
 
-    if (route) {
-      navigate(route);
-      setOpen(false);
+  const toggleSpeakReplies = () => {
+    const next = !speakReplies;
+
+    setSpeakReplies(next);
+    setVoiceOutputEnabled(next);
+
+    if (next) {
+      // Speaking straight after the click proves the device can talk, and the
+      // click itself is the interaction browsers require before audio.
+      const lastReply = [...messages].reverse().find((m) => m.role === "assistant");
+
+      speak(
+        lastReply?.content ??
+          (lang === "en" ? "I will read my answers out loud." : "Babasahin ko nang malakas ang sagot ko."),
+        lang
+      );
+    }
+  };
+
+  const toggleSimpleMode = () => {
+    const next = !simpleMode;
+
+    setSimpleMode(next);
+
+    try {
+      window.localStorage.setItem(SIMPLE_MODE_KEY, next ? "on" : "off");
+    } catch {
+      // The choice still applies for this session.
+    }
+
+    // Simple mode is for people who would rather listen than read.
+    if (next && !speakReplies && isSpeechOutputSupported()) {
+      setSpeakReplies(true);
+      setVoiceOutputEnabled(true);
     }
   };
 
@@ -2239,6 +2408,8 @@ export default function AIChatAssistant() {
                 overflowY: "auto",
                 padding: 16,
                 background: "#FFFFFF",
+                // Simple mode enlarges everything inside the conversation.
+                zoom: simpleMode ? 1.15 : undefined,
               }}
             >
               {messages.map((message) => {
@@ -2391,6 +2562,84 @@ export default function AIChatAssistant() {
               )}
 
               <div ref={bottomRef} />
+            </div>
+
+            {/* Voice and simple mode, right above the box where staff type. */}
+            <div
+              style={{
+                padding: "10px 14px 0",
+                background: "#fff",
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              {simpleMode && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {SIMPLE_ACTIONS.map((item) => (
+                    <button
+                      key={item.action}
+                      type="button"
+                      onClick={() => runAction(item.action)}
+                      style={{
+                        border: "1px solid #A7F3D0",
+                        background: "#ECFDF5",
+                        color: "#065F46",
+                        borderRadius: 14,
+                        padding: "14px 10px",
+                        fontSize: 15,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        minHeight: 56,
+                      }}
+                    >
+                      {item.label[lang]}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  alignItems: "center",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={toggleSimpleMode}
+                  aria-pressed={simpleMode}
+                  style={chipStyle(simpleMode)}
+                >
+                  <Sparkles size={13} />
+                  {simpleMode ? "Simple mode: on" : "Simple mode"}
+                </button>
+
+                {isSpeechOutputSupported() && (
+                  <button
+                    type="button"
+                    onClick={toggleSpeakReplies}
+                    aria-pressed={speakReplies}
+                    style={chipStyle(speakReplies)}
+                  >
+                    {speakReplies ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                    {speakReplies ? "Reading answers aloud" : "Read answers aloud"}
+                  </button>
+                )}
+
+                {speakReplies && lang !== "en" && !hasNativeVoice(lang) ? (
+                  <span style={{ fontSize: 11, color: "#92400E" }}>
+                    This device has no Filipino voice, so answers are read in English.
+                  </span>
+                ) : null}
+
+                {speakReplies && lang === "pag" && hasNativeVoice(lang) ? (
+                  <span style={{ fontSize: 11, color: "#6B7280" }}>
+                    Pangasinan is read using the Filipino voice.
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             <div
