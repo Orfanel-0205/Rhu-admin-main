@@ -43,3 +43,27 @@ export function openGettingStarted(options: OpenGettingStartedOptions = {}): voi
     console.warn("[tutorialBus] no AIChatAssistant mounted — dropped Getting Started request");
   }
 }
+
+// ── Opening the everyday assistant ──────────────────────────────────────────
+//
+// The floating button can be dragged anywhere, so staff can lose track of it.
+// The top bar therefore carries a permanent Assistant button that opens the
+// same chat, through the same one-instance bridge as Getting Started above.
+
+type AssistantListener = () => void;
+
+let assistantListener: AssistantListener | null = null;
+
+export function registerAssistantListener(fn: AssistantListener | null): void {
+  assistantListener = fn;
+}
+
+/** Open the assistant in its normal, day-to-day mode. */
+export function openAssistant(): void {
+  if (assistantListener) {
+    assistantListener();
+  } else if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn("[tutorialBus] no AIChatAssistant mounted — dropped open request");
+  }
+}

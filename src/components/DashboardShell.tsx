@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
+  Bot,
   CheckCheck,
   Globe2,
   Menu,
@@ -28,7 +29,7 @@ import {
 } from "../services/notifications";
 import { useToast } from "../contexts/ToastContext";
 import { authService } from "../services/auth";
-import { openGettingStarted } from "../lib/tutorialBus";
+import { openAssistant, openGettingStarted } from "../lib/tutorialBus";
 import {
   isNotificationSoundEnabled,
   isUrgentNotification,
@@ -550,6 +551,28 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               </select>
             </div>
 
+            {/* The floating assistant can be dragged anywhere, so this is the
+                one place it can always be reached from. */}
+            <button
+              type="button"
+              onClick={() => openAssistant()}
+              title={t("top_assistant", lang)}
+              aria-label={t("top_assistant", lang)}
+              style={{
+                width: 38,
+                height: 38,
+                background: "#F0FDF9",
+                border: "1px solid #CCFBF1",
+                borderRadius: 10,
+                color: "#0F766E",
+                display: "grid",
+                placeItems: "center",
+                cursor: "pointer",
+              }}
+            >
+              <Bot size={18} />
+            </button>
+
             <button
               type="button"
               onClick={() => setOpen((current) => !current)}
@@ -853,7 +876,11 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       <div
         style={{
           position: "relative",
-          zIndex: 20,
+          // Above the top bar (35) and its dropdowns (100): this wrapper is a
+          // stacking context, so the assistant's own z-index cannot lift it
+          // past the header on its own, and the floating button was being
+          // painted behind the header whenever it was dragged up there.
+          zIndex: 1200,
         }}
       >
         <AIChatAssistant />

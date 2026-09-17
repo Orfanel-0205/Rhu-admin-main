@@ -57,7 +57,7 @@ import {
   type ChatSessionSummary,
   type TutorialCard,
 } from "../services/chatbot";
-import { registerTutorialListener } from "../lib/tutorialBus";
+import { registerAssistantListener, registerTutorialListener } from "../lib/tutorialBus";
 const MASCOT_SRC = "/ai-chatbot-doctor-quack.png";
 const WELCOME: ChatMessage = {
   id: "welcome-admin",
@@ -86,6 +86,10 @@ const CHATBOT_LAYOUT_KEY = "ka_agapay_admin_chatbot_layout_v1";
 // localStorage keys — production app, not an artifact.
 const CHATBOT_LAUNCHER_KEY = "ka_agapay_admin_chatbot_launcher_v1";
 const LAUNCHER_SIZE = 58;
+
+// Lowest point the launcher may be dragged to. Above this sits the top bar,
+// which spans the full width and would hide it.
+const LAUNCHER_TOP_MIN = 76;
 
 // Simple mode: bigger text, big one-tap buttons, replies read aloud, and the
 // assistant does the opening and searching itself. For staff who are not
@@ -142,7 +146,13 @@ function clampLauncherPosition(position: LauncherPosition): LauncherPosition {
 
   return {
     left: clampNumber(position.left, 8, Math.max(8, window.innerWidth - LAUNCHER_SIZE - 8)),
-    top: clampNumber(position.top, 8, Math.max(8, window.innerHeight - LAUNCHER_SIZE - 8)),
+    // Never above LAUNCHER_TOP_MIN: the top bar runs the full width there, and
+    // a launcher dragged into it disappears behind the bar.
+    top: clampNumber(
+      position.top,
+      LAUNCHER_TOP_MIN,
+      Math.max(LAUNCHER_TOP_MIN, window.innerHeight - LAUNCHER_SIZE - 8)
+    ),
   };
 }
 
@@ -1484,7 +1494,14 @@ export default function AIChatAssistant() {
       applyAssistantMode("tutorial");
     });
 
-    return () => registerTutorialListener(null);
+    // The top bar's Assistant button: always reachable, even when the floating
+    // button has been dragged somewhere awkward.
+    registerAssistantListener(() => setOpen(true));
+
+    return () => {
+      registerTutorialListener(null);
+      registerAssistantListener(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
