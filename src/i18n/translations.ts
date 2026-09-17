@@ -31,6 +31,16 @@ export const T: Record<string, Record<Lang, string>> = {
     tag: "Basahin lahat",
     pag: "Basaen amin",
   },
+  top_sound_on: {
+    en: "Sound on",
+    tag: "May tunog",
+    pag: "Walay tonog",
+  },
+  top_sound_off: {
+    en: "Sound off",
+    tag: "Walang tunog",
+    pag: "Anggapoy tonog",
+  },
   top_loading_notifications: {
     en: "Loading notifications...",
     tag: "Nilo-load ang mga notification...",

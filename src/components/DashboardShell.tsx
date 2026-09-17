@@ -7,6 +7,8 @@ import {
   Globe2,
   Menu,
   UserCircle,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -27,6 +29,13 @@ import {
 import { useToast } from "../contexts/ToastContext";
 import { authService } from "../services/auth";
 import { openGettingStarted } from "../lib/tutorialBus";
+import {
+  isNotificationSoundEnabled,
+  isUrgentNotification,
+  playNotificationSound,
+  primeNotificationSound,
+  setNotificationSoundEnabled,
+} from "../lib/notificationSound";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -253,6 +262,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   }, [authUser, patchUser]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [soundOn, setSoundOn] = useState(isNotificationSoundEnabled);
 
   const inFlightRef = useRef(false);
   const toast = useToast();
@@ -296,6 +306,14 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         // instead: one banner for one arrival, one SUMMARY banner for many
         // (panelist follow-up round). unread_count covers arrivals beyond
         // the per_page:5 poll window during a large burst.
+        // One sound per batch, the urgent tone if anything in it is urgent, so
+        // a burst never turns into a pile-up of chimes.
+        if (fresh.length > 0) {
+          playNotificationSound(
+            fresh.some((n) => isUrgentNotification(n.type)) ? "urgent" : "normal"
+          );
+        }
+
         if (fresh.length === 1) {
           const n = fresh[0];
           const text = n.title || n.message || "New notification";
@@ -333,6 +351,25 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
     return () => window.clearInterval(timer);
   }, [loadNotifications]);
+
+  // Browsers stay silent until the person has interacted with the page, so the
+  // alert sound is unlocked on the first click or key press.
+  useEffect(() => {
+    primeNotificationSound();
+  }, []);
+
+  function handleToggleSound() {
+    const next = !soundOn;
+
+    setSoundOn(next);
+    setNotificationSoundEnabled(next);
+
+    // Turning it on plays the chime once, so staff hear what to listen for and
+    // know their device is not muted.
+    if (next) {
+      playNotificationSound("normal");
+    }
+  }
 
   useEffect(() => {
     function syncViewport() {
@@ -597,26 +634,51 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleMarkAllRead}
-                    style={{
-                      border: "1px solid #CBD5E1",
-                      background: "#FFFFFF",
-                      color: "#0F766E",
-                      borderRadius: 10,
-                      padding: "7px 9px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontWeight: 900,
-                      cursor: "pointer",
-                      fontSize: 12,
-                    }}
-                  >
-                    <CheckCheck size={14} />
-                    {t("top_read_all", lang)}
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={handleToggleSound}
+                      aria-pressed={soundOn}
+                      title={t(soundOn ? "top_sound_on" : "top_sound_off", lang)}
+                      style={{
+                        border: "1px solid #CBD5E1",
+                        background: soundOn ? "#F0FDF9" : "#FFFFFF",
+                        color: soundOn ? "#0F766E" : "#64748B",
+                        borderRadius: 10,
+                        padding: "7px 9px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        fontSize: 12,
+                      }}
+                    >
+                      {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                      {t(soundOn ? "top_sound_on" : "top_sound_off", lang)}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      style={{
+                        border: "1px solid #CBD5E1",
+                        background: "#FFFFFF",
+                        color: "#0F766E",
+                        borderRadius: 10,
+                        padding: "7px 9px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        fontSize: 12,
+                      }}
+                    >
+                      <CheckCheck size={14} />
+                      {t("top_read_all", lang)}
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ maxHeight: 380, overflowY: "auto" }}>
