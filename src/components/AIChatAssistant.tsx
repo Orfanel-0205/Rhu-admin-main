@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Mic,
   MicOff,
+  Settings as SettingsIcon,
   Volume2,
   VolumeX,
   RotateCcw,
@@ -140,6 +141,44 @@ const SIMPLE_MODE_KEY = "ka_agapay_admin_assistant_simple_mode";
 const AUTO_ACTION_DELAY_MS = 900;
 
 // The big buttons shown in simple mode: the four things staff do all day.
+const settingLabelStyle: CSSProperties = {
+  display: "grid",
+  gap: 5,
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+  color: "#64748B",
+};
+
+const settingControlStyle: CSSProperties = {
+  height: 40,
+  border: "1px solid #E5E7EB",
+  borderRadius: 12,
+  padding: "0 10px",
+  fontSize: 14,
+  fontWeight: 700,
+  color: "#0F172A",
+  background: "#FFFFFF",
+  appearance: "auto",
+};
+
+function settingToggleStyle(active: boolean): CSSProperties {
+  return {
+    display: "grid",
+    gap: 2,
+    textAlign: "left",
+    border: `1px solid ${active ? "#5EEAD4" : "#E5E7EB"}`,
+    background: active ? "#F0FDF9" : "#FFFFFF",
+    borderRadius: 12,
+    padding: "10px 12px",
+    cursor: "pointer",
+    color: active ? "#0F766E" : "#334155",
+    fontSize: 14,
+    fontWeight: 800,
+  };
+}
+
 function chipStyle(active: boolean): CSSProperties {
   return {
     border: `1px solid ${active ? "#5EEAD4" : "#E5E7EB"}`,
@@ -1461,6 +1500,7 @@ export default function AIChatAssistant() {
   const [suggestedAction, setSuggestedAction] = useState<AdminSuggestedAction>(null);
   const [actionParams, setActionParams] = useState<Record<string, string>>({});
   const [speakReplies, setSpeakReplies] = useState<boolean>(isVoiceOutputEnabled);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [simpleMode, setSimpleMode] = useState<boolean>(() => {
     try {
       return window.localStorage.getItem(SIMPLE_MODE_KEY) === "on";
@@ -1523,8 +1563,29 @@ export default function AIChatAssistant() {
   useEffect(() => {
     if (!open) {
       stopSpeaking();
+      setSettingsOpen(false);
     }
   }, [open]);
+
+  // Escape closes the settings menu first, then the chat: the usual way out.
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      if (settingsOpen) {
+        setSettingsOpen(false);
+        return;
+      }
+
+      setOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, settingsOpen]);
   const dragRef = useRef<{
     startX: number;
     startY: number;
@@ -2367,42 +2428,8 @@ export default function AIChatAssistant() {
                   marginLeft: "auto",
                 }}
               >
-                <select
-                  value={chatLanguage}
-                  onChange={(event) => {
-                    const next = event.target.value as ChatLanguage;
-
-                    setChatLanguage(next);
-                    stopSpeaking();
-
-                    try {
-                      window.localStorage.setItem(CHAT_LANGUAGE_KEY, next);
-                    } catch {
-                      // The choice still applies for this session.
-                    }
-                  }}
-                  title="Chat language"
-                  style={{
-                    height: 32,
-                    border: "1px solid rgba(255,255,255,0.24)",
-                    background: "rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    borderRadius: 999,
-                    padding: "0 8px",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    outline: "none",
-                    maxWidth: 132,
-                    minWidth: 96,
-                  }}
-                >
-                  {LANGUAGE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-
+                {/* Language moved into the settings menu by the text box,
+                    beside the microphone it governs. */}
                 <button
                   type="button"
                   onClick={() => adjustSize(-80, -80)}
@@ -2577,6 +2604,8 @@ export default function AIChatAssistant() {
             </div>
 
             <div
+              aria-live="polite"
+              aria-label="Conversation"
               style={{
                 flex: 1,
                 overflowY: "auto",
@@ -2772,6 +2801,64 @@ export default function AIChatAssistant() {
                 </div>
               )}
 
+              {/* Dictation, shown as a state you can see and stop, instead of
+                  a caption tucked under the text box. */}
+              {voice.isListening ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderRadius: 14,
+                    border: "1px solid #FDE68A",
+                    background: "#FFFBEB",
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: "#D97706",
+                      flex: "0 0 auto",
+                    }}
+                  />
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: "#92400E" }}>
+                      Listening… speak now
+                    </div>
+                    <div style={{ fontSize: 13, color: "#0F172A", overflowWrap: "anywhere" }}>
+                      {voice.interimTranscript || input || "Nothing heard yet."}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={startVoiceInput}
+                    style={{ ...chipStyle(false), flex: "0 0 auto" }}
+                  >
+                    <MicOff size={13} />
+                    Stop
+                  </button>
+                </div>
+              ) : null}
+
+              {!voice.isListening && voiceMessage ? (
+                <div
+                  role={voiceState === "error" ? "alert" : undefined}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: voiceState === "error" ? "#B91C1C" : "#0F766E",
+                  }}
+                >
+                  {voiceMessage}
+                </div>
+              ) : null}
+
               {/* A misheard word is offered as a correction rather than left
                   to be sent as nonsense. */}
               {!voice.isListening && voice.alternatives.length > 0 && voice.confidence < 0.9 ? (
@@ -2792,72 +2879,6 @@ export default function AIChatAssistant() {
                   ))}
                 </div>
               ) : null}
-
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  alignItems: "center",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={toggleSimpleMode}
-                  aria-pressed={simpleMode}
-                  style={chipStyle(simpleMode)}
-                >
-                  <Sparkles size={13} />
-                  {simpleMode ? "Simple mode: on" : "Simple mode"}
-                </button>
-
-                {isSpeechOutputSupported() && (
-                  <button
-                    type="button"
-                    onClick={toggleSpeakReplies}
-                    aria-pressed={speakReplies}
-                    style={chipStyle(speakReplies)}
-                  >
-                    {speakReplies ? <Volume2 size={13} /> : <VolumeX size={13} />}
-                    {speakReplies ? "Reading answers aloud" : "Read answers aloud"}
-                  </button>
-                )}
-
-                <select
-                  value={listenLanguage}
-                  onChange={(event) => {
-                    const next = event.target.value as ListenLanguage;
-
-                    setListenLanguage(next);
-
-                    try {
-                      window.localStorage.setItem(LISTEN_LANGUAGE_KEY, next);
-                    } catch {
-                      // The choice still applies for this session.
-                    }
-                  }}
-                  title="What the microphone listens for. Choose English when saying English names."
-                  style={{ ...chipStyle(listenLanguage !== "auto"), appearance: "auto" }}
-                >
-                  {LISTEN_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-
-                {speakReplies && lang !== "en" && !hasNativeVoice(lang) ? (
-                  <span style={{ fontSize: 11, color: "#92400E" }}>
-                    This device has no Filipino voice, so answers are read in English.
-                  </span>
-                ) : null}
-
-                {speakReplies && lang === "pag" && hasNativeVoice(lang) ? (
-                  <span style={{ fontSize: 11, color: "#6B7280" }}>
-                    Pangasinan is read using the Filipino voice.
-                  </span>
-                ) : null}
-              </div>
             </div>
 
             <div
@@ -2871,6 +2892,142 @@ export default function AIChatAssistant() {
                 position: "relative",
               }}
             >
+              {/* One menu for language, voice and simple mode: the row of chips
+                  it replaces was growing with every setting. */}
+              {settingsOpen ? (
+                <div
+                  role="dialog"
+                  aria-label="Assistant settings"
+                  style={{
+                    position: "absolute",
+                    left: 14,
+                    right: 14,
+                    bottom: 70,
+                    background: "#FFFFFF",
+                    border: "1px solid #E5E7EB",
+                    borderRadius: 16,
+                    boxShadow: "0 18px 50px rgba(15,23,42,0.18)",
+                    padding: 14,
+                    display: "grid",
+                    gap: 12,
+                    zIndex: 2,
+                  }}
+                >
+                  <label style={settingLabelStyle}>
+                    Answer language
+                    <select
+                      value={chatLanguage}
+                      onChange={(event) => {
+                        const next = event.target.value as ChatLanguage;
+
+                        setChatLanguage(next);
+                        stopSpeaking();
+
+                        try {
+                          window.localStorage.setItem(CHAT_LANGUAGE_KEY, next);
+                        } catch {
+                          // The choice still applies for this session.
+                        }
+                      }}
+                      style={settingControlStyle}
+                    >
+                      {LANGUAGE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={settingLabelStyle}>
+                    Microphone listens in
+                    <select
+                      value={listenLanguage}
+                      onChange={(event) => {
+                        const next = event.target.value as ListenLanguage;
+
+                        setListenLanguage(next);
+
+                        try {
+                          window.localStorage.setItem(LISTEN_LANGUAGE_KEY, next);
+                        } catch {
+                          // The choice still applies for this session.
+                        }
+                      }}
+                      style={settingControlStyle}
+                    >
+                      {LISTEN_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={toggleSimpleMode}
+                    aria-pressed={simpleMode}
+                    style={settingToggleStyle(simpleMode)}
+                  >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Sparkles size={14} />
+                      Simple mode · {simpleMode ? "on" : "off"}
+                    </span>
+                    <small style={{ fontWeight: 600, color: "#64748B" }}>
+                      Bigger text, four big buttons, short answers.
+                    </small>
+                  </button>
+
+                  {isSpeechOutputSupported() ? (
+                    <button
+                      type="button"
+                      onClick={toggleSpeakReplies}
+                      aria-pressed={speakReplies}
+                      style={settingToggleStyle(speakReplies)}
+                    >
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        {speakReplies ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                        Read answers aloud · {speakReplies ? "on" : "off"}
+                      </span>
+                      <small style={{ fontWeight: 600, color: "#64748B" }}>
+                        {lang === "pag"
+                          ? "Pangasinan is read using the Filipino voice."
+                          : lang !== "en" && !hasNativeVoice(lang)
+                            ? "This device has no Filipino voice, so answers are read in English."
+                            : "The answer is spoken as it appears."}
+                      </small>
+                    </button>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 12, color: "#92400E" }}>
+                      This browser cannot read answers aloud. Google Chrome can.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setSettingsOpen((current) => !current)}
+                aria-expanded={settingsOpen}
+                aria-label="Assistant settings: language, voice and simple mode"
+                title="Language, voice and simple mode"
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 999,
+                  border: "1px solid #E5E7EB",
+                  background: settingsOpen ? "#F0FDF9" : "#FFFFFF",
+                  color: "#0F766E",
+                  display: "grid",
+                  placeItems: "center",
+                  cursor: "pointer",
+                  flex: "0 0 auto",
+                }}
+              >
+                <SettingsIcon size={17} />
+              </button>
+
               <button
                 type="button"
                 onClick={startVoiceInput}
@@ -2910,11 +3067,11 @@ export default function AIChatAssistant() {
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  height: 42,
+                  height: 46,
                   border: "1px solid #E5E7EB",
                   borderRadius: 999,
-                  padding: "0 14px",
-                  fontSize: 13,
+                  padding: "0 16px",
+                  fontSize: 14,
                   outline: "none",
                 }}
               />
@@ -2939,23 +3096,6 @@ export default function AIChatAssistant() {
                 {loading ? <Loader2 size={16} /> : <Send size={16} />}
               </button>
 
-              {voiceMessage ? (
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 14,
-                    bottom: 62,
-                    fontSize: 11,
-                    color: voiceState === "error" ? "#B91C1C" : "#64748B",
-                    background: "#FFFFFF",
-                    padding: "3px 6px",
-                    borderRadius: 8,
-                    border: "1px solid #E5E7EB",
-                  }}
-                >
-                  {voiceMessage}
-                </span>
-              ) : null}
             </div>
           </div>
         </div>
