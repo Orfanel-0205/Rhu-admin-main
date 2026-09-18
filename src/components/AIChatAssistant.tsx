@@ -97,8 +97,38 @@ const LAUNCHER_TOP_MIN = 76;
 const CHAT_LANGUAGE_KEY = "ka_agapay_admin_chatbot_language";
 
 // How long a pause ends dictation. Long enough to think mid-sentence, short
-// enough that staff are not left waiting with the microphone open.
-const VOICE_SILENCE_MS = 2500;
+// enough that staff are not left waiting with the microphone open. Stopping
+// never sends: the words are left in the box to be read and corrected first,
+// because a recogniser that mishears a name would otherwise send nonsense.
+const VOICE_SILENCE_MS = 4000;
+
+// What the microphone listens for, kept apart from the language of the reply.
+// Staff often speak English names and English button names inside a Tagalog
+// or Pangasinan sentence, and the Filipino recogniser mangles those, so the
+// language being SPOKEN has to be choosable on its own.
+const LISTEN_LANGUAGE_KEY = "ka_agapay_admin_chatbot_listen_language";
+
+type ListenLanguage = "auto" | "en" | "fil";
+
+const LISTEN_OPTIONS: Array<{ value: ListenLanguage; label: string }> = [
+  { value: "auto", label: "Listen: same as answer" },
+  { value: "en", label: "Listen: English" },
+  { value: "fil", label: "Listen: Tagalog" },
+];
+
+function readSavedListenLanguage(): ListenLanguage {
+  try {
+    const saved = window.localStorage.getItem(LISTEN_LANGUAGE_KEY);
+
+    if (saved === "auto" || saved === "en" || saved === "fil") {
+      return saved;
+    }
+  } catch {
+    // Blocked site data: follow the answer language.
+  }
+
+  return "auto";
+}
 
 // Simple mode: bigger text, big one-tap buttons, replies read aloud, and the
 // assistant does the opening and searching itself. For staff who are not
@@ -1457,12 +1487,23 @@ export default function AIChatAssistant() {
   // instead of cutting out the moment the speaker draws breath.
   const scheduleVoiceStopRef = useRef<() => void>(() => {});
 
+  const [listenLanguage, setListenLanguage] = useState<ListenLanguage>(readSavedListenLanguage);
+
+  // No browser has a Pangasinan recogniser, so Pangasinan is heard with the
+  // Filipino one unless the speaker says they are talking English.
+  const listenTag =
+    listenLanguage === "en"
+      ? "en-US"
+      : listenLanguage === "fil"
+        ? "fil-PH"
+        : recognitionLanguage(lang);
+
   const voice = useWebSpeechRecognition({
-    // No browser has a Pangasinan recogniser, so Pangasinan is heard with the
-    // Filipino one.
-    lang: recognitionLanguage(lang),
+    lang: listenTag,
     interimResults: true,
     continuous: true,
+    // Ask for runners-up so a misheard name can be offered as a correction.
+    maxAlternatives: 3,
     onResult: (finalText) => {
       setInput((current) => (current ? `${current} ${finalText}` : finalText).trim());
       scheduleVoiceStopRef.current();
@@ -1595,6 +1636,11 @@ export default function AIChatAssistant() {
     } else if (voice.error) {
       setVoiceState("error");
       setVoiceMessage(voice.error);
+    } else if (inputRef.current.trim()) {
+      // Stopped with words in the box: they are the person's to check, fix and
+      // send. Nothing is sent on their behalf.
+      setVoiceState("idle");
+      setVoiceMessage("Check the words, then press Send.");
     } else {
       setVoiceState("idle");
       setVoiceMessage("");
@@ -1778,12 +1824,6 @@ export default function AIChatAssistant() {
     silenceTimerRef.current = window.setTimeout(() => {
       silenceTimerRef.current = null;
       voice.stopListening();
-
-      const spoken = inputRef.current.trim();
-
-      if (spoken) {
-        void sendMessage(spoken);
-      }
     }, VOICE_SILENCE_MS);
   };
 
@@ -2118,17 +2158,11 @@ export default function AIChatAssistant() {
       return;
     }
 
-    // Toggle: clicking the mic again while listening stops it and sends what
-    // was heard, so the button both starts and finishes dictation.
+    // Toggle: clicking the mic again stops dictation. The words stay in the
+    // box for checking; sending is always a separate, deliberate press.
     if (voice.isListening) {
       clearSilenceTimer();
       voice.stopListening();
-
-      const spoken = inputRef.current.trim();
-
-      if (spoken) {
-        void sendMessage(spoken);
-      }
 
       return;
     }
@@ -2738,6 +2772,27 @@ export default function AIChatAssistant() {
                 </div>
               )}
 
+              {/* A misheard word is offered as a correction rather than left
+                  to be sent as nonsense. */}
+              {!voice.isListening && voice.alternatives.length > 0 && voice.confidence < 0.9 ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 700 }}>
+                    Did you mean:
+                  </span>
+
+                  {voice.alternatives.slice(0, 2).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setInput(option)}
+                      style={chipStyle(false)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
               <div
                 style={{
                   display: "flex",
@@ -2767,6 +2822,29 @@ export default function AIChatAssistant() {
                     {speakReplies ? "Reading answers aloud" : "Read answers aloud"}
                   </button>
                 )}
+
+                <select
+                  value={listenLanguage}
+                  onChange={(event) => {
+                    const next = event.target.value as ListenLanguage;
+
+                    setListenLanguage(next);
+
+                    try {
+                      window.localStorage.setItem(LISTEN_LANGUAGE_KEY, next);
+                    } catch {
+                      // The choice still applies for this session.
+                    }
+                  }}
+                  title="What the microphone listens for. Choose English when saying English names."
+                  style={{ ...chipStyle(listenLanguage !== "auto"), appearance: "auto" }}
+                >
+                  {LISTEN_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
                 {speakReplies && lang !== "en" && !hasNativeVoice(lang) ? (
                   <span style={{ fontSize: 11, color: "#92400E" }}>

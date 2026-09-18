@@ -32,6 +32,12 @@ export interface UseWebSpeechRecognitionOptions {
   interimResults?: boolean;
   /** Keep listening until stopped (dictation). Defaults to false. */
   continuous?: boolean;
+  /**
+   * How many readings of the same speech to ask for. Above 1, the runners-up
+   * come back in `alternatives`, which is how a misheard name can be offered
+   * as a correction instead of silently standing. Defaults to 1.
+   */
+  maxAlternatives?: number;
   /** Called with each finalized chunk of recognized text. */
   onResult?: (finalText: string) => void;
 }
@@ -42,6 +48,10 @@ export interface UseWebSpeechRecognition {
   transcript: string;
   interimTranscript: string;
   error: string;
+  /** Other readings of the last phrase, best first, excluding the one used. */
+  alternatives: string[];
+  /** How sure the recogniser was of the last phrase, 0 to 1. 0 when unknown. */
+  confidence: number;
   startListening: () => void;
   stopListening: () => void;
   resetTranscript: () => void;
@@ -54,6 +64,7 @@ export function useWebSpeechRecognition(
     lang = "en-US",
     interimResults = true,
     continuous = false,
+    maxAlternatives = 1,
     onResult,
   } = options;
 
@@ -64,6 +75,8 @@ export function useWebSpeechRecognition(
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState("");
+  const [alternatives, setAlternatives] = useState<string[]>([]);
+  const [confidence, setConfidence] = useState(0);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -126,11 +139,14 @@ export function useWebSpeechRecognition(
 
     setError("");
     setInterimTranscript("");
+    setAlternatives([]);
+    setConfidence(0);
 
     const recognition = new Ctor();
     recognition.lang = lang;
     recognition.interimResults = interimResults;
     recognition.continuous = continuous;
+    recognition.maxAlternatives = maxAlternatives;
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -146,6 +162,21 @@ export function useWebSpeechRecognition(
 
         if (result.isFinal) {
           finalText += text;
+
+          // Keep the runners-up so a misheard word can be offered as a
+          // correction: "Clifford" is routinely heard as "Cliff for".
+          const others: string[] = [];
+
+          for (let choice = 1; choice < result.length; choice += 1) {
+            const other = result[choice]?.transcript?.trim();
+
+            if (other && other !== text.trim()) {
+              others.push(other);
+            }
+          }
+
+          setAlternatives(others);
+          setConfidence(result[0]?.confidence ?? 0);
         } else {
           interimText += text;
         }
@@ -194,11 +225,13 @@ export function useWebSpeechRecognition(
       recognitionRef.current = null;
       setIsListening(false);
     }
-  }, [lang, interimResults, continuous]);
+  }, [lang, interimResults, continuous, maxAlternatives]);
 
   const resetTranscript = useCallback(() => {
     setTranscript("");
     setInterimTranscript("");
+    setAlternatives([]);
+    setConfidence(0);
   }, []);
 
   // Cleanup on unmount: stop recognition and remove all event handlers.
@@ -214,6 +247,8 @@ export function useWebSpeechRecognition(
     transcript,
     interimTranscript,
     error,
+    alternatives,
+    confidence,
     startListening,
     stopListening,
     resetTranscript,
