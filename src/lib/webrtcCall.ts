@@ -38,7 +38,11 @@ export interface CallHandlers {
 
 export interface CallTransport {
   /** Post one handshake step to the other side. */
-  send: (type: "offer" | "answer" | "ice" | "hangup", payload: unknown) => Promise<void>;
+  send: (
+    type: "offer" | "answer" | "ice" | "hangup",
+    payload: unknown,
+    options?: { reset?: boolean }
+  ) => Promise<void>;
   /** Anything addressed to us since the last ask. */
   receive: () => Promise<
     Array<{ type: string; payload: any; from_user_id: number }> | null
@@ -46,6 +50,26 @@ export interface CallTransport {
 }
 
 const POLL_MS = 1200;
+
+/**
+ * Turn a refused handshake request into something a person can act on. The
+ * server's own message is the useful part: "already ended", "not in this
+ * call" and a rate-limit refusal each need a different response.
+ */
+function describeSendError(error: any): string {
+  const status = error?.response?.status;
+  const message = error?.response?.data?.message;
+
+  if (status === 429) {
+    return "too many requests at once (rate limited).";
+  }
+
+  if (message) return `${message} (${status ?? "no response"})`;
+
+  return status
+    ? `the request was refused (${status}).`
+    : "the server could not be reached.";
+}
 
 export class PeerCall {
   private pc: RTCPeerConnection | null = null;
@@ -55,8 +79,24 @@ export class PeerCall {
   private stopped = false;
   private politeWait: Promise<void> | null = null;
   private pendingCandidates: RTCIceCandidateInit[] = [];
+
+  /**
+   * What actually happened during setup, so a call that fails can say
+   * which step it reached instead of guessing. The first version of this
+   * told everyone their two networks could not reach each other, which is
+   * plainly wrong when both people are on the same computer, and it sent
+   * us looking for a relay server when the handshake was the problem.
+   */
+  private trail = {
+    offerSent: false,
+    offerReceived: false,
+    answerSent: false,
+    answerReceived: false,
+    routesSent: 0,
+    routesReceived: 0,
+    lastSendError: "",
+  };
   private candidateTimer: number | null = null;
-  private failures = 0;
 
   constructor(
     private readonly options: {
@@ -123,6 +163,7 @@ export class PeerCall {
       if (!event.candidate) return;
 
       this.pendingCandidates.push(event.candidate.toJSON());
+      this.trail.routesSent += 1;
 
       if (this.candidateTimer === null) {
         this.candidateTimer = window.setTimeout(() => {
@@ -138,10 +179,7 @@ export class PeerCall {
       if (state === "connected") {
         handlers.onState("connected");
       } else if (state === "failed") {
-        handlers.onState(
-          "failed",
-          "The call could not connect. This usually means the two devices are on networks that cannot reach each other directly."
-        );
+        handlers.onState("failed", this.explainFailure());
       } else if (state === "disconnected") {
         handlers.onState("connecting", "Reconnecting…");
       }
@@ -150,7 +188,19 @@ export class PeerCall {
     if (isOfferer) {
       const offer = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
-      await transport.send("offer", offer);
+
+      // If this one request fails the call is already over, so say so now
+      // rather than letting it ring for twenty seconds first.
+      try {
+        // `reset` clears anything left queued by an earlier attempt on
+        // this same call, which is what made retrying useless before.
+        await transport.send("offer", offer, { reset: true });
+        this.trail.offerSent = true;
+      } catch (error) {
+        this.trail.lastSendError = describeSendError(error);
+        handlers.onState("failed", this.explainFailure());
+        return;
+      }
     }
 
     this.startPolling();
@@ -167,10 +217,7 @@ export class PeerCall {
       if (this.stopped || !this.pc) return;
 
       if (this.pc.connectionState !== "connected") {
-        this.options.handlers.onState(
-          "failed",
-          "The call did not connect. The two devices are probably on networks that cannot reach each other directly."
-        );
+        this.options.handlers.onState("failed", this.explainFailure());
       }
     }, 20000);
   }
@@ -245,26 +292,54 @@ export class PeerCall {
 
     void this.options.transport
       .send("ice", { candidates: batch })
-      .catch(() => this.noteFailure());
+      .catch((error) => {
+        this.trail.lastSendError = describeSendError(error);
+      });
   }
 
   /**
-   * A handshake request that fails is not a network problem the person can
-   * fix by waiting, so after a few in a row the call says so rather than
-   * sitting on "Connecting…". Being refused by the server looks exactly like
-   * silence from the other side, and staff deserve the difference.
+   * Why the call did not come together, in the words of whoever has to act
+   * on it. Each branch points at a different culprit, and getting this
+   * right is the difference between installing a relay server and fixing a
+   * permission - we already lost a round of testing to that confusion.
    */
-  private noteFailure(): void {
-    this.failures += 1;
+  private explainFailure(): string {
+    const t = this.trail;
 
-    if (this.failures === 4) {
-      this.options.handlers.onState(
-        "failed",
-        "The server is refusing the call setup. This usually clears in a minute; if it keeps happening, tell IT the call signalling is being rate limited."
-      );
+    if (t.lastSendError) {
+      return `The server would not carry the call setup: ${t.lastSendError}`;
     }
+
+    if (!t.offerSent && !t.offerReceived) {
+      return "Neither side started the handshake. Hang up on both sides, then try the call again.";
+    }
+
+    if (t.offerSent && !t.answerReceived) {
+      return "The other browser never answered the handshake. It may not have accepted the call, or the tab was closed.";
+    }
+
+    if (t.offerReceived && !t.answerSent) {
+      return "This browser could not reply to the handshake.";
+    }
+
+    if (t.routesReceived === 0) {
+      return "Both sides agreed to talk but never exchanged network routes. Check that both people are still on the call.";
+    }
+
+    return "Both browsers exchanged everything they needed but could not reach each other. Between different networks that means the relay server is missing; on the same network, something is blocking direct connections.";
   }
 
+  /** The setup steps that did and did not happen, for a bug report. */
+  diagnostics(): string {
+    const t = this.trail;
+
+    return [
+      `offer ${t.offerSent ? "sent" : t.offerReceived ? "received" : "none"}`,
+      `answer ${t.answerSent ? "sent" : t.answerReceived ? "received" : "none"}`,
+      `routes ${t.routesSent} out / ${t.routesReceived} in`,
+      `ice ${this.pc?.iceConnectionState ?? "closed"}`,
+    ].join(" / ");
+  }
   private startPolling(): void {
     this.poll = window.setInterval(() => {
       void this.drain();
@@ -288,19 +363,36 @@ export class PeerCall {
     try {
       const signals = await this.options.transport.receive();
 
-      // A successful exchange clears the failure streak.
-      this.failures = 0;
-
       for (const signal of signals ?? []) {
         if (this.stopped || !this.pc) break;
 
         if (signal.type === "offer") {
+          this.trail.offerReceived = true;
+
+          // Both sides offering at once would otherwise leave each of
+          // them waiting for a reply that never comes. The side that
+          // speaks first keeps its offer; the other gives way.
+          if (this.pc.signalingState === "have-local-offer") {
+            if (this.options.isOfferer) continue;
+
+            await this.pc.setLocalDescription({ type: "rollback" });
+          }
+
           await this.pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
 
           const answer = await this.pc.createAnswer();
           await this.pc.setLocalDescription(answer);
-          await this.options.transport.send("answer", answer);
+
+          try {
+            await this.options.transport.send("answer", answer);
+            this.trail.answerSent = true;
+          } catch (error) {
+            this.trail.lastSendError = describeSendError(error);
+            this.options.handlers.onState("failed", this.explainFailure());
+          }
         } else if (signal.type === "answer") {
+          this.trail.answerReceived = true;
+
           if (this.pc.signalingState !== "stable") {
             await this.pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
           }
@@ -309,6 +401,8 @@ export class PeerCall {
           const candidates: RTCIceCandidateInit[] = Array.isArray(signal.payload?.candidates)
             ? signal.payload.candidates
             : [signal.payload];
+
+          this.trail.routesReceived += candidates.length;
 
           for (const candidate of candidates) {
             try {
@@ -324,9 +418,10 @@ export class PeerCall {
         }
       }
     } catch {
-      // One dropped poll is not a dropped call; a run of them means the
-      // server is refusing us, which the person needs told.
-      this.noteFailure();
+      // A dropped poll is not a dropped call; the next tick tries again.
+      // Anything that genuinely ends the call is reported where it happens
+      // rather than counted here: a counter that the next successful poll
+      // reset was hiding real failures behind a generic message.
     } finally {
       release();
       this.politeWait = null;

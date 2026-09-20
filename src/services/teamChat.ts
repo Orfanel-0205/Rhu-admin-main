@@ -310,17 +310,24 @@ export async function startCall(
   return res.data?.data;
 }
 
-/** One step of the call handshake, sent to the other browser. */
+/**
+ * One step of the call handshake, sent to the other browser.
+ *
+ * `reset` goes with a fresh offer and tells the server to bin anything
+ * queued from an earlier attempt on the same call.
+ */
 export async function sendCallSignal(
   callId: number,
   type: "offer" | "answer" | "ice" | "hangup",
   payload: unknown,
-  toUserId?: number | null
+  toUserId?: number | null,
+  options?: { reset?: boolean }
 ): Promise<void> {
   await apiClient.post(`/team-chat/calls/${callId}/signal`, {
     type,
     payload,
     to_user_id: toUserId ?? null,
+    reset: options?.reset ?? false,
   });
 }
 

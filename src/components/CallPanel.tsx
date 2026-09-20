@@ -32,12 +32,16 @@ export default function CallPanel({
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [trace, setTrace] = useState("");
 
   const localVideo = useRef<HTMLVideoElement | null>(null);
   const remoteVideo = useRef<HTMLVideoElement | null>(null);
   const engine = useRef<PeerCall | null>(null);
 
   const isVideo = call.mode === "video";
+
+  // The one failure a relay would actually have prevented.
+  const needsRelay = detail.includes("could not reach each other");
 
   useEffect(() => {
     const peerId = (call.peer?.participants ?? []).find((id) => id !== myUserId) ?? null;
@@ -53,7 +57,8 @@ export default function CallPanel({
       video: isVideo,
       isOfferer,
       transport: {
-        send: (type, payload) => sendCallSignal(call.id, type, payload, peerId),
+        send: (type, payload, options) =>
+          sendCallSignal(call.id, type, payload, peerId, options),
         receive: async () => {
           const { signals, active } = await fetchCallSignals(call.id);
 
@@ -75,6 +80,11 @@ export default function CallPanel({
         onState: (next, message) => {
           setState(next);
           setDetail(message ?? "");
+
+          // Kept where the person can read it out over the phone: which
+          // setup steps happened is the first thing anyone fixing a call
+          // needs, and it is gone from the console by the time they ask.
+          if (next === "failed") setTrace(peer.diagnostics());
 
           if (next === "ended") onEnded();
         },
@@ -152,12 +162,18 @@ export default function CallPanel({
       {state === "failed" && detail ? (
         <div style={errorStyle}>
           {detail}
-          {call.peer && !call.peer.relay_configured ? (
+
+          {/* Only worth mentioning when the two browsers actually got
+              through the handshake: saying it for every failure sent us
+              hunting a relay server while the real fault was elsewhere. */}
+          {needsRelay && call.peer && !call.peer.relay_configured ? (
             <div style={{ marginTop: 6, opacity: 0.9 }}>
               Calls between different networks need a relay server, which is not set up yet.
               Calls inside the same RHU should still work.
             </div>
           ) : null}
+
+          {trace ? <div style={traceStyle}>{trace}</div> : null}
         </div>
       ) : null}
 
@@ -276,6 +292,15 @@ const errorStyle: CSSProperties = {
   color: "#FEE2E2",
   fontSize: 12,
   lineHeight: 1.5,
+};
+
+const traceStyle: CSSProperties = {
+  marginTop: 8,
+  paddingTop: 6,
+  borderTop: "1px solid rgba(255,255,255,.2)",
+  fontFamily: "ui-monospace, monospace",
+  fontSize: 11,
+  opacity: 0.85,
 };
 
 const controlsStyle: CSSProperties = {
