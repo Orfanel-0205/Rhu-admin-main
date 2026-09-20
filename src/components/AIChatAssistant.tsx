@@ -2458,65 +2458,10 @@ export default function AIChatAssistant() {
                   marginLeft: "auto",
                 }}
               >
-                {/* Language moved into the settings menu by the text box,
-                    beside the microphone it governs. */}
-                <button
-                  type="button"
-                  onClick={() => adjustSize(-80, -80)}
-                  title="Make chatbot smaller"
-                  style={{
-                    border: "none",
-                    background: "rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    borderRadius: 999,
-                    width: 32,
-                    height: 32,
-                    cursor: "pointer",
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                >
-                  <Minimize2 size={15} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => adjustSize(80, 80)}
-                  title="Make chatbot larger"
-                  style={{
-                    border: "none",
-                    background: "rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    borderRadius: 999,
-                    width: 32,
-                    height: 32,
-                    cursor: "pointer",
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                >
-                  <Maximize2 size={15} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={resetLayout}
-                  title="Reset chatbot position and size"
-                  style={{
-                    border: "none",
-                    background: "rgba(255,255,255,0.12)",
-                    color: "#fff",
-                    borderRadius: 999,
-                    width: 32,
-                    height: 32,
-                    cursor: "pointer",
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                >
-                  <RotateCcw size={15} />
-                </button>
-
+                {/* Language, voice, simple mode and panel size all live in the
+                    settings menu by the text box now. The header keeps only
+                    what staff reach for mid-conversation: history, a new chat,
+                    and close. */}
                 <button
                   type="button"
                   onClick={startNewChat}
@@ -3035,6 +2980,35 @@ export default function AIChatAssistant() {
                       Bigger text, four big buttons, short answers.
                     </small>
                   </button>
+
+                  <div style={{ display: "grid", gap: 5 }}>
+                    <span style={settingLabelStyle}>Panel size</span>
+
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => adjustSize(-80, -80)}
+                        style={chipStyle(false)}
+                      >
+                        <Minimize2 size={13} />
+                        Smaller
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => adjustSize(80, 80)}
+                        style={chipStyle(false)}
+                      >
+                        <Maximize2 size={13} />
+                        Bigger
+                      </button>
+
+                      <button type="button" onClick={resetLayout} style={chipStyle(false)}>
+                        <RotateCcw size={13} />
+                        Reset position
+                      </button>
+                    </div>
+                  </div>
 
                   {isSpeechOutputSupported() ? (
                     <button
