@@ -13,6 +13,7 @@ import ModuleTabs from "../components/ui/ModuleTabs";
 import ImageUploader, { CMS_CROP_PRESETS } from "../components/ImageUploader";
 import { emitToast } from "../lib/toastBus";
 import { useAuthStore } from "../store/authStore";
+import { QUICK_STICKERS, STICKERS, soleSticker, stickerFor } from "../lib/stickers";
 import {
   listConversations,
   pollUpdates,
@@ -38,12 +39,10 @@ import {
   type ChatContact,
 } from "../services/teamChat";
 
-// The reactions offered on hover, and the picker below the text box. Kept as a
-// short curated set rather than a full emoji library: no extra download on a
-// barangay connection, and these are the ones staff actually use to answer
-// each other without adding another message to the thread.
-const QUICK_REACTIONS = ["👍", "❤️", "✅", "🙏"];
-
+// The emoji offered in the picker's second tab. A short curated set rather
+// than a full emoji library: no extra download on a barangay connection, and
+// these are the ones staff actually use. The hover reactions are the duck
+// stickers instead — see lib/stickers.ts.
 const EMOJI_PICKER = [
   "👍", "👎", "❤️", "🙏", "✅", "❌", "⚠️", "🔴",
   "😊", "😅", "😂", "😢", "😮", "🤒", "💊", "🩺",
@@ -199,6 +198,7 @@ export default function TeamChat() {
   >(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<"stickers" | "emoji">("stickers");
 
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [groupMode, setGroupMode] = useState(false);
@@ -457,6 +457,32 @@ export default function TeamChat() {
       emitToast("Could not load older messages.", "error");
     }
   }, [activeId, thread]);
+
+  /**
+   * Send one duck on its own. A sticker travels as a short token, not an
+   * upload, so it costs a few bytes on a barangay connection and the picture
+   * comes from the browser's cache.
+   */
+  const sendSticker = useCallback(
+    async (token: string) => {
+      if (!activeId || sending) return;
+
+      setEmojiOpen(false);
+      setSending(true);
+
+      try {
+        const msg = await sendMessage(activeId, { body: token });
+
+        setThread((prev) => [...prev, msg]);
+        maxSeenRef.current = Math.max(maxSeenRef.current, msg.id);
+      } catch (e: any) {
+        emitToast(e?.response?.data?.message || "Could not send that sticker.", "error");
+      } finally {
+        setSending(false);
+      }
+    },
+    [activeId, sending]
+  );
 
   const doSend = useCallback(async () => {
     if (!activeId || sending) return;
@@ -1264,7 +1290,18 @@ export default function TeamChat() {
                               />
                             </a>
                           ) : null}
-                          {m.body ? (
+                          {soleSticker(m.body) ? (
+                            // A sticker on its own is the message: shown large,
+                            // the way every chat app does it.
+                            <img
+                              src={soleSticker(m.body)!.url}
+                              alt={soleSticker(m.body)!.label}
+                              title={soleSticker(m.body)!.label}
+                              width={112}
+                              height={112}
+                              style={{ display: "block", width: 112, height: "auto" }}
+                            />
+                          ) : m.body ? (
                             <div style={{ fontSize: 14, lineHeight: 1.45, padding: m.attachment_url ? "6px 7px 2px" : 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                               {m.body}
                             </div>
@@ -1306,7 +1343,18 @@ export default function TeamChat() {
                                     lineHeight: 1.6,
                                   }}
                                 >
-                                  {reaction.emoji} {reaction.count}
+                                  {stickerFor(reaction.emoji) ? (
+                                    <img
+                                      src={stickerFor(reaction.emoji)!.url}
+                                      alt={stickerFor(reaction.emoji)!.label}
+                                      width={18}
+                                      height={18}
+                                      style={{ verticalAlign: "-4px", width: 18, height: "auto" }}
+                                    />
+                                  ) : (
+                                    reaction.emoji
+                                  )}{" "}
+                                  {reaction.count}
                                 </button>
                               ))}
                             </div>
@@ -1315,24 +1363,29 @@ export default function TeamChat() {
 
                         {/* Quick reactions, revealed on hover like the delete
                             button beside it. */}
-                        <div className="tc-msg-delete" style={{ display: "flex", gap: 2 }}>
-                          {QUICK_REACTIONS.map((emoji) => (
+                        <div className="tc-msg-delete" style={{ display: "flex", gap: 2, alignItems: "center" }}>
+                          {QUICK_STICKERS.map((sticker) => (
                             <button
-                              key={emoji}
+                              key={sticker.token}
                               type="button"
-                              aria-label={`React with ${emoji}`}
-                              title={`React with ${emoji}`}
-                              onClick={() => handleToggleReaction(m, emoji)}
+                              aria-label={`React with ${sticker.label}`}
+                              title={sticker.label}
+                              onClick={() => handleToggleReaction(m, sticker.token)}
                               style={{
                                 border: "none",
                                 background: "transparent",
                                 cursor: "pointer",
-                                fontSize: 15,
-                                padding: "0 1px",
-                                lineHeight: 1,
+                                padding: 0,
+                                lineHeight: 0,
                               }}
                             >
-                              {emoji}
+                              <img
+                                src={sticker.url}
+                                alt={sticker.label}
+                                width={22}
+                                height={22}
+                                style={{ width: 22, height: "auto", display: "block" }}
+                              />
                             </button>
                           ))}
                         </div>
@@ -1391,35 +1444,89 @@ export default function TeamChat() {
               ) : null}
 
               {emojiOpen ? (
-                <div
-                  style={{
-                    padding: "8px 16px 0",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(8, 1fr)",
-                    gap: 4,
-                    maxWidth: 360,
-                  }}
-                >
-                  {EMOJI_PICKER.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => {
-                        setComposer((current) => current + emoji);
-                        setEmojiOpen(false);
-                      }}
+                <div style={{ padding: "8px 16px 0", display: "grid", gap: 6, maxWidth: 380 }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {(["stickers", "emoji"] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setPickerTab(tab)}
+                        style={{
+                          border: `1px solid ${pickerTab === tab ? color.brandDark : color.line}`,
+                          background: pickerTab === tab ? "#F0FDF9" : "#FFFFFF",
+                          color: pickerTab === tab ? color.brandDark : color.textMuted,
+                          borderRadius: 999,
+                          padding: "4px 12px",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {tab === "stickers" ? "Ducks" : "Emoji"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {pickerTab === "stickers" ? (
+                    <div
                       style={{
-                        border: "none",
-                        background: "transparent",
-                        fontSize: 20,
-                        cursor: "pointer",
-                        padding: 2,
-                        lineHeight: 1,
+                        display: "grid",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                        gap: 4,
+                        maxHeight: 220,
+                        overflowY: "auto",
                       }}
                     >
-                      {emoji}
-                    </button>
-                  ))}
+                      {STICKERS.map((sticker) => (
+                        <button
+                          key={sticker.token}
+                          type="button"
+                          title={sticker.label}
+                          aria-label={`Send ${sticker.label}`}
+                          onClick={() => void sendSticker(sticker.token)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            padding: 2,
+                            lineHeight: 0,
+                          }}
+                        >
+                          <img
+                            src={sticker.url}
+                            alt={sticker.label}
+                            width={58}
+                            height={58}
+                            loading="lazy"
+                            style={{ width: 58, height: "auto", display: "block" }}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4 }}>
+                      {EMOJI_PICKER.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            setComposer((current) => current + emoji);
+                            setEmojiOpen(false);
+                          }}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            fontSize: 20,
+                            cursor: "pointer",
+                            padding: 2,
+                            lineHeight: 1,
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : null}
 
