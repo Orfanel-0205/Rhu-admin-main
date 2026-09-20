@@ -14,6 +14,7 @@ import ImageUploader, { CMS_CROP_PRESETS } from "../components/ImageUploader";
 import { emitToast } from "../lib/toastBus";
 import { useAuthStore } from "../store/authStore";
 import { QUICK_STICKERS, STICKERS, soleSticker, stickerFor } from "../lib/stickers";
+import CallPanel from "../components/CallPanel";
 import {
   listConversations,
   pollUpdates,
@@ -173,7 +174,6 @@ export default function TeamChat() {
   const [joinedCall, setJoinedCall] = useState<ChatCall | null>(null);
   const [callBusy, setCallBusy] = useState(false);
   const dismissedCallsRef = useRef<Set<number>>(new Set());
-  const callWindowRef = useRef<Window | null>(null);
 
   // Single-panel collapse for phones/tablets: below this width the list and the
   // thread never share the screen — the list shows until a conversation is
@@ -630,58 +630,33 @@ export default function TeamChat() {
   }, []);
 
   /**
-   * Opens the Jitsi room in a separate window. The room comes from the backend,
-   * which builds it with the SAME WebRtcService/provider config Telemedicine
-   * uses — this is not a second video stack.
+   * Calls happen in the dashboard now, in a floating panel, instead of opening
+   * a Jitsi window. The audio and video go straight between the two browsers;
+   * the server only carries the handshake.
+   *
+   * Group calls are not covered: connecting everyone to everyone is a
+   * different problem, and a call that half works is worse than one the
+   * interface refuses honestly.
    */
-  function openCallWindow(call: ChatCall) {
-    const video = call?.video;
-
-    // join_url carries the JWT in the right position; room_url is the
-    // token-free display form and must NOT be used to join.
-    const url = video?.join_url || "";
-
-    if (!url) {
-      emitToast("The call room is not configured. Ask IT to set the Jitsi settings.", "error");
-      return;
-    }
-
-    /*
-     * With JWT auth on, joining without a token silently fails on the 8x8
-     * tenant — the room opens and then never connects. Say so instead of
-     * handing the user a dead window.
-     */
-    if (video.jwt_enabled && !video.jwt) {
-      emitToast(
-        "Could not get a secure token for this call. Ask IT to check the Jitsi/JaaS key settings.",
-        "error"
-      );
-      return;
-    }
-
-    if (video.is_demo && video.demo_warning) {
-      emitToast(video.demo_warning, "warning");
-    }
-
-    callWindowRef.current = window.open(
-      url,
-      `kaagapay_call_${call.id}`,
-      "noopener,noreferrer,width=1100,height=760"
-    );
-
-    if (!callWindowRef.current) {
-      emitToast("Allow pop-ups for this site to open the call window.", "warning");
-    }
+  function canCallInApp(convo: ConversationSummary | null): boolean {
+    return !!convo && convo.type === "dm";
   }
 
   async function doStartCall(callMode: "audio" | "video") {
     if (!active || callBusy) return;
 
+    if (!canCallInApp(active)) {
+      emitToast(
+        "Calls are one-to-one for now. Open a direct conversation with the person you want to call.",
+        "warning"
+      );
+      return;
+    }
+
     setCallBusy(true);
     try {
       const call = await startCall(active.id, callMode);
       setJoinedCall(call);
-      openCallWindow(call);
     } catch (e: any) {
       emitToast(e?.response?.data?.message || "Could not start the call.", "error");
     } finally {
@@ -697,7 +672,6 @@ export default function TeamChat() {
       const call = await joinCall(incomingCall.id);
       setJoinedCall(call);
       setIncomingCall(null);
-      openCallWindow(call);
     } catch (e: any) {
       emitToast(e?.response?.data?.message || "Could not join the call.", "error");
     } finally {
@@ -731,17 +705,13 @@ export default function TeamChat() {
     try {
       await endCall(id);
     } catch {
-      // Ending is best-effort; the stale-call window closes it server-side anyway.
+      // Ending is best-effort; the stale-call sweep closes it server-side anyway.
     } finally {
+      // Clearing this unmounts the call panel, which stops the microphone and
+      // camera. Leaving them running after a call is the kind of thing people
+      // rightly never forgive.
       setJoinedCall(null);
       setCallBusy(false);
-
-      try {
-        callWindowRef.current?.close();
-      } catch {
-        // Cross-origin close can throw; harmless.
-      }
-      callWindowRef.current = null;
     }
   }
 
@@ -1162,6 +1132,26 @@ export default function TeamChat() {
                   </button>
                 ) : null}
               </div>
+
+              {/* The call itself, in a floating panel over the dashboard, so
+                  staff can keep reading a record while they talk. */}
+              {joinedCall ? (
+                <CallPanel
+                  call={joinedCall}
+                  myUserId={meId}
+                  peerName={
+                    joinedCall.started_by_me
+                      ? active?.title || "Staff"
+                      : joinedCall.started_by_name || active?.title || "Staff"
+                  }
+                  onEnded={() => {
+                    // However the call ended — hung up here, ended by the other
+                    // side, or never connected — clear it so the microphone
+                    // stops and the buttons come back.
+                    setJoinedCall(null);
+                  }}
+                />
+              ) : null}
 
               {incomingCall ? (
                 <div

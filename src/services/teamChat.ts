@@ -52,7 +52,15 @@ export interface ChatCall {
   started_at: string | null;
   ended_at: string | null;
   active: boolean;
+  /** Legacy Jitsi room. Kept for older clients; the dashboard calls in-app now. */
   video: CallVideoConfig;
+  /** What the browser needs to place the call itself. */
+  peer?: {
+    ice_servers: RTCIceServer[];
+    /** False when no TURN relay is set up, so calls across networks may fail. */
+    relay_configured: boolean;
+    participants: number[];
+  };
 }
 
 export interface ChatMessage {
@@ -300,6 +308,41 @@ export async function startCall(
 ): Promise<ChatCall> {
   const res = await apiClient.post(`/team-chat/conversations/${conversationId}/call`, { mode });
   return res.data?.data;
+}
+
+/** One step of the call handshake, sent to the other browser. */
+export async function sendCallSignal(
+  callId: number,
+  type: "offer" | "answer" | "ice" | "hangup",
+  payload: unknown,
+  toUserId?: number | null
+): Promise<void> {
+  await apiClient.post(`/team-chat/calls/${callId}/signal`, {
+    type,
+    payload,
+    to_user_id: toUserId ?? null,
+  });
+}
+
+export interface CallSignal {
+  id: number;
+  from_user_id: number;
+  type: string;
+  payload: any;
+}
+
+/** Handshake steps addressed to me, plus whether the call is still running. */
+export async function fetchCallSignals(
+  callId: number
+): Promise<{ signals: CallSignal[]; active: boolean }> {
+  const response = await apiClient.get(`/team-chat/calls/${callId}/signals`, {
+    suppressErrorToast: true,
+  } as any);
+
+  return {
+    signals: response.data?.data ?? [],
+    active: response.data?.call_active !== false,
+  };
 }
 
 export async function joinCall(callId: number): Promise<ChatCall> {
