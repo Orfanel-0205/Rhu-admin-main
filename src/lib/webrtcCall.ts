@@ -54,6 +54,9 @@ export class PeerCall {
   private poll: number | null = null;
   private stopped = false;
   private politeWait: Promise<void> | null = null;
+  private pendingCandidates: RTCIceCandidateInit[] = [];
+  private candidateTimer: number | null = null;
+  private failures = 0;
 
   constructor(
     private readonly options: {
@@ -113,9 +116,19 @@ export class PeerCall {
       handlers.onRemoteStream(this.remote);
     };
 
+    // Network routes are found in bursts, and one request each is what pushed
+    // a call past the server's rate limit. They are collected for a moment and
+    // sent together instead.
     this.pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        void transport.send("ice", event.candidate.toJSON());
+      if (!event.candidate) return;
+
+      this.pendingCandidates.push(event.candidate.toJSON());
+
+      if (this.candidateTimer === null) {
+        this.candidateTimer = window.setTimeout(() => {
+          this.candidateTimer = null;
+          this.flushCandidates();
+        }, 400);
       }
     };
 
@@ -198,6 +211,11 @@ export class PeerCall {
       this.poll = null;
     }
 
+    if (this.candidateTimer !== null) {
+      window.clearTimeout(this.candidateTimer);
+      this.candidateTimer = null;
+    }
+
     if (announce) {
       try {
         await this.options.transport.send("hangup", {});
@@ -217,6 +235,34 @@ export class PeerCall {
 
     this.pc = null;
     this.options.handlers.onState("ended");
+  }
+
+  private flushCandidates(): void {
+    if (this.pendingCandidates.length === 0 || this.stopped) return;
+
+    const batch = this.pendingCandidates;
+    this.pendingCandidates = [];
+
+    void this.options.transport
+      .send("ice", { candidates: batch })
+      .catch(() => this.noteFailure());
+  }
+
+  /**
+   * A handshake request that fails is not a network problem the person can
+   * fix by waiting, so after a few in a row the call says so rather than
+   * sitting on "Connecting…". Being refused by the server looks exactly like
+   * silence from the other side, and staff deserve the difference.
+   */
+  private noteFailure(): void {
+    this.failures += 1;
+
+    if (this.failures === 4) {
+      this.options.handlers.onState(
+        "failed",
+        "The server is refusing the call setup. This usually clears in a minute; if it keeps happening, tell IT the call signalling is being rate limited."
+      );
+    }
   }
 
   private startPolling(): void {
@@ -242,6 +288,9 @@ export class PeerCall {
     try {
       const signals = await this.options.transport.receive();
 
+      // A successful exchange clears the failure streak.
+      this.failures = 0;
+
       for (const signal of signals ?? []) {
         if (this.stopped || !this.pc) break;
 
@@ -256,11 +305,18 @@ export class PeerCall {
             await this.pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
           }
         } else if (signal.type === "ice") {
-          try {
-            await this.pc.addIceCandidate(new RTCIceCandidate(signal.payload));
-          } catch {
-            // A candidate that arrives before the description it belongs to is
-            // safe to drop; more will follow.
+          // Sent in batches now; older single-candidate messages still work.
+          const candidates: RTCIceCandidateInit[] = Array.isArray(signal.payload?.candidates)
+            ? signal.payload.candidates
+            : [signal.payload];
+
+          for (const candidate of candidates) {
+            try {
+              await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch {
+              // A route that arrives before the description it belongs to is
+              // safe to drop; more will follow.
+            }
           }
         } else if (signal.type === "hangup") {
           await this.hangUp(false);
@@ -268,7 +324,9 @@ export class PeerCall {
         }
       }
     } catch {
-      // A dropped poll is not a dropped call; the next tick tries again.
+      // One dropped poll is not a dropped call; a run of them means the
+      // server is refusing us, which the person needs told.
+      this.noteFailure();
     } finally {
       release();
       this.politeWait = null;
