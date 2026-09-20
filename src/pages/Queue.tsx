@@ -42,6 +42,8 @@ import { useLangStore } from "../store/langStore";
 import { useToast } from "../contexts/ToastContext";
 import WalkInPatientModal from "../components/queue/WalkInPatientModal";
 
+import { readFilterParam } from "../lib/urlFilters";
+
 type StatusFilter =
   | "active"
   | "all"
@@ -386,7 +388,25 @@ export default function Queue() {
   const [serviceType, setServiceType] = useState<QueueServiceType>(
     DEFAULT_QUEUE_SERVICE_TYPE
   );
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  // ?status=... lets the assistant open the queue on the right tab.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    readFilterParam<StatusFilter>(
+      new URLSearchParams(window.location.search),
+      "status",
+      [
+        "active",
+        "all",
+        "waiting",
+        "called",
+        "in_service",
+        "completed",
+        "skipped",
+        "no_show",
+        "cancelled",
+      ],
+      "active"
+    )
+  );
 
   const [tickets, setTickets] = useState<QueueTicket[]>([]);
   const [summary, setSummary] = useState<QueueSummary>({

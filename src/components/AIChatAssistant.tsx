@@ -140,6 +140,19 @@ const SIMPLE_MODE_KEY = "ka_agapay_admin_assistant_simple_mode";
 // sees what is about to happen instead of the screen jumping under them.
 const AUTO_ACTION_DELAY_MS = 900;
 
+// Whether the assistant opens pages and applies searches and filters by itself.
+// On by default, and anyone can turn it off for their own device: some staff
+// want to read the answer first and press the button themselves.
+const AUTO_MODE_KEY = "ka_agapay_admin_assistant_auto_mode";
+
+function readSavedAutoMode(): boolean {
+  try {
+    return window.localStorage.getItem(AUTO_MODE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
 // The big buttons shown in simple mode: the four things staff do all day.
 const settingLabelStyle: CSSProperties = {
   display: "grid",
@@ -1501,6 +1514,7 @@ export default function AIChatAssistant() {
   const [actionParams, setActionParams] = useState<Record<string, string>>({});
   const [speakReplies, setSpeakReplies] = useState<boolean>(isVoiceOutputEnabled);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [autoMode, setAutoMode] = useState<boolean>(readSavedAutoMode);
   const [simpleMode, setSimpleMode] = useState<boolean>(() => {
     try {
       return window.localStorage.getItem(SIMPLE_MODE_KEY) === "on";
@@ -1829,11 +1843,12 @@ export default function AIChatAssistant() {
         speak(response.message.content, lang);
       }
 
-      // The assistant opens the page and fills the search itself. Both are
-      // harmless: nothing is saved, so a misheard word only shows the wrong
-      // list, and the staff member can type again. Not during a Getting
-      // Started lesson, where jumping pages would interrupt the walkthrough.
-      if (response.suggested_action && assistantMode !== "tutorial") {
+      // With auto mode on, the assistant opens the page and applies the search
+      // or filter itself. All of that is harmless: nothing is saved, so a
+      // misheard word only shows the wrong list. With auto mode off, the
+      // button below the answer does the same thing on demand. Never during a
+      // Getting Started lesson, where jumping pages interrupts the walkthrough.
+      if (response.suggested_action && autoMode && assistantMode !== "tutorial") {
         const action = response.suggested_action;
         const params = response.action_params ?? {};
 
@@ -1972,15 +1987,30 @@ export default function AIChatAssistant() {
 
     if (!route) return;
 
+    const query = new URLSearchParams();
     const term = (params.search ?? "").trim();
-    // The Users page names its search "q"; every other page uses "search".
-    const key = action === "open_users" ? "q" : "search";
 
-    navigate(term ? `${route}?${key}=${encodeURIComponent(term)}` : route);
-
-    if (!simpleMode) {
-      setOpen(false);
+    if (term) {
+      // The Users page names its search "q"; every other page uses "search".
+      query.set(action === "open_users" ? "q" : "search", term);
     }
+
+    // Filters the list pages understand. An unknown value is ignored by the
+    // page, which then shows its normal list.
+    (["status", "date"] as const).forEach((key) => {
+      const value = (params[key] ?? "").trim();
+
+      if (value) {
+        query.set(key, value);
+      }
+    });
+
+    const search = query.toString();
+
+    navigate(search ? `${route}?${search}` : route);
+
+    // The chat stays open: staff asked for a helper that keeps working with
+    // them, not one that disappears the moment it does something.
   };
 
   const goToSuggestedAction = () => {
@@ -2963,6 +2993,33 @@ export default function AIChatAssistant() {
                       ))}
                     </select>
                   </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !autoMode;
+
+                      setAutoMode(next);
+
+                      try {
+                        window.localStorage.setItem(AUTO_MODE_KEY, next ? "on" : "off");
+                      } catch {
+                        // The choice still applies for this session.
+                      }
+                    }}
+                    aria-pressed={autoMode}
+                    style={settingToggleStyle(autoMode)}
+                  >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Sparkles size={14} />
+                      Do it for me · {autoMode ? "on" : "off"}
+                    </span>
+                    <small style={{ fontWeight: 600, color: "#64748B" }}>
+                      {autoMode
+                        ? "Opens the page and applies the search or filter itself."
+                        : "Shows a button to press instead of acting on its own."}
+                    </small>
+                  </button>
 
                   <button
                     type="button"

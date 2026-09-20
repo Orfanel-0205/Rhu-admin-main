@@ -24,6 +24,7 @@ import {
 import { useToast } from "../contexts/ToastContext";
 import { useAuthStore } from "../store/authStore";
 import { RHU_OPTIONS, isGlobalRhuRole } from "../lib/rhu";
+import { readFilterParam } from "../lib/urlFilters";
 
 import {
   addAppointmentToQueue,
@@ -515,9 +516,36 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [search, setSearch] = useState("");
   const [board, setBoard] = useState<AppointmentBoard>("active");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  // ?status=... and ?date=... let the assistant open this board already
+  // filtered, e.g. "show pending appointments today".
+  const [status, setStatus] = useState<StatusFilter>(() =>
+    readFilterParam<StatusFilter>(
+      new URLSearchParams(window.location.search),
+      "status",
+      [
+        "all",
+        "pending",
+        "confirmed",
+        "approved",
+        "scheduled",
+        "ongoing",
+        "completed",
+        "cancelled",
+        "rejected",
+        "no_show",
+      ] as StatusFilter[],
+      "all"
+    )
+  );
   const [type, setType] = useState<TypeFilter>("all");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>(() =>
+    readFilterParam<DateFilter>(
+      new URLSearchParams(window.location.search),
+      "date",
+      ["all", "today", "upcoming"],
+      "all"
+    )
+  );
   const [rhu, setRhu] = useState<string>("all");
 
   const [loading, setLoading] = useState(true);

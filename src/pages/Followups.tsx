@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+
+import { readFilterParam } from "../lib/urlFilters";
 import {
   AlertTriangle,
   CalendarClock,
@@ -132,7 +134,15 @@ export default function Followups() {
     missed: 0,
   });
 
-  const [status, setStatus] = useState<FollowUpBoardStatus>("all");
+  // ?status=... lets the assistant open this board on the right tab.
+  const [status, setStatus] = useState<FollowUpBoardStatus>(() =>
+    readFilterParam<FollowUpBoardStatus>(
+      new URLSearchParams(window.location.search),
+      "status",
+      ["all", "overdue", "today", "upcoming", "completed", "cancelled", "missed"],
+      "all"
+    )
+  );
   // ?search=... lets the assistant open this page with the name already typed in.
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("search") ?? "");

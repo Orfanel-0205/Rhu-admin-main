@@ -13,6 +13,8 @@ import {
 import { usePagination } from "../hooks/usePagination";
 import TablePagination from "../components/ui/TablePagination";
 import { useSearchParams } from "react-router-dom";
+
+import { readFilterParam } from "../lib/urlFilters";
 import {
   CheckCircle,
   Download,
@@ -393,7 +395,15 @@ export default function Prescriptions() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   // ?search=... lets the assistant open this page with the search already typed in.
   const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
-  const [status, setStatus] = useState("all");
+  // ?status=... lets the assistant open this list already filtered.
+  const [status, setStatus] = useState(() =>
+    readFilterParam(
+      searchParams,
+      "status",
+      ["all", "active", "released", "dispensed", "partially_dispensed", "voided", "cancelled"],
+      "all"
+    )
+  );
 
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<FormState>(freshEmptyForm);

@@ -40,6 +40,7 @@ import {
 import { getConsultations } from "../services/consultations";
 import { useAuthStore } from "../store/authStore";
 import { isGlobalRhuRole } from "../lib/rhu";
+import { readFilterParam } from "../lib/urlFilters";
 
 type RhuFilter = "all" | 1 | 2;
 import StatusBadge from "../components/ui/StatusBadge";
@@ -91,7 +92,15 @@ export default function Consultations() {
 
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  // ?status=... lets the assistant open this list already filtered.
+  const [status, setStatus] = useState<StatusFilter>(() =>
+    readFilterParam<StatusFilter>(
+      new URLSearchParams(window.location.search),
+      "status",
+      ["all", "open", "ongoing", "completed", "cancelled"],
+      "all"
+    )
+  );
   const [rhuFilter, setRhuFilter] = useState<RhuFilter>("all");
 
   const [loading, setLoading] = useState(true);
