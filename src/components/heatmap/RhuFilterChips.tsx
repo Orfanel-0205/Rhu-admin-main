@@ -3,10 +3,22 @@
 // Shared RHU focus filter for the Heatmap Analytics page. One state drives the
 // whole page (chips in the hero AND above the operational maps render this same
 // component), so changing focus anywhere updates every map and ranking at once.
+//
+// The chips are built from the live facility list: open a third RHU and a third
+// chip appears here, with its own count, without touching this file.
 
 import type { CSSProperties } from "react";
 
-export type RhuFocus = "all" | 1 | 2;
+import { useRhuOptions } from "../../hooks/useRhuOptions";
+
+/** "all", or a facility id. */
+export type RhuFocus = "all" | number;
+
+export interface RhuFocusCounts {
+  all: number;
+  /** Barangays with active case signals, keyed by facility id. */
+  byRhu: Record<number, number>;
+}
 
 export default function RhuFilterChips({
   value,
@@ -16,15 +28,19 @@ export default function RhuFilterChips({
 }: {
   value: RhuFocus;
   onChange: (next: RhuFocus) => void;
-  /** Badge counts: barangays with active case signals per scope. */
-  counts: { all: number; rhu1: number; rhu2: number };
+  counts: RhuFocusCounts;
   /** Smaller paddings for use inside section headers. */
   compact?: boolean;
 }) {
+  const facilities = useRhuOptions();
+
   const options: { key: RhuFocus; label: string; count: number }[] = [
     { key: "all", label: "All RHUs", count: counts.all },
-    { key: 1, label: "RHU 1", count: counts.rhu1 },
-    { key: 2, label: "RHU 2", count: counts.rhu2 },
+    ...facilities.map((facility) => ({
+      key: facility.id as RhuFocus,
+      label: facility.label,
+      count: counts.byRhu[facility.id] ?? 0,
+    })),
   ];
 
   return (
@@ -43,11 +59,19 @@ export default function RhuFilterChips({
               ...chipStyle,
               padding: compact ? "8px 13px" : "10px 16px",
               fontSize: compact ? 12.5 : 13.5,
-              ...(active ? activeChipStyle : {}),
+              background: active ? "#0F766E" : "#FFFFFF",
+              color: active ? "#FFFFFF" : "#0F172A",
+              borderColor: active ? "#0F766E" : "#CBD5E1",
             }}
           >
             {option.label}
-            <span style={{ ...badgeStyle, ...(active ? activeBadgeStyle : {}) }}>
+            <span
+              style={{
+                ...badgeStyle,
+                background: active ? "rgba(255,255,255,0.22)" : "#F1F5F9",
+                color: active ? "#FFFFFF" : "#475569",
+              }}
+            >
               {option.count}
             </span>
           </button>
@@ -59,43 +83,25 @@ export default function RhuFilterChips({
 
 const rowStyle: CSSProperties = {
   display: "flex",
-  gap: 8,
   flexWrap: "wrap",
+  gap: 8,
   alignItems: "center",
 };
 
 const chipStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 7,
+  gap: 8,
   border: "1px solid #CBD5E1",
-  background: "#FFFFFF",
-  color: "#334155",
   borderRadius: 999,
-  fontFamily: "inherit",
-  fontWeight: 900,
+  fontWeight: 800,
   cursor: "pointer",
-  minHeight: 38,
-  boxShadow: "0 6px 16px rgba(15,23,42,.04)",
-};
-
-const activeChipStyle: CSSProperties = {
-  background: "#0F766E",
-  borderColor: "#0F766E",
-  color: "#FFFFFF",
-  boxShadow: "0 10px 22px rgba(15,118,110,.22)",
+  lineHeight: 1,
 };
 
 const badgeStyle: CSSProperties = {
-  background: "#F1F5F9",
-  color: "#334155",
   borderRadius: 999,
-  padding: "1px 8px",
-  fontSize: 11.5,
-  fontWeight: 950,
-};
-
-const activeBadgeStyle: CSSProperties = {
-  background: "rgba(255,255,255,.22)",
-  color: "#FFFFFF",
+  padding: "3px 8px",
+  fontSize: 11,
+  fontWeight: 900,
 };

@@ -182,9 +182,10 @@ export type EventVisibility =
   | "barangay"
   | "staff_only"
   | "rhu_only"
-  // Facility-scoped visibility — matches the backend Rule::in(['public','rhu1','rhu2']).
-  | "rhu1"
-  | "rhu2";
+  // Facility-scoped visibility: "rhu" followed by the facility id, one value
+  // per RHU. Open a third facility and "rhu3" becomes valid, so this cannot be
+  // a fixed list of two. The backend validates against the live facility list.
+  | `rhu${number}`;
 
 export type EventCategory =
   | "immunization"

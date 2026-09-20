@@ -386,8 +386,17 @@ export default function HeatmapAnalytics() {
   const rhuCounts = useMemo(
     () => ({
       all: casePoints.length,
-      rhu1: casePoints.filter((point) => point.rhu_id === 1).length,
-      rhu2: casePoints.filter((point) => point.rhu_id === 2).length,
+      // Counted per facility id rather than per named RHU, so a third RHU
+      // gets its own chip and count with no change here.
+      byRhu: casePoints.reduce<Record<number, number>>((totals, point) => {
+        const id = Number(point.rhu_id);
+
+        if (Number.isFinite(id) && id > 0) {
+          totals[id] = (totals[id] ?? 0) + 1;
+        }
+
+        return totals;
+      }, {}),
     }),
     [casePoints]
   );

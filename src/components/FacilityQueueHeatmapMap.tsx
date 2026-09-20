@@ -114,7 +114,8 @@ function MapFocus({
       try {
         map.invalidateSize({ animate: false });
 
-        if (selectedRhu === 1 || selectedRhu === 2) {
+        // Any known facility, not just the original two.
+        if (Number.isFinite(selectedRhu) && selectedRhu > 0) {
           const facility = facilities.find((f) => f.id === selectedRhu);
           if (facility) {
             map.flyTo([facility.latitude, facility.longitude], 14, {

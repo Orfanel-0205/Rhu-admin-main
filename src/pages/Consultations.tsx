@@ -41,8 +41,10 @@ import { getConsultations } from "../services/consultations";
 import { useAuthStore } from "../store/authStore";
 import { isGlobalRhuRole } from "../lib/rhu";
 import { readFilterParam } from "../lib/urlFilters";
+import { useRhuOptions } from "../hooks/useRhuOptions";
 
-type RhuFilter = "all" | 1 | 2;
+/** "all", or a facility id from the live RHU list. */
+type RhuFilter = "all" | number;
 import StatusBadge from "../components/ui/StatusBadge";
 
 function truncate(value: string, max = 48): string {
@@ -102,6 +104,11 @@ export default function Consultations() {
     )
   );
   const [rhuFilter, setRhuFilter] = useState<RhuFilter>("all");
+  const rhuOptions = useRhuOptions();
+  const selectedRhuLabel =
+    rhuFilter === "all"
+      ? "All RHUs"
+      : rhuOptions.find((option) => option.id === rhuFilter)?.label ?? `RHU ${rhuFilter}`;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -369,16 +376,17 @@ export default function Consultations() {
             value={String(rhuFilter)}
             onChange={(event) =>
               setRhuFilter(
-                event.target.value === "all"
-                  ? "all"
-                  : (Number(event.target.value) as 1 | 2)
+                event.target.value === "all" ? "all" : Number(event.target.value)
               )
             }
             style={selectStyle}
           >
             <option value="all">All RHUs</option>
-            <option value="1">RHU 1</option>
-            <option value="2">RHU 2</option>
+            {rhuOptions.map((option) => (
+              <option key={option.id} value={String(option.id)}>
+                {option.label}
+              </option>
+            ))}
           </select>
         ) : null}
 
@@ -420,15 +428,10 @@ export default function Consultations() {
                 <strong>No consultations match your search.</strong>
                 <span>Try a different name, barangay, or clear the search.</span>
               </>
-            ) : rhuFilter === 2 ? (
+            ) : rhuFilter !== "all" ? (
               <>
-                <strong>No RHU 2 consultations found yet.</strong>
-                <span>RHU 2 consultations will appear here once recorded.</span>
-              </>
-            ) : rhuFilter === 1 ? (
-              <>
-                <strong>No RHU 1 consultations found yet.</strong>
-                <span>RHU 1 consultations will appear here once recorded.</span>
+                <strong>No {selectedRhuLabel} consultations found yet.</strong>
+                <span>{selectedRhuLabel} consultations will appear here once recorded.</span>
               </>
             ) : (
               <>

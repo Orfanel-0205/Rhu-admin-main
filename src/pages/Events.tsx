@@ -46,6 +46,7 @@ import { TARGET_AUDIENCE_OPTIONS } from "../constants/targetAudiences";
 import { getRecordLifecycleStatus } from "../lib/recordLifecycle";
 import type { LifecycleStatus } from "../lib/recordLifecycle";
 import { useAuthStore } from "../store/authStore";
+import { useRhuOptions } from "../hooks/useRhuOptions";
 import {
   EVENT_TYPE_CONFIG,
   type Event,
@@ -1477,6 +1478,12 @@ function EventFormPanel({
   const cfg = getTypeConfig(form.event_type);
   const isAnnouncement = form.event_type === "announcement";
 
+  // Facilities come from the server, so a newly opened RHU can be chosen here
+  // the day it exists.
+  const rhuOptions = useRhuOptions();
+  const restrictedToRhu =
+    rhuOptions.find((option) => `rhu${option.id}` === form.visibility)?.label ?? null;
+
   const [dirty, setDirty] = useState(false);
   const [barangays, setBarangays] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
@@ -2043,17 +2050,20 @@ function EventFormPanel({
               value={form.visibility}
               onChange={(value) => update("visibility", value as EventVisibility)}
               options={[
-                { value: "public", label: "Public", hint: "All residents, both RHUs" },
-                { value: "rhu1", label: "RHU 1", hint: "RHU 1 residents only" },
-                { value: "rhu2", label: "RHU 2", hint: "RHU 2 residents only" },
+                { value: "public", label: "Public", hint: "All residents, every RHU" },
+                ...rhuOptions.map((option) => ({
+                  value: `rhu${option.id}`,
+                  label: option.label,
+                  hint: `${option.label} residents only`,
+                })),
               ]}
             />
             <FieldMessage
               check={
-                form.visibility === "rhu1" || form.visibility === "rhu2"
+                restrictedToRhu
                   ? {
                       tone: "warn",
-                      message: `Only residents under ${form.visibility === "rhu1" ? "RHU 1" : "RHU 2"} will see this post.`,
+                      message: `Only residents under ${restrictedToRhu} will see this post.`,
                     }
                   : null
               }
