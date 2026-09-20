@@ -28,6 +28,7 @@ import Inventory from "./pages/Inventory";
 import Queue from "./pages/Queue";
 import Feedback from "./pages/Feedback";
 import Reports from "./pages/Reports";
+import RhuFacilities from "./pages/RhuFacilities";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 import RegistrationApprovals from "./pages/RegistrationApprovals";
@@ -389,6 +390,15 @@ export default function App() {
           element={
             <ProtectedPage>
               <Users />
+            </ProtectedPage>
+          }
+        />
+
+        <Route
+          path="/rhus"
+          element={
+            <ProtectedPage>
+              <RhuFacilities />
             </ProtectedPage>
           }
         />

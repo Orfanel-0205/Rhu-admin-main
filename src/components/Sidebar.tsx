@@ -5,6 +5,7 @@ import {
   Activity,
   BarChart3,
   Bell,
+  Building2,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
@@ -219,6 +220,14 @@ const navConfig: NavEntry[] = [
         fallback: "History",
         path: "/delete-history",
         icon: History,
+      },
+      {
+        labelKey: "nav_rhu_facilities",
+        fallback: "RHU Facilities",
+        path: "/rhus",
+        icon: Building2,
+        // Opening or closing a facility reshapes who sees which patients.
+        superAdminOnly: true,
       },
       {
         labelKey: "nav_settings",

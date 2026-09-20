@@ -31,6 +31,11 @@ export const T: Record<string, Record<Lang, string>> = {
     tag: "Basahin lahat",
     pag: "Basaen amin",
   },
+  nav_rhu_facilities: {
+    en: "RHU Facilities",
+    tag: "Mga Pasilidad ng RHU",
+    pag: "Saray Pasilidad na RHU",
+  },
   top_assistant: {
     en: "Assistant",
     tag: "Katulong",

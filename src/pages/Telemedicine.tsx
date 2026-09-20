@@ -1,6 +1,7 @@
 // src/pages/Telemedicine.tsx
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRhuOptions } from "../hooks/useRhuOptions";
 import type { CSSProperties, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
@@ -85,10 +86,8 @@ const CLINICAL_ROLES = new Set([
 
 // Same RHU-selector pattern as Reports/Analytics: global staff (Super Admin/MHO)
 // may switch RHU 1 / RHU 2; facility-scoped staff stay locked to their own.
-const RHU_OPTIONS = [
-  { id: "1", label: "RHU 1" },
-  { id: "2", label: "RHU 2" },
-];
+// The facility list is served by the API (Administration -> RHU Facilities),
+// so a new RHU appears in this picker without a code change.
 
 function defaultRhuFilter(): string {
   const own = getCurrentUserRhuId();
@@ -510,6 +509,7 @@ function getSearchText(item: TelemedicineRequest): string {
 }
 
 export default function Telemedicine() {
+  const rhuOptions = useRhuOptions();
   const toast = useToast();
   const navigate = useNavigate();
   const authUser = useAuthStore((state) => state.user) as any;
@@ -1001,7 +1001,7 @@ export default function Telemedicine() {
               onChange={(event) => setRhuFilter(event.target.value)}
               style={toolbarInputStyle}
             >
-              {RHU_OPTIONS.map((option) => (
+              {rhuOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
                 </option>

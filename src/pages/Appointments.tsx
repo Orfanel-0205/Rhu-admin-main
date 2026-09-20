@@ -23,7 +23,8 @@ import {
 
 import { useToast } from "../contexts/ToastContext";
 import { useAuthStore } from "../store/authStore";
-import { RHU_OPTIONS, isGlobalRhuRole } from "../lib/rhu";
+import { isGlobalRhuRole } from "../lib/rhu";
+import { useRhuOptions } from "../hooks/useRhuOptions";
 import { readFilterParam } from "../lib/urlFilters";
 
 import {
@@ -507,6 +508,7 @@ function safeActionError(error: any, fallback: string): string {
 }
 
 export default function Appointments() {
+  const rhuOptions = useRhuOptions();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -1102,7 +1104,7 @@ export default function Appointments() {
             title="Filter by RHU facility"
           >
             <option value="all">All RHUs</option>
-            {RHU_OPTIONS.map((option) => (
+            {rhuOptions.map((option) => (
               <option key={option.id} value={String(option.id)}>
                 {option.label}
               </option>

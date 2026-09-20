@@ -49,6 +49,8 @@ import ConfirmDialog from "../components/ui/ConfirmDialog";
 import ModuleTabs from "../components/ui/ModuleTabs";
 import PasswordStrengthMeter from "../components/ui/PasswordStrengthMeter";
 import { checkPasswordStrength } from "../utils/passwordPolicy";
+import { useRhuStore } from "../store/rhuStore";
+import { useRhuOptions } from "../hooks/useRhuOptions";
 
 const roleTabs = [
   { value: "all", label: "Lahat" },
@@ -172,12 +174,17 @@ function isPatientRole(role: string) {
   return ["patient", "resident"].includes(normalizeRoleText(role));
 }
 
+// Facility names and ids come from the list the server serves, so a staff
+// member assigned to a newly opened RHU is labelled correctly instead of
+// showing as unassigned.
 function rhuLabel(rhuId?: number | null) {
-  return rhuId === 1 || rhuId === 2 ? `RHU ${rhuId}` : "Not assigned";
+  return useRhuStore.getState().labelFor(rhuId) ?? "Not assigned";
 }
 
 function normalizeRhuId(rhuId?: number | null) {
-  return rhuId === 1 || rhuId === 2 ? rhuId : undefined;
+  const known = useRhuStore.getState().options.some((option) => option.id === rhuId);
+
+  return known ? (rhuId as number) : undefined;
 }
 
 function roleIdForRoleName(roles: UserRoleOption[], roleName: string): number {
@@ -216,6 +223,8 @@ function patientItrPayload(form: FormState) {
 }
 
 export default function Users() {
+  // Keeps the facility list loaded for the labels above.
+  useRhuOptions();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const lang = useLangStore((state) => state.lang);

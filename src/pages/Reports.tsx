@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { useRhuOptions } from "../hooks/useRhuOptions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -49,10 +50,8 @@ import { getCurrentUserRhuId, isGlobalRhuRole } from "../services/queue";
 // Malasiqui operates two facilities. Global staff (super_admin / MHO) may switch
 // between them; facility-scoped staff are locked to their own RHU (the backend
 // enforces the same scope, so this is a display lock, not the security boundary).
-const RHU_OPTIONS = [
-  { id: "1", label: "RHU 1" },
-  { id: "2", label: "RHU 2" },
-];
+// The facility list is served by the API (Administration -> RHU Facilities),
+// so a new RHU appears in this picker without a code change.
 
 function defaultRhuId(): string {
   const own = getCurrentUserRhuId();
@@ -471,6 +470,7 @@ function errorMessage(error: any): string {
 }
 
 export default function Reports() {
+  const rhuOptions = useRhuOptions();
   const isGlobal = isGlobalRhuRole();
   const [filters, setFilters] = useState<FilterState>(() => defaultFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() =>
@@ -1035,7 +1035,7 @@ export default function Reports() {
               }}
               style={inputStyle}
             >
-              {RHU_OPTIONS.map((option) => (
+              {rhuOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
                 </option>
