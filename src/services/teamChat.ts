@@ -63,7 +63,31 @@ export interface ChatMessage {
   attachment_url: string | null;
   attachment_meta: Record<string, any> | null;
   deleted?: boolean;
+  /** Emoji tallies on this message, most-used first. */
+  reactions?: MessageReaction[];
   created_at: string | null;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  /** True when I am one of the people who reacted. */
+  reacted: boolean;
+}
+
+/**
+ * Add or remove my reaction. The same emoji twice removes it, so one call
+ * covers both directions, and the server returns the message's new tallies.
+ */
+export async function toggleMessageReaction(
+  messageId: number,
+  emoji: string
+): Promise<MessageReaction[]> {
+  const response = await apiClient.post(`/team-chat/messages/${messageId}/reactions`, {
+    emoji,
+  });
+
+  return response.data?.data?.reactions ?? [];
 }
 
 export interface ConversationSummary {

@@ -7,7 +7,7 @@
 // into the existing global toast (emitToast) without modifying it.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, Search, Plus, Users, Send, ArrowLeft, ImagePlus, X, Trash2, Settings, Pencil, Phone, Video, PhoneOff, Check, CheckCheck } from "lucide-react";
+import { MessageSquare, Search, Plus, Users, Send, ArrowLeft, ImagePlus, Smile, X, Trash2, Settings, Pencil, Phone, Video, PhoneOff, Check, CheckCheck } from "lucide-react";
 import { color, radius, space } from "../theme/tokens";
 import ModuleTabs from "../components/ui/ModuleTabs";
 import ImageUploader, { CMS_CROP_PRESETS } from "../components/ImageUploader";
@@ -32,10 +32,24 @@ import {
   markRead,
   searchMessages,
   uploadAttachment,
+  toggleMessageReaction,
   type ConversationSummary,
   type ChatMessage,
   type ChatContact,
 } from "../services/teamChat";
+
+// The reactions offered on hover, and the picker below the text box. Kept as a
+// short curated set rather than a full emoji library: no extra download on a
+// barangay connection, and these are the ones staff actually use to answer
+// each other without adding another message to the thread.
+const QUICK_REACTIONS = ["👍", "❤️", "✅", "🙏"];
+
+const EMOJI_PICKER = [
+  "👍", "👎", "❤️", "🙏", "✅", "❌", "⚠️", "🔴",
+  "😊", "😅", "😂", "😢", "😮", "🤒", "💊", "🩺",
+  "🏥", "🚑", "📋", "📅", "⏰", "📞", "💬", "📎",
+  "👶", "🤰", "👴", "👩‍⚕️", "👨‍⚕️", "🧑‍🤝‍🧑", "🎉", "🙌",
+];
 
 // Poll cadence while the Team Chat page is open AND the browser tab is visible.
 // Each tick is a SINGLE request (conversation delta + open-thread tail combined),
@@ -184,6 +198,7 @@ export default function TeamChat() {
     { attachment_path: string; url: string; attachment_meta: any } | null
   >(null);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [groupMode, setGroupMode] = useState(false);
@@ -544,6 +559,47 @@ export default function TeamChat() {
       setThread((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...updated } : x)));
     } catch (e: any) {
       emitToast(e?.response?.data?.message || "Could not delete the message.", "error");
+    }
+  }, []);
+
+  /**
+   * Add or remove my emoji on a message.
+   *
+   * The tally updates immediately and is corrected by the server's answer, so
+   * a tap feels instant on a slow barangay connection but never leaves a
+   * wrong count behind.
+   */
+  const handleToggleReaction = useCallback(async (m: ChatMessage, emoji: string) => {
+    const mine = (m.reactions ?? []).find((r) => r.emoji === emoji)?.reacted ?? false;
+
+    setThread((prev) =>
+      prev.map((x) => {
+        if (x.id !== m.id) return x;
+
+        const current = x.reactions ?? [];
+        const existing = current.find((r) => r.emoji === emoji);
+
+        if (!existing) {
+          return { ...x, reactions: [...current, { emoji, count: 1, reacted: true }] };
+        }
+
+        const count = existing.count + (mine ? -1 : 1);
+
+        return {
+          ...x,
+          reactions: current
+            .map((r) => (r.emoji === emoji ? { ...r, count, reacted: !mine } : r))
+            .filter((r) => r.count > 0),
+        };
+      })
+    );
+
+    try {
+      const reactions = await toggleMessageReaction(m.id, emoji);
+
+      setThread((prev) => prev.map((x) => (x.id === m.id ? { ...x, reactions } : x)));
+    } catch (e: any) {
+      emitToast(e?.response?.data?.message || "Could not save that reaction.", "error");
     }
   }, []);
 
@@ -1216,6 +1272,69 @@ export default function TeamChat() {
                           <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 3, textAlign: "right", padding: m.attachment_url ? "0 7px 4px" : 0 }}>
                             {timeLabel(m.created_at)}
                           </div>
+
+                          {/* Tallies sit inside the bubble so a busy thread
+                              stays readable: "noted" is a tap, not a message. */}
+                          {(m.reactions ?? []).length > 0 ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 4,
+                                padding: m.attachment_url ? "0 7px 6px" : "4px 0 0",
+                              }}
+                            >
+                              {(m.reactions ?? []).map((reaction) => (
+                                <button
+                                  key={reaction.emoji}
+                                  type="button"
+                                  onClick={() => handleToggleReaction(m, reaction.emoji)}
+                                  title={reaction.reacted ? "Remove your reaction" : "React"}
+                                  style={{
+                                    border: `1px solid ${reaction.reacted ? "#5EEAD4" : "rgba(148,163,184,.45)"}`,
+                                    background: reaction.reacted
+                                      ? "#F0FDF9"
+                                      : mine
+                                        ? "rgba(255,255,255,.14)"
+                                        : "#F8FAFC",
+                                    color: reaction.reacted ? "#0F766E" : mine ? "#fff" : "#334155",
+                                    borderRadius: 999,
+                                    padding: "1px 7px",
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    lineHeight: 1.6,
+                                  }}
+                                >
+                                  {reaction.emoji} {reaction.count}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {/* Quick reactions, revealed on hover like the delete
+                            button beside it. */}
+                        <div className="tc-msg-delete" style={{ display: "flex", gap: 2 }}>
+                          {QUICK_REACTIONS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              aria-label={`React with ${emoji}`}
+                              title={`React with ${emoji}`}
+                              onClick={() => handleToggleReaction(m, emoji)}
+                              style={{
+                                border: "none",
+                                background: "transparent",
+                                cursor: "pointer",
+                                fontSize: 15,
+                                padding: "0 1px",
+                                lineHeight: 1,
+                              }}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
                         </div>
 
                         {!mine && canDelete ? (
@@ -1271,9 +1390,52 @@ export default function TeamChat() {
                 </div>
               ) : null}
 
+              {emojiOpen ? (
+                <div
+                  style={{
+                    padding: "8px 16px 0",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(8, 1fr)",
+                    gap: 4,
+                    maxWidth: 360,
+                  }}
+                >
+                  {EMOJI_PICKER.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        setComposer((current) => current + emoji);
+                        setEmojiOpen(false);
+                      }}
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        fontSize: 20,
+                        cursor: "pointer",
+                        padding: 2,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
               <div style={{ padding: 12, borderTop: `1px solid ${color.line}`, display: "flex", gap: 8, alignItems: "flex-end" }}>
                 <button type="button" onClick={() => setAttachOpen(true)} style={iconBtn} aria-label="Attach photo">
                   <ImagePlus size={20} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmojiOpen((open) => !open)}
+                  style={iconBtn}
+                  aria-label="Add emoji"
+                  aria-expanded={emojiOpen}
+                  title="Add emoji"
+                >
+                  <Smile size={20} />
                 </button>
                 <textarea
                   value={composer}
