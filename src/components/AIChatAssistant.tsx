@@ -52,6 +52,7 @@ import {
   getAdminChatSessions,
   getAdminSessionMessages,
   sendAdminChatMessage,
+  streamAdminChatMessage,
   type AssistantMode,
   type AdminSuggestedAction,
   type ChatMessage,
@@ -1841,19 +1842,60 @@ export default function AIChatAssistant() {
     setTutorialCards([]);
     setSuggestedAction(null);
 
-    try {
-      const response = await sendAdminChatMessage({
-        message: finalText,
-        sessionId: currentSessionId,
-        history: nextMessages.filter((message) => message.id !== "welcome-admin"),
-        currentPage: location.pathname,
-        currentButton,
-        assistantMode,
-        uiLanguage: lang,
-        simpleMode,
-      });
+    const ask = {
+      message: finalText,
+      sessionId: currentSessionId,
+      history: nextMessages.filter((message) => message.id !== "welcome-admin"),
+      currentPage: location.pathname,
+      currentButton,
+      assistantMode,
+      uiLanguage: lang,
+      simpleMode,
+    };
 
-      setMessages((previous) => [...previous, response.message]);
+    // The reply is shown as it is written. The placeholder is replaced by the
+    // stored message once the answer finishes.
+    const streamingId = `streaming-${Date.now()}`;
+
+    try {
+      let response: Awaited<ReturnType<typeof sendAdminChatMessage>>;
+
+      try {
+        response = await streamAdminChatMessage(ask, (piece) => {
+          setMessages((previous) => {
+            const existing = previous.find((message) => message.id === streamingId);
+
+            if (!existing) {
+              return [
+                ...previous,
+                {
+                  id: streamingId,
+                  role: "assistant",
+                  content: piece,
+                  timestamp: new Date().toISOString(),
+                },
+              ];
+            }
+
+            return previous.map((message) =>
+              message.id === streamingId
+                ? { ...message, content: message.content + piece }
+                : message
+            );
+          });
+        });
+      } catch {
+        // Streaming can fail where the answer itself would not: a proxy that
+        // buffers, a browser without readable streams. Fall back to the
+        // ordinary request rather than showing an error.
+        setMessages((previous) => previous.filter((message) => message.id !== streamingId));
+        response = await sendAdminChatMessage(ask);
+      }
+
+      setMessages((previous) => [
+        ...previous.filter((message) => message.id !== streamingId),
+        response.message,
+      ]);
       setCurrentSessionId(response.session_id ?? currentSessionId);
       setTutorialCards(response.tutorial_cards ?? []);
       setSuggestedAction(response.suggested_action ?? null);
@@ -1888,7 +1930,7 @@ export default function AIChatAssistant() {
       console.error("[AIChatAssistant] Send failed:", error);
 
       setMessages((previous) => [
-        ...previous,
+        ...previous.filter((message) => message.id !== streamingId),
         {
           id: `error-${Date.now()}`,
           role: "assistant",

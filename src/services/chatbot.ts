@@ -123,6 +123,108 @@ export async function sendAdminChatMessage(params: {
   return response.data;
 }
 
+/**
+ * The same answer as sendAdminChatMessage, delivered a piece at a time.
+ *
+ * `onChunk` fires for each new piece of text, so the reply can be shown as it
+ * is written instead of after the whole paragraph arrives. The resolved value
+ * is the finished reply, with the page to open and any search or filter.
+ *
+ * Uses fetch rather than the shared API client because that one buffers whole
+ * responses; streaming needs the body read as it comes. The token is read from
+ * the same place the client keeps it.
+ */
+export async function streamAdminChatMessage(
+  params: {
+    message: string;
+    history?: ChatMessage[];
+    sessionId?: string | null;
+    currentPage?: string;
+    currentButton?: string;
+    assistantMode?: AssistantMode;
+    uiLanguage?: string;
+    simpleMode?: boolean;
+  },
+  onChunk: (text: string) => void
+): Promise<ChatResponse> {
+  const base = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+  const token = localStorage.getItem("ka_agapay_token");
+
+  const response = await fetch(`${base}/chat/stream`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      message: params.message,
+      session_id: params.sessionId ?? null,
+      history: params.history ?? [],
+      audience: "staff",
+      source: "admin",
+      context: {
+        current_page: params.currentPage,
+        current_button: params.currentButton,
+        app_section: "rhu_admin_dashboard",
+        assistant_mode: params.assistantMode ?? "operations",
+        ui_language: params.uiLanguage,
+        simple_mode: params.simpleMode ? 1 : undefined,
+      },
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Assistant stream failed (${response.status})`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let done: ChatResponse | null = null;
+
+  // Server-sent events: blank-line separated blocks of "event:" and "data:".
+  // A network chunk can split a block, so only complete blocks are parsed.
+  for (;;) {
+    const { value, done: finished } = await reader.read();
+
+    if (finished) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    let split = buffer.indexOf("\n\n");
+
+    while (split !== -1) {
+      const block = buffer.slice(0, split);
+      buffer = buffer.slice(split + 2);
+      split = buffer.indexOf("\n\n");
+
+      const event = /^event:\s*(.+)$/m.exec(block)?.[1]?.trim();
+      const raw = /^data:\s*(.+)$/m.exec(block)?.[1];
+
+      if (!event || !raw) continue;
+
+      try {
+        const payload = JSON.parse(raw);
+
+        if (event === "chunk" && typeof payload.text === "string" && payload.text) {
+          onChunk(payload.text);
+        } else if (event === "done") {
+          done = payload as ChatResponse;
+        }
+      } catch {
+        // A malformed block is skipped rather than breaking the reply.
+      }
+    }
+  }
+
+  if (!done) {
+    throw new Error("The assistant did not finish its answer.");
+  }
+
+  return done;
+}
+
 export async function getAdminChatSessions(): Promise<ChatSessionSummary[]> {
   const response = await apiClient.get<ChatHistoryListResponse>("/chat/history", {
     params: {
