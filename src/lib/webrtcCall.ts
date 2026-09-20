@@ -95,6 +95,7 @@ export class PeerCall {
     routesSent: 0,
     routesReceived: 0,
     lastSendError: "",
+    applyError: "",
   };
   private candidateTimer: number | null = null;
 
@@ -306,6 +307,10 @@ export class PeerCall {
   private explainFailure(): string {
     const t = this.trail;
 
+    if (t.applyError) {
+      return `This browser could not read what the other side sent: ${t.applyError}`;
+    }
+
     if (t.lastSendError) {
       return `The server would not carry the call setup: ${t.lastSendError}`;
     }
@@ -378,10 +383,22 @@ export class PeerCall {
             await this.pc.setLocalDescription({ type: "rollback" });
           }
 
-          await this.pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
+          let answer: RTCSessionDescriptionInit;
 
-          const answer = await this.pc.createAnswer();
-          await this.pc.setLocalDescription(answer);
+          // Reading the offer and preparing a reply happens entirely in
+          // this browser. A failure here means what arrived was not a
+          // usable offer, which is worth saying out loud: swallowed, it
+          // looked exactly like the other side never answering.
+          try {
+            await this.pc.setRemoteDescription(new RTCSessionDescription(signal.payload));
+
+            answer = await this.pc.createAnswer();
+            await this.pc.setLocalDescription(answer);
+          } catch (error: any) {
+            this.trail.applyError = String(error?.message ?? error);
+            this.options.handlers.onState("failed", this.explainFailure());
+            continue;
+          }
 
           try {
             await this.options.transport.send("answer", answer);
