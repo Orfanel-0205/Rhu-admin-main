@@ -121,13 +121,28 @@ export function stopSpeaking(): void {
 /**
  * Speak one reply, cancelling whatever was being said before, so the assistant
  * never talks over itself.
+ *
+ * `onEnd` fires when the sentence finishes, is interrupted, or cannot be
+ * spoken at all. Hands-free mode uses it to start listening again, so it must
+ * run on every path — a missed callback would leave the conversation stuck
+ * waiting for a reply that already finished.
  */
-export function speak(text: string, lang: Lang): void {
-  if (!enabled || !isSpeechOutputSupported()) return;
+export function speak(text: string, lang: Lang, onEnd?: () => void): void {
+  const finish = () => {
+    if (onEnd) onEnd();
+  };
+
+  if (!enabled || !isSpeechOutputSupported()) {
+    finish();
+    return;
+  }
 
   const spoken = toSpokenText(text);
 
-  if (!spoken) return;
+  if (!spoken) {
+    finish();
+    return;
+  }
 
   stopSpeaking();
 
@@ -145,10 +160,21 @@ export function speak(text: string, lang: Lang): void {
   utterance.rate = 0.95;
   utterance.pitch = 1;
 
+  let finished = false;
+  const settle = () => {
+    if (finished) return;
+    finished = true;
+    finish();
+  };
+
+  utterance.onend = settle;
+  utterance.onerror = settle;
+
   try {
     window.speechSynthesis.speak(utterance);
   } catch {
     // Speech unavailable on this device; the text is on screen anyway.
+    settle();
   }
 }
 

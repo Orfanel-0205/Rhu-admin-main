@@ -153,6 +153,24 @@ function readSavedAutoMode(): boolean {
   }
 }
 
+// Hands-free: the assistant listens again as soon as it finishes speaking, so
+// a staff member with gloves on, or a patient in front of them, can hold a
+// conversation without touching the keyboard.
+//
+// Dictation still never sends silently. It shows what it heard and counts down
+// out loud-ish on screen, and any click or key press cancels — the complaint
+// that started all this was an assistant sending words nobody had checked.
+const HANDS_FREE_KEY = "ka_agapay_admin_assistant_hands_free";
+const HANDS_FREE_CONFIRM_MS = 3000;
+
+function readSavedHandsFree(): boolean {
+  try {
+    return window.localStorage.getItem(HANDS_FREE_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
+
 // The big buttons shown in simple mode: the four things staff do all day.
 const settingLabelStyle: CSSProperties = {
   display: "grid",
@@ -1515,6 +1533,9 @@ export default function AIChatAssistant() {
   const [speakReplies, setSpeakReplies] = useState<boolean>(isVoiceOutputEnabled);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [autoMode, setAutoMode] = useState<boolean>(readSavedAutoMode);
+  const [handsFree, setHandsFree] = useState<boolean>(readSavedHandsFree);
+  const [sendCountdown, setSendCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<number | null>(null);
   const [simpleMode, setSimpleMode] = useState<boolean>(() => {
     try {
       return window.localStorage.getItem(SIMPLE_MODE_KEY) === "on";
@@ -1799,6 +1820,7 @@ export default function AIChatAssistant() {
 
     // Sending ends dictation: no half-heard sentence arrives after the answer.
     clearSilenceTimer();
+    cancelCountdown();
 
     if (voice.isListening) {
       voice.stopListening();
@@ -1840,7 +1862,15 @@ export default function AIChatAssistant() {
       void loadSessions();
 
       if (speakReplies) {
-        speak(response.message.content, lang);
+        // Hands-free: the microphone opens again the moment it stops speaking,
+        // so the staff member can just keep talking.
+        speak(response.message.content, lang, () => {
+          if (handsFree && !voice.isListening) {
+            voice.startListening();
+          }
+        });
+      } else if (handsFree) {
+        voice.startListening();
       }
 
       // With auto mode on, the assistant opens the page and applies the search
@@ -1894,12 +1924,54 @@ export default function AIChatAssistant() {
     }
   };
 
+  const cancelCountdown = () => {
+    if (countdownRef.current !== null) {
+      window.clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+
+    setSendCountdown(null);
+  };
+
+  /**
+   * Hands-free: show what was heard, count down, then send. Any click, key
+   * press or the Cancel button stops it, so nothing is sent unchecked.
+   */
+  const startSendCountdown = () => {
+    cancelCountdown();
+
+    let remaining = Math.round(HANDS_FREE_CONFIRM_MS / 1000);
+
+    setSendCountdown(remaining);
+
+    countdownRef.current = window.setInterval(() => {
+      remaining -= 1;
+
+      if (remaining > 0) {
+        setSendCountdown(remaining);
+        return;
+      }
+
+      cancelCountdown();
+
+      const spoken = inputRef.current.trim();
+
+      if (spoken) {
+        void sendMessage(spoken);
+      }
+    }, 1000);
+  };
+
   const scheduleVoiceStop = () => {
     clearSilenceTimer();
 
     silenceTimerRef.current = window.setTimeout(() => {
       silenceTimerRef.current = null;
       voice.stopListening();
+
+      if (handsFree && inputRef.current.trim()) {
+        startSendCountdown();
+      }
     }, VOICE_SILENCE_MS);
   };
 
@@ -1913,7 +1985,26 @@ export default function AIChatAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voice.interimTranscript, voice.isListening]);
 
-  useEffect(() => clearSilenceTimer, []);
+  useEffect(() => {
+    return () => {
+      clearSilenceTimer();
+      cancelCountdown();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Any deliberate action cancels a pending hands-free send: typing, clicking
+  // in the panel, or pressing a key all mean the person wants to take over.
+  useEffect(() => {
+    if (sendCountdown === null) return;
+
+    const stop = () => cancelCountdown();
+
+    window.addEventListener("keydown", stop);
+
+    return () => window.removeEventListener("keydown", stop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendCountdown]);
 
   /**
    * Hand the drafted content to the Events page. Works from ANY route — the
@@ -2821,7 +2912,38 @@ export default function AIChatAssistant() {
                 </div>
               ) : null}
 
-              {!voice.isListening && voiceMessage ? (
+              {sendCountdown !== null ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderRadius: 14,
+                    border: "1px solid #A7F3D0",
+                    background: "#ECFDF5",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: "#047857" }}>
+                      Sending in {sendCountdown}…
+                    </div>
+                    <div style={{ fontSize: 13, color: "#0F172A", overflowWrap: "anywhere" }}>
+                      {input || "Nothing heard."}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={cancelCountdown}
+                    style={{ ...chipStyle(false), flex: "0 0 auto" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : null}
+
+              {!voice.isListening && voiceMessage && sendCountdown === null ? (
                 <div
                   role={voiceState === "error" ? "alert" : undefined}
                   style={{
@@ -2980,6 +3102,44 @@ export default function AIChatAssistant() {
                       Bigger text, four big buttons, short answers.
                     </small>
                   </button>
+
+                  {isSpeechOutputSupported() ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !handsFree;
+
+                        setHandsFree(next);
+
+                        try {
+                          window.localStorage.setItem(HANDS_FREE_KEY, next ? "on" : "off");
+                        } catch {
+                          // The choice still applies for this session.
+                        }
+
+                        // Hands-free is pointless silent: turn the voice on with it.
+                        if (next && !speakReplies) {
+                          setSpeakReplies(true);
+                          setVoiceOutputEnabled(true);
+                        }
+
+                        if (!next) {
+                          cancelCountdown();
+                        }
+                      }}
+                      aria-pressed={handsFree}
+                      style={settingToggleStyle(handsFree)}
+                    >
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <Mic size={14} />
+                        Hands-free · {handsFree ? "on" : "off"}
+                      </span>
+                      <small style={{ fontWeight: 600, color: "#64748B" }}>
+                        Listens again after it answers, and sends after a 3-second
+                        countdown you can cancel.
+                      </small>
+                    </button>
+                  ) : null}
 
                   <div style={{ display: "grid", gap: 5 }}>
                     <span style={settingLabelStyle}>Panel size</span>
