@@ -40,13 +40,18 @@ export default function CallPanel({
   const isVideo = call.mode === "video";
 
   useEffect(() => {
-    // The person who started the call makes the offer; the other waits for it.
     const peerId = (call.peer?.participants ?? []).find((id) => id !== myUserId) ?? null;
+
+    // Whoever has the lower user id speaks first. Both browsers reach the same
+    // answer from the same two numbers, which "did I start the call" did not:
+    // the server reuses an active call, so both sides could think they were
+    // the receiver and the call would hang on "Connecting…".
+    const isOfferer = peerId === null ? call.started_by_me : myUserId < peerId;
 
     const peer = new PeerCall({
       iceServers: call.peer?.ice_servers ?? [{ urls: "stun:stun.l.google.com:19302" }],
       video: isVideo,
-      isCaller: call.started_by_me,
+      isOfferer,
       transport: {
         send: (type, payload) => sendCallSignal(call.id, type, payload, peerId),
         receive: async () => {

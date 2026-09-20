@@ -344,12 +344,22 @@ export default function TeamChat() {
           threadMaxRef.current
         );
 
-        // Ring for a call someone else started that I have not dismissed.
-        // This rides the existing tick, so it adds no request of its own.
-        const ringing = (active_calls ?? []).find(
-          (c) => !c.started_by_me && !dismissedCallsRef.current.has(c.id)
-        );
-        setIncomingCall(ringing ?? null);
+        // Ring for a call someone else started that I have not dismissed and
+        // am not already in — otherwise "Super Admin is calling…" stayed on
+        // screen while the call it referred to was already connected. This
+        // rides the existing tick, so it adds no request of its own.
+        setJoinedCall((current) => {
+          const ringing = (active_calls ?? []).find(
+            (c) =>
+              !c.started_by_me &&
+              !dismissedCallsRef.current.has(c.id) &&
+              c.id !== current?.id
+          );
+
+          setIncomingCall(ringing ?? null);
+
+          return current;
+        });
 
         // If the call I am in has ended elsewhere, drop out of it.
         setJoinedCall((prev) =>

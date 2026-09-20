@@ -59,15 +59,23 @@ export class PeerCall {
     private readonly options: {
       iceServers: RTCIceServer[];
       video: boolean;
-      /** The caller creates the offer; the callee waits for it. */
-      isCaller: boolean;
+      /**
+       * Which side speaks first.
+       *
+       * This used to be "did I start the call", which looked obvious and was
+       * wrong: the server reuses an existing active call, so both browsers
+       * could believe they were the receiver and neither would ever send an
+       * offer — the call sat on "Connecting…" forever. Both sides now work it
+       * out from the two user ids, which they agree on by definition.
+       */
+      isOfferer: boolean;
       transport: CallTransport;
       handlers: CallHandlers;
     }
   ) {}
 
   async start(): Promise<void> {
-    const { handlers, iceServers, video, isCaller, transport } = this.options;
+    const { handlers, iceServers, video, isOfferer, transport } = this.options;
 
     handlers.onState("getting-media");
 
@@ -126,13 +134,32 @@ export class PeerCall {
       }
     };
 
-    if (isCaller) {
+    if (isOfferer) {
       const offer = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
       await transport.send("offer", offer);
     }
 
     this.startPolling();
+    this.watchForSilence();
+  }
+
+  /**
+   * A call that has not connected within this long is not going to. Saying so
+   * beats a panel that reads "Connecting…" until someone gives up, and names
+   * the likely reason so it can actually be fixed.
+   */
+  private watchForSilence(): void {
+    window.setTimeout(() => {
+      if (this.stopped || !this.pc) return;
+
+      if (this.pc.connectionState !== "connected") {
+        this.options.handlers.onState(
+          "failed",
+          "The call did not connect. The two devices are probably on networks that cannot reach each other directly."
+        );
+      }
+    }, 20000);
   }
 
   /** Mute or unmute the microphone. Returns the new muted state. */
