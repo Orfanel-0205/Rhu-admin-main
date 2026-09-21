@@ -74,6 +74,7 @@ import {
   normalizeRiskLevel,
 } from "../utils/rhuAnalyticsHelpers";
 import { useToast } from "../contexts/ToastContext";
+import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
 
 type FilterState = {
   from: string;
@@ -712,6 +713,29 @@ export default function Analytics() {
     ],
     [appliedFilters.from, appliedFilters.to, c, overview, diagnosisItr, selectedRhuLabel]
   );
+
+  /*
+   * Tell the assistant what this screen is showing.
+   *
+   * Only the figures already drawn here -- totals, the period, the
+   * barangays ranked by risk. No patient, no record, no picture of the
+   * screen. That is what lets the assistant answer "what does this mean?"
+   * about these numbers instead of numbers in general, without anything
+   * identifiable leaving the system.
+   */
+  useScreenSnapshot({
+    title: "Analytics",
+    scope: `${selectedRhuLabel}, ${appliedFilters.from} to ${appliedFilters.to}`,
+    figures: summaryRows.map((row) => ({
+      label: String(row.Metric),
+      value: String(row.Value ?? ""),
+    })),
+    notes: risk.slice(0, 6).map((item) => {
+      const score = riskScore(item);
+
+      return `Barangay ${normalizeBarangayName((item as any).barangay ?? (item as any).barangay_name)}: risk ${normalizeRiskLevel((item as any).risk_level, score)} (score ${score})`;
+    }),
+  });
 
   const filteredDiagnosisCases = useMemo(() => {
     const barangayKeyword = appliedFilters.barangay.trim().toLowerCase();

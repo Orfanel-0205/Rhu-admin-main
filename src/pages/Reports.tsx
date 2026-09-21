@@ -46,6 +46,7 @@ import QueueReport from "../components/reports/QueueReport";
 import AppointmentsReport from "../components/reports/AppointmentsReport";
 import TelemedicineReport from "../components/reports/TelemedicineReport";
 import { getCurrentUserRhuId, isGlobalRhuRole } from "../services/queue";
+import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
 
 // Malasiqui operates two facilities. Global staff (super_admin / MHO) may switch
 // between them; facility-scoped staff are locked to their own RHU (the backend
@@ -881,6 +882,40 @@ export default function Reports() {
       diseaseSummary,
     ]
   );
+
+  /*
+   * What this report currently shows, for the assistant.
+   *
+   * The same aggregates that go into the CSV export, which are already
+   * cleared for leaving this screen. The report rows themselves -- names,
+   * diagnoses, contact numbers -- are not included and must not be: the
+   * assistant is here to explain the totals, not to read the records.
+   */
+  const reportSummary = summaryExportRows[0];
+
+  useScreenSnapshot({
+    title: "Reports",
+    scope: `RHU ${appliedFilters.rhuId}, ${appliedFilters.from} to ${appliedFilters.to}`,
+    figures: [
+      { label: "Patients", value: String(reportSummary.patients) },
+      { label: "Completed consultations", value: String(reportSummary.completed_consultations) },
+      { label: "Diagnosed consultations", value: String(reportSummary.diagnosed_consultations) },
+      { label: "Records in this report", value: String(reportSummary.total_report_records) },
+      { label: "ITR completeness", value: `${reportSummary.itr_complete_percent}%` },
+      { label: "Missing diagnosis", value: String(reportSummary.missing_diagnosis) },
+      { label: "Missing treatment", value: String(reportSummary.missing_treatment) },
+      { label: "Missing barangay", value: String(reportSummary.missing_barangay) },
+      { label: "Missing contact number", value: String(reportSummary.missing_contact) },
+      { label: "Follow-ups scheduled", value: String(reportSummary.followups_scheduled) },
+      { label: "Overdue follow-ups", value: String(reportSummary.overdue_followups) },
+      { label: "Queue tickets", value: String(reportSummary.queue_tickets) },
+      { label: "Top diagnosis", value: `${reportSummary.top_diagnosis} (${reportSummary.top_diagnosis_cases} cases)` },
+    ],
+    notes: [
+      ...diseaseRows.slice(0, 6).map((row: any) => `Diagnosis ${row.label}: ${row.value} cases`),
+      ...ageGroupRows.slice(0, 6).map((row: any) => `Age group ${row.label}: ${row.value}`),
+    ],
+  });
 
   // One shared row-shape for BOTH the plaintext and the privacy-masked
   // follow-up exports (Sir Ayco Part 2), so the two variants can never drift.

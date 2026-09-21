@@ -1,6 +1,7 @@
 // src/services/chatbot.ts
 
 import apiClient from "../lib/apiClient";
+import { describeScreen } from "../lib/screenContext";
 import type { CmsDraft } from "../utils/cmsDraftHandoff";
 
 export type ChatRole = "user" | "assistant";
@@ -117,6 +118,10 @@ export async function sendAdminChatMessage(params: {
       assistant_mode: params.assistantMode ?? "operations",
       ui_language: params.uiLanguage,
       simple_mode: params.simpleMode ? 1 : undefined,
+      // The figures currently drawn on screen, so "what does this
+      // mean?" can be answered about these numbers. Aggregates only:
+      // see screenContext.ts for what a page may and may not publish.
+      screen: describeScreen() || undefined,
     },
   });
 
@@ -170,6 +175,10 @@ export async function streamAdminChatMessage(
         assistant_mode: params.assistantMode ?? "operations",
         ui_language: params.uiLanguage,
         simple_mode: params.simpleMode ? 1 : undefined,
+        // The figures currently drawn on screen, so "what does this
+        // mean?" can be answered about these numbers. Aggregates only:
+        // see screenContext.ts for what a page may and may not publish.
+        screen: describeScreen() || undefined,
       },
     }),
   });
