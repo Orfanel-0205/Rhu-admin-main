@@ -639,3 +639,52 @@ export async function issueQueueTicket(payload: {
 
   return normalizeTicketPayload(response.data?.data ?? response.data);
 }
+
+/**
+ * How many people the RHU actually saw, for a day or a range of days.
+ *
+ * Kept apart from getQueueSummary on purpose: that one answers "what is
+ * happening at the desk right now", this one answers "how many came", which
+ * is the figure the municipality asks for and staff have counted by hand.
+ */
+export interface AttendanceReport {
+  from: string;
+  to: string;
+  rhu_id: number | null;
+  totals: {
+    /** Tickets handed out, whether or not the person was seen. */
+    issued: number;
+    /** Times someone was served. One patient seen twice counts twice. */
+    visits: number;
+    /** Different people served. One patient seen twice counts once. */
+    attendees: number;
+    no_show: number;
+    skipped: number;
+    cancelled: number;
+    still_open: number;
+  };
+  appointments: {
+    booked: number;
+    kept: number;
+    cancelled: number;
+    did_not_arrive: number;
+  };
+  by_day: Array<{ date: string; visits: number }>;
+  by_service: Array<{ service_type: string; visits: number }>;
+}
+
+export async function getAttendanceReport(params: {
+  from?: string;
+  to?: string;
+  rhu_id?: number;
+}): Promise<AttendanceReport> {
+  const response = await apiClient.get("/queue/attendance", {
+    params: {
+      rhu_id: params.rhu_id ?? getDefaultRhuId(),
+      from: params.from || undefined,
+      to: params.to || undefined,
+    },
+  });
+
+  return response.data?.data ?? response.data;
+}

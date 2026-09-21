@@ -43,6 +43,7 @@ import SortableTh from "../components/ui/SortableTh";
 import { useSortableRows } from "../hooks/useSortableRows";
 import InventoryReport from "../components/reports/InventoryReport";
 import QueueReport from "../components/reports/QueueReport";
+import AttendanceReport from "../components/reports/AttendanceReport";
 import AppointmentsReport from "../components/reports/AppointmentsReport";
 import TelemedicineReport from "../components/reports/TelemedicineReport";
 import { getCurrentUserRhuId, isGlobalRhuRole } from "../services/queue";
@@ -497,6 +498,7 @@ export default function Reports() {
     | "consultations"
     | "followup"
     | "inventory"
+    | "attendance"
     | "queue"
     | "appointments"
     | "telemedicine"
@@ -1208,6 +1210,9 @@ export default function Reports() {
               },
               { key: "followup", label: "Follow-up" },
               { key: "inventory", label: "Inventory" },
+              // Attendance sits beside Queue rather than inside it: the Queue
+              // report is the desk right now, this is how many people came.
+              { key: "attendance", label: "Attendance" },
               { key: "queue", label: "Queue" },
               { key: "appointments", label: "Appointments" },
               { key: "telemedicine", label: "Telemedicine" },
@@ -1490,6 +1495,13 @@ export default function Reports() {
           )}
 
           {tab === "inventory" && <InventoryReport rhuId={Number(appliedFilters.rhuId) || 1} />}
+          {tab === "attendance" && (
+            <AttendanceReport
+              rhuId={Number(appliedFilters.rhuId) || 1}
+              from={appliedFilters.from}
+              to={appliedFilters.to}
+            />
+          )}
           {tab === "queue" && <QueueReport rhuId={Number(appliedFilters.rhuId) || 1} />}
           {tab === "appointments" && <AppointmentsReport rhuId={Number(appliedFilters.rhuId) || 1} />}
           {tab === "telemedicine" && <TelemedicineReport rhuId={Number(appliedFilters.rhuId) || 1} />}
