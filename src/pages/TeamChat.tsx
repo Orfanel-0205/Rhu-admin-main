@@ -243,6 +243,11 @@ export default function TeamChat() {
   const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
   const [settingsTitle, setSettingsTitle] = useState("");
   const [settingsImage, setSettingsImage] = useState<{ path?: string; url: string } | null>(null);
+
+  // The saved picture arrives as an API path, which needs the session
+  // attached; a freshly uploaded one is an ordinary url and passes through
+  // untouched. Resolved once here and used by both previews below.
+  const { url: settingsPhotoUrl } = usePrivateImage(settingsImage?.url ?? null);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -1756,8 +1761,8 @@ export default function TeamChat() {
                 placeItems: "center",
               }}
             >
-              {settingsImage?.url ? (
-                <img src={settingsImage.url} alt="Group" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              {settingsPhotoUrl ? (
+                <img src={settingsPhotoUrl} alt="Group" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <Users size={22} />
               )}
@@ -1773,7 +1778,7 @@ export default function TeamChat() {
           <div style={{ marginBottom: 14 }}>
             <ImageUploader
               label="Change group photo"
-              value={settingsImage?.url ?? null}
+              value={settingsPhotoUrl || null}
               onChange={onPickSettingsImage}
               maxSizeMB={5}
               aspect={1}
