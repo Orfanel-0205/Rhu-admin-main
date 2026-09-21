@@ -385,10 +385,13 @@ export default function Inventory() {
       if (tab === "vaccine" && item.category !== "vaccine") return false;
       if (tab === "supply" && item.category !== "supply") return false;
       if (tab === "equipment" && item.category !== "equipment") return false;
-      if (tab === "low" && item.status !== "low") return false;
-      if (tab === "out" && item.status !== "out") return false;
-      if (tab === "expiring" && item.status !== "expiring") return false;
-      if (tab === "expired" && item.status !== "expired") return false;
+      // Matched against every condition that applies. An item close to
+      // expiry is still low on stock, and it used to be missing from this
+      // tab entirely -- which is the list staff reorder from.
+      if (tab === "low" && !item.alerts.includes("low")) return false;
+      if (tab === "out" && !item.alerts.includes("out")) return false;
+      if (tab === "expiring" && !item.alerts.includes("expiring")) return false;
+      if (tab === "expired" && !item.alerts.includes("expired")) return false;
 
       if (!keyword) return true;
 
@@ -416,10 +419,13 @@ export default function Inventory() {
       total: items.length,
       medicines: items.filter((item) => item.category === "medicine").length,
       vaccines: items.filter((item) => item.category === "vaccine").length,
-      low: items.filter((item) => item.status === "low").length,
-      out: items.filter((item) => item.status === "out").length,
-      expiring: items.filter((item) => item.status === "expiring").length,
-      expired: items.filter((item) => item.status === "expired").length,
+      // Counted on every condition that applies, not only the headline
+      // one: an item close to expiry is still an item that needs
+      // reordering, and it used to be missing from this figure.
+      low: items.filter((item) => item.alerts.includes("low")).length,
+      out: items.filter((item) => item.alerts.includes("out")).length,
+      expiring: items.filter((item) => item.alerts.includes("expiring")).length,
+      expired: items.filter((item) => item.alerts.includes("expired")).length,
     };
   }, [items]);
 
@@ -927,7 +933,10 @@ export default function Inventory() {
 
               <tbody>
                 {pg.pageRows.map((item) => {
-                  const status = statusUi(item.status);
+                  // Every warning that applies, worst first. Showing only
+                  // the most urgent hid the others, and they call for
+                  // different work: use this one first, and reorder today.
+                  const badges = (item.alerts.length > 0 ? item.alerts : [item.status]).map(statusUi);
 
                   return (
                     <tr key={item.id}>
@@ -988,16 +997,21 @@ export default function Inventory() {
                       </td>
 
                       <td style={tdStyle}>
-                        <span
-                          style={{
-                            ...badgeStyle,
-                            color: status.color,
-                            background: status.bg,
-                            borderColor: status.border,
-                          }}
-                        >
-                          {status.icon} {status.label}
-                        </span>
+                        <div style={{ display: "grid", gap: 6, justifyItems: "start" }}>
+                          {badges.map((badge) => (
+                            <span
+                              key={badge.label}
+                              style={{
+                                ...badgeStyle,
+                                color: badge.color,
+                                background: badge.bg,
+                                borderColor: badge.border,
+                              }}
+                            >
+                              {badge.icon} {badge.label}
+                            </span>
+                          ))}
+                        </div>
 
                         {(item.is_controlled_substance ||
                           item.requires_prescription) && (

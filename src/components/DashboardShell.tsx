@@ -34,6 +34,8 @@ import {
   isNotificationSoundEnabled,
   isUrgentNotification,
   playNotificationSound,
+  startCallRingtone,
+  stopCallRingtone,
   primeNotificationSound,
   setNotificationSoundEnabled,
 } from "../lib/notificationSound";
@@ -309,7 +311,19 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         // the per_page:5 poll window during a large burst.
         // One sound per batch, the urgent tone if anything in it is urgent, so
         // a burst never turns into a pile-up of chimes.
-        if (fresh.length > 0) {
+        // Someone calling is not the same as something happening. A call
+        // is waited on: it gets the ringtone, which repeats until it is
+        // answered or the caller gives up, and it reaches staff wherever
+        // they are working rather than only on the Team Chat page.
+        const ringing = fresh.some((n) => /team_chat_call/i.test(String(n.type ?? "")));
+
+        if (ringing) {
+          startCallRingtone();
+
+          // Nobody rings forever. This is the caller giving up; answering
+          // stops it sooner, from the Team Chat page.
+          window.setTimeout(stopCallRingtone, 25000);
+        } else if (fresh.length > 0) {
           playNotificationSound(
             fresh.some((n) => isUrgentNotification(n.type)) ? "urgent" : "normal"
           );

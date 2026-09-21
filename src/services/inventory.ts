@@ -84,6 +84,11 @@ export interface InventoryItem {
   notes?: string | null;
 
   status: InventoryStatus;
+  /**
+   * Every condition that applies, worst first. `status` is only the first
+   * of these; an item can be low on stock AND close to expiry at once.
+   */
+  alerts: InventoryStatus[];
   status_label: string;
   safety_message: string;
   recommended_action: string;
@@ -236,19 +241,51 @@ function resolveCategory(value?: string | null): InventoryCategory {
   return "medicine";
 }
 
+/**
+ * Everything currently wrong with an item, not just the worst of it.
+ *
+ * These conditions are not alternatives. A box of Paracetamol down to 1 of
+ * a reorder level of 20, expiring tomorrow, is both nearly out AND nearly
+ * expired, and the two call for different actions: use this one first, and
+ * order more today. Reporting only the most urgent hid the other, so an
+ * item about to expire silently dropped out of the low-stock badge, the
+ * low-stock tab and the reorder count, and nobody reordered it.
+ */
+function deriveAlerts(
+  stock: number,
+  minimum: number,
+  expiry?: string | null
+): InventoryStatus[] {
+  const days = daysUntil(expiry);
+  const alerts: InventoryStatus[] = [];
+
+  if (stock <= 0) {
+    alerts.push("out");
+  } else if (stock <= minimum) {
+    // Out of stock already says everything low stock would.
+    alerts.push("low");
+  }
+
+  if (days !== null && days < 0) {
+    alerts.push("expired");
+  } else if (days !== null && days <= 30) {
+    alerts.push("expiring");
+  }
+
+  return alerts;
+}
+
+/** The one to lead with. Order is by what stops work soonest. */
+const STATUS_SEVERITY: InventoryStatus[] = ["out", "expired", "low", "expiring"];
+
 function deriveStatus(
   stock: number,
   minimum: number,
   expiry?: string | null
 ): InventoryStatus {
-  const days = daysUntil(expiry);
+  const alerts = deriveAlerts(stock, minimum, expiry);
 
-  if (stock <= 0) return "out";
-  if (days !== null && days < 0) return "expired";
-  if (days !== null && days <= 30) return "expiring";
-  if (stock <= minimum) return "low";
-
-  return "ok";
+  return STATUS_SEVERITY.find((candidate) => alerts.includes(candidate)) ?? "ok";
 }
 
 function statusLabel(status: InventoryStatus): string {
@@ -365,6 +402,7 @@ function normalizeItem(raw: any): InventoryItem {
   const expiry = normalizeDate(
     raw?.expiration_date ?? raw?.expiry ?? raw?.expiry_date
   );
+  const alerts = deriveAlerts(stock, minimum, expiry);
   const status = deriveStatus(stock, minimum, expiry);
   const itemTransactions = extractArray(raw?.transactions).map(normalizeTransaction);
 
@@ -408,9 +446,18 @@ function normalizeItem(raw: any): InventoryItem {
     notes: raw?.notes ?? null,
 
     status,
+    alerts,
     status_label: statusLabel(status),
-    safety_message: safetyMessage(status),
-    recommended_action: recommendedAction(status),
+
+    // Both conditions get said. An item that is nearly out AND nearly
+    // expired needs using first and reordering today, and a column that
+    // mentions only one of those gets the other forgotten.
+    safety_message: alerts.length > 1
+      ? alerts.map(safetyMessage).join(" ")
+      : safetyMessage(status),
+    recommended_action: alerts.length > 1
+      ? alerts.map(recommendedAction).join(" ")
+      : recommendedAction(status),
 
     transactions: itemTransactions,
 
