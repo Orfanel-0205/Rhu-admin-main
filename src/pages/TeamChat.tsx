@@ -15,6 +15,7 @@ import { emitToast } from "../lib/toastBus";
 import { useAuthStore } from "../store/authStore";
 import { QUICK_STICKERS, STICKERS, soleSticker, stickerFor } from "../lib/stickers";
 import CallPanel from "../components/CallPanel";
+import { startCallRingtone, stopCallRingtone } from "../lib/notificationSound";
 import {
   listConversations,
   pollUpdates,
@@ -174,6 +175,24 @@ export default function TeamChat() {
   const [joinedCall, setJoinedCall] = useState<ChatCall | null>(null);
   const [callBusy, setCallBusy] = useState(false);
   const dismissedCallsRef = useRef<Set<number>>(new Set());
+
+  /*
+   * Ring while a call is waiting to be answered.
+   *
+   * Tied to the incoming call itself rather than started and stopped by
+   * hand at each of the places a call can end -- answered, declined, or the
+   * caller giving up. A ringtone still playing after the call is over is
+   * what makes people turn sound off for good.
+   */
+  useEffect(() => {
+    if (incomingCall) {
+      startCallRingtone();
+    } else {
+      stopCallRingtone();
+    }
+
+    return stopCallRingtone;
+  }, [incomingCall?.id]);
 
   // Single-panel collapse for phones/tablets: below this width the list and the
   // thread never share the screen — the list shows until a conversation is
