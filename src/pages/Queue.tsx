@@ -1002,10 +1002,13 @@ export default function Queue() {
                       }
                       style={primaryButtonStyle}
                     >
-                      <PlayCircle size={15} />
-                      {busyAction === `${currentTicket.id}-start-service`
-                        ? t("q_starting", lang)
-                        : t("q_start_consultation", lang)}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                        <PlayCircle size={16} />
+                        {busyAction === `${currentTicket.id}-start-service`
+                          ? t("q_starting", lang)
+                          : t("q_start_consultation", lang)}
+                      </span>
+                      <span style={actionHintStyle}>The patient is here</span>
                     </button>
 
                     <button
@@ -1014,7 +1017,8 @@ export default function Queue() {
                       disabled={busyAction === `${currentTicket.id}-skipped`}
                       style={warningButtonStyle}
                     >
-                      {t("q_skip", lang)}
+                      <span>{t("q_skip", lang)}</span>
+                      <span style={actionHintStyle}>Not ready, may return</span>
                     </button>
 
                     <button
@@ -1023,7 +1027,8 @@ export default function Queue() {
                       disabled={busyAction === `${currentTicket.id}-no_show`}
                       style={dangerButtonStyle}
                     >
-                      {t("q_no_show", lang)}
+                      <span>{t("q_no_show", lang)}</span>
+                      <span style={actionHintStyle}>Called, no answer</span>
                     </button>
 
                     <button
@@ -1032,7 +1037,8 @@ export default function Queue() {
                       disabled={busyAction === `${currentTicket.id}-waiting`}
                       style={secondaryButtonStyle}
                     >
-                      {t("q_return_waiting", lang)}
+                      <span>{t("q_return_waiting", lang)}</span>
+                      <span style={actionHintStyle}>They came back</span>
                     </button>
                   </>
                 ) : null}
@@ -1058,10 +1064,13 @@ export default function Queue() {
                       disabled={busyAction === `${currentTicket.id}-completed`}
                       style={primaryButtonStyle}
                     >
-                      <UserCheck size={15} />
-                      {busyAction === `${currentTicket.id}-completed`
-                        ? t("q_completing", lang)
-                        : t("q_complete_consultation", lang)}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                        <UserCheck size={16} />
+                        {busyAction === `${currentTicket.id}-completed`
+                          ? t("q_completing", lang)
+                          : t("q_complete_consultation", lang)}
+                      </span>
+                      <span style={actionHintStyle}>Done, counts as attended</span>
                     </button>
                   </>
                 ) : null}
@@ -1110,6 +1119,16 @@ export default function Queue() {
           >
             <PhoneCall size={18} />
             {busyAction === "call-next" ? t("q_btn_calling", lang) : t("q_btn_call_next_patient", lang)}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setWalkInOpen(true)}
+            style={walkInPrimaryStyle}
+            title="Register a patient who came without an appointment"
+          >
+            <UserPlus size={18} />
+            Add Walk-in
           </button>
 
           <button
@@ -1694,6 +1713,12 @@ const triageNoteStyle: CSSProperties = {
   lineHeight: 1.45,
 };
 
+const actionHintStyle: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  opacity: 0.85,
+};
+
 const nowCallingActionRowStyle: CSSProperties = {
   display: "flex",
   gap: 8,
@@ -1706,6 +1731,28 @@ const nextBoxStyle: CSSProperties = {
   padding: 14,
   display: "grid",
   gap: 4,
+};
+
+/*
+ * The first thing that happens when a patient walks through the door, and
+ * it used to be a small control in the header strip beside Refresh, which
+ * is where staff look last. It now sits in the row they are already using
+ * to work the queue.
+ */
+const walkInPrimaryStyle: CSSProperties = {
+  border: "1px solid #A7F3D0",
+  borderRadius: 16,
+  padding: "16px 20px",
+  background: "#ECFDF5",
+  color: "#047857",
+  fontWeight: 900,
+  fontSize: 15,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 10,
+  cursor: "pointer",
+  flex: "1 1 200px",
 };
 
 const callButtonStyle: CSSProperties = {
@@ -1861,37 +1908,51 @@ const actionRowStyle: CSSProperties = {
   marginTop: 14,
 };
 
+/*
+ * WHAT A QUEUE DESK ACTUALLY LOOKS LIKE
+ *
+ * A nurse pressing these has a patient standing in front of them and is
+ * not reading the screen carefully. The buttons were small, evenly
+ * weighted, and explained only in a paragraph of grey text further down,
+ * which is not where anyone looks while somebody waits.
+ *
+ * So: bigger targets, the action that moves the queue forward visually
+ * heavier than the ones that do not, and a one-line caption under each
+ * label saying when to use it.
+ */
+const actionButtonBase: CSSProperties = {
+  borderRadius: 14,
+  padding: "12px 16px",
+  fontWeight: 900,
+  fontSize: 14,
+  display: "inline-flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: 2,
+  cursor: "pointer",
+  minWidth: 150,
+  textAlign: "left",
+};
+
 const primaryButtonStyle: CSSProperties = {
+  ...actionButtonBase,
   border: 0,
-  borderRadius: 12,
-  padding: "10px 12px",
   background: "#047857",
   color: "#FFFFFF",
-  fontWeight: 900,
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
-  cursor: "pointer",
 };
 
 const warningButtonStyle: CSSProperties = {
+  ...actionButtonBase,
   border: "1px solid #FDE68A",
-  borderRadius: 12,
-  padding: "10px 12px",
   background: "#FFFBEB",
   color: "#92400E",
-  fontWeight: 900,
-  cursor: "pointer",
 };
 
 const dangerButtonStyle: CSSProperties = {
+  ...actionButtonBase,
   border: "1px solid #FECACA",
-  borderRadius: 12,
-  padding: "10px 12px",
   background: "#FEF2F2",
   color: "#B91C1C",
-  fontWeight: 900,
-  cursor: "pointer",
 };
 
 const secondaryButtonStyle: CSSProperties = {
