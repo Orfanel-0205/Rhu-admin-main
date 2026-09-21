@@ -688,3 +688,54 @@ export async function getAttendanceReport(params: {
 
   return response.data?.data ?? response.data;
 }
+
+/** One person who attended, and how they reached the RHU. */
+export interface AttendanceLogRow {
+  reference: string;
+  patient: string;
+  /** walk_in = arrived and took a number; booked = had an appointment; online = seen remotely. */
+  channel: "walk_in" | "booked" | "online";
+  service: string;
+  seen_at: string;
+}
+
+export interface AttendanceLog {
+  rows: AttendanceLogRow[];
+  meta: {
+    from: string;
+    to: string;
+    total: number;
+    walk_in: number;
+    booked: number;
+    online: number;
+  };
+}
+
+/**
+ * Who attended, one row each.
+ *
+ * Walk-ins come from the queue and remote consultations come from
+ * appointments, because an online visit never produces a queue ticket. The
+ * server joins the two; a list built from either alone is wrong in a way
+ * that looks complete.
+ */
+export async function getAttendanceLog(params: {
+  from?: string;
+  to?: string;
+  rhu_id?: number;
+  channel?: "all" | "walk_in" | "booked" | "online";
+}): Promise<AttendanceLog> {
+  const response = await apiClient.get("/queue/attendance/log", {
+    params: {
+      rhu_id: params.rhu_id ?? getDefaultRhuId(),
+      from: params.from || undefined,
+      to: params.to || undefined,
+      channel: params.channel && params.channel !== "all" ? params.channel : undefined,
+    },
+  });
+
+  return {
+    rows: response.data?.data ?? [],
+    meta: response.data?.meta ?? { from: "", to: "", total: 0, walk_in: 0, booked: 0, online: 0 },
+  };
+}
