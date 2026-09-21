@@ -2,6 +2,7 @@
 
 import apiClient from "../lib/apiClient";
 import { describeScreen } from "../lib/screenContext";
+import type { FormDraft } from "../utils/formDraftHandoff";
 import type { CmsDraft } from "../utils/cmsDraftHandoff";
 
 export type ChatRole = "user" | "assistant";
@@ -72,6 +73,8 @@ export interface ChatResponse {
    * of the same text, ready to load into the Event Creation form.
    */
   cms_draft?: CmsDraft | null;
+  /** A follow-up schedule the assistant drafted, for the form already open. */
+  form_draft?: FormDraft | null;
   meta?: {
     response_ms?: number;
     source?: string;

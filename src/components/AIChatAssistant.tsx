@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { stashCmsDraft, type CmsDraft } from "../utils/cmsDraftHandoff";
+import { deliverFormDraft, type FormDraft } from "../utils/formDraftHandoff";
 import { useWebSpeechRecognition } from "../hooks/useWebSpeechRecognition";
 import {
   hasNativeVoice,
@@ -1525,6 +1526,7 @@ export default function AIChatAssistant() {
   const [tutorialCards, setTutorialCards] = useState<TutorialCard[]>([]);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [cmsDraft, setCmsDraft] = useState<CmsDraft | null>(null);
+  const [formDraft, setFormDraft] = useState<FormDraft | null>(null);
   const [assistantMode, setAssistantMode] = useState<AssistantMode>("operations");
   // Set only by the automatic first-ever-login open, never by the sidebar entry
   // or the header toggle.
@@ -1901,6 +1903,7 @@ export default function AIChatAssistant() {
       setSuggestedAction(response.suggested_action ?? null);
       setActionParams(response.action_params ?? {});
       setCmsDraft(response.cms_draft ?? null);
+      setFormDraft(response.form_draft ?? null);
       void loadSessions();
 
       if (speakReplies) {
@@ -2053,6 +2056,41 @@ export default function AIChatAssistant() {
    * assistant floats over the whole dashboard — so the draft is stashed and the
    * Events page opens its Create modal pre-filled with it.
    */
+  /**
+   * Put a drafted follow-up into the form the staff member is looking at.
+   *
+   * The form is usually already open, so this hands the draft straight to
+   * it. When it is not -- the question was asked from somewhere else --
+   * the draft waits for the next consultation page to open, and the
+   * assistant says so rather than appearing to have done nothing.
+   */
+  const useFollowUpDraft = () => {
+    if (!formDraft) return;
+
+    const applied = deliverFormDraft(formDraft);
+
+    setFormDraft(null);
+
+    if (applied) {
+      setOpen(false);
+      return;
+    }
+
+    // Said in the chat rather than as a toast: the person is reading the
+    // chat, and a draft that appears to have gone nowhere is worse than
+    // one that explains where it went.
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: `draft-waiting-${Date.now()}`,
+        role: "assistant" as const,
+        content:
+          "Saved. Open the consultation this follow-up is for, and the schedule will be filled in for you.",
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  };
+
   const useDraftInForm = () => {
     if (!cmsDraft) return;
 
@@ -2843,6 +2881,30 @@ export default function AIChatAssistant() {
               ) : null}
 
               <TutorialCards cards={tutorialCards} />
+
+              {formDraft && (
+                <button
+                  type="button"
+                  onClick={useFollowUpDraft}
+                  style={{
+                    marginTop: 8,
+                    border: "1px solid #A7F3D0",
+                    background: "#ECFDF5",
+                    color: "#047857",
+                    borderRadius: 999,
+                    padding: "8px 10px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <ExternalLink size={13} />
+                  Fill in the follow-up form
+                </button>
+              )}
 
               {cmsDraft && (
                 <button

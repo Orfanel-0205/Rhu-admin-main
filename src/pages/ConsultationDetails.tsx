@@ -1,6 +1,6 @@
 // src/pages/ConsultationDetails.tsx
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
@@ -71,6 +71,7 @@ function canPrescribeFromConsultation(user: any): boolean {
 import { t } from "../i18n/translations";
 import StatusBadge from "../components/ui/StatusBadge";
 import { useToast } from "../contexts/ToastContext";
+import { onFormDraft, takeStashedFormDraft } from "../utils/formDraftHandoff";
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -376,6 +377,45 @@ export default function ConsultationDetails() {
   const [followUpResult, setFollowUpResult] = useState<FollowUpReminder | null>(
     null
   );
+
+  /*
+   * A follow-up schedule drafted by the assistant.
+   *
+   * Unlike the Events draft, this form is already open when the draft
+   * arrives -- staff ask the assistant while looking at the consultation --
+   * so it is applied in place rather than read on the way in. A draft that
+   * arrived before this page opened is picked up on mount instead.
+   *
+   * Only the scheduling fields are touched. The instructions box is left
+   * exactly as the clinician left it: what a patient is told to do about
+   * their own care is not the assistant's to write.
+   */
+  const applyFollowUpDraft = useCallback((fields: Record<string, string>) => {
+    setNeedsFollowUp(true);
+
+    if (fields.follow_up_type === "range" || fields.follow_up_type === "single") {
+      setFollowUpType(fields.follow_up_type);
+    }
+
+    if (fields.follow_up_date) setFollowUpDate(fields.follow_up_date);
+    if (fields.follow_up_start_date) setFollowUpStartDate(fields.follow_up_start_date);
+    if (fields.follow_up_end_date) setFollowUpEndDate(fields.follow_up_end_date);
+    if (fields.follow_up_time) setFollowUpTime(fields.follow_up_time);
+    if (fields.reason) setFollowUpReason(fields.reason);
+
+    if (fields.urgency) setFollowUpUrgency(fields.urgency as FollowUpUrgency);
+    if (fields.sms_enabled) setSmsEnabled(fields.sms_enabled === "1");
+
+    toast.info("Follow-up filled in from the assistant. Check the dates and write the instructions before saving.");
+  }, [toast]);
+
+  useEffect(() => onFormDraft("follow_up", applyFollowUpDraft), [applyFollowUpDraft]);
+
+  useEffect(() => {
+    const stashed = takeStashedFormDraft("follow_up");
+
+    if (stashed) applyFollowUpDraft(stashed);
+  }, [applyFollowUpDraft]);
 
   const recognitionRef = useRef<any>(null);
 
