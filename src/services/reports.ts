@@ -287,12 +287,18 @@ export async function getDiagnosisItrRows(
 /**
  * Downloads the combined Diagnosis + ITR CSV from the backend.
  * RHU scoping is enforced server-side; staff only ever get their own RHU.
+ *
+ * `masked` partially hides the columns that identify a person: name,
+ * PhilHealth number, address, mobile, birthdate and guardian details. This
+ * is the file that carries a complete patient record, and it was the one
+ * the privacy toggle did not cover.
  */
 export async function exportDiagnosisItrCsv(
-  filters: DiagnosisItrFilters = {}
+  filters: DiagnosisItrFilters = {},
+  options: { masked?: boolean } = {}
 ): Promise<void> {
   const res = await apiClient.get("/reports/consultations/export", {
-    params: cleanParams(filters),
+    params: { ...cleanParams(filters), ...(options.masked ? { masked: 1 } : {}) },
     responseType: "blob",
   });
 

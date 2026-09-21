@@ -934,12 +934,12 @@ export default function Reports() {
       }));
   }
 
-  async function handleBackendDiagnosisExport() {
+  async function handleBackendDiagnosisExport(masked = false) {
     setExporting(true);
     setExportError("");
 
     try {
-      await exportDiagnosisItrCsv(cleanDiagnosisItrFilters(appliedFilters));
+      await exportDiagnosisItrCsv(cleanDiagnosisItrFilters(appliedFilters), { masked });
     } catch (err: any) {
       setExportError(errorMessage(err));
     } finally {
@@ -1022,7 +1022,7 @@ export default function Reports() {
           <button
             type="button"
             style={heroButtonStyle}
-            onClick={handleBackendDiagnosisExport}
+            onClick={() => handleBackendDiagnosisExport(false)}
             disabled={exporting}
           >
             <Download size={16} />
@@ -1424,7 +1424,8 @@ export default function Reports() {
             >
               <ExportCenter
                 exporting={exporting}
-                onDiagnosisExport={handleBackendDiagnosisExport}
+                onDiagnosisExport={() => handleBackendDiagnosisExport(false)}
+                onDiagnosisExportMasked={() => handleBackendDiagnosisExport(true)}
                 onSummaryExport={() =>
                   downloadCsv(
                     reportFilename("summary-report", appliedFilters),
@@ -2280,6 +2281,7 @@ function BarList({ rows, empty }: { rows: BarRow[]; empty: string }) {
 function ExportCenter({
   exporting,
   onDiagnosisExport,
+  onDiagnosisExportMasked,
   onSummaryExport,
   onFollowUpExport,
   onFollowUpExportMasked,
@@ -2290,6 +2292,7 @@ function ExportCenter({
 }: {
   exporting: boolean;
   onDiagnosisExport: () => void;
+  onDiagnosisExportMasked: () => void;
   onSummaryExport: () => void;
   onFollowUpExport: () => void;
   onFollowUpExportMasked: () => void;
@@ -2308,9 +2311,12 @@ function ExportCenter({
   const exports = [
     {
       label: "Export Diagnosis + ITR CSV",
-      helper: "Backend formal ITR + SOAP export (authorized plaintext)",
+      helper: "Formal ITR + SOAP export. Full patient record: name, PhilHealth, address, contact.",
       onClick: onDiagnosisExport,
-      privacyClick: null as null | (() => void),
+      // The file that actually carries identities. It had no masked
+      // version at all while the toggle above it implied everything with
+      // names was covered.
+      privacyClick: onDiagnosisExportMasked,
     },
     {
       label: "Export Follow-up CSV",
@@ -2356,9 +2362,12 @@ function ExportCenter({
         <span>
           <strong>Privacy mode — mask personal data (S********)</strong>
           <small>
-            Patient and staff names export with only their first letter visible
-            (mobiles keep the 09 prefix) for audit/evidence copies. Aggregate
-            exports are unaffected.
+            Names, PhilHealth numbers, addresses, contact numbers and birthdates
+            export partially hidden — first letter only, mobiles keep the 09
+            prefix, birthdates keep the year. Use it for audit copies, training
+            and anything leaving this office. Every download below that contains
+            personal data is covered, including the Diagnosis + ITR file. The
+            rest are counts with no names in them and are unchanged.
           </small>
         </span>
       </label>
