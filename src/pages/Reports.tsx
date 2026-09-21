@@ -1223,6 +1223,73 @@ export default function Reports() {
 
           {tab === "consultations" && (
           <section style={formalGridStyle}>
+            {/* First, not last. Exporting is what most visits to this page
+                are for, and it was sitting below a dozen collapsed cards. */}
+            <ReportCard
+              title="Export Center"
+              subtitle={`CSV-safe exports using the selected RHU ${appliedFilters.rhuId} filters.`}
+              icon={<Download size={19} />}
+            >
+              <ExportCenter
+                exporting={exporting}
+                onDiagnosisExport={() => handleBackendDiagnosisExport(false)}
+                onDiagnosisExportMasked={() => handleBackendDiagnosisExport(true)}
+                onSummaryExport={() =>
+                  downloadCsv(
+                    reportFilename("summary-report", appliedFilters),
+                    summaryExportRows
+                  )
+                }
+                onFollowUpExport={() =>
+                  downloadCsv(
+                    reportFilename("followup-report", appliedFilters),
+                    followUpExportRows()
+                  )
+                }
+                onFollowUpExportMasked={() =>
+                  downloadCsvMasked(
+                    reportFilename("followup-report", appliedFilters),
+                    followUpExportRows()
+                  )
+                }
+                onWatchlistExport={() =>
+                  downloadCsv(
+                    reportFilename("barangay-watchlist", appliedFilters),
+                    barangayWatchlist
+                  )
+                }
+                onStaffExport={() =>
+                  downloadCsv(
+                    reportFilename("staff-workload", appliedFilters),
+                    staffWorkloadRows
+                  )
+                }
+                onStaffExportMasked={() =>
+                  downloadCsvMasked(
+                    reportFilename("staff-workload", appliedFilters),
+                    staffWorkloadRows
+                  )
+                }
+                onCompletenessExport={() =>
+                  downloadCsv(
+                    reportFilename("data-completeness", appliedFilters),
+                    [
+                      {
+                        total_records: completenessReport.total,
+                        complete_records: completenessReport.complete,
+                        complete_percent: completenessReport.completePercent,
+                        missing_diagnosis: completenessReport.missingDiagnosis,
+                        missing_treatment: completenessReport.missingTreatment,
+                        missing_barangay: completenessReport.missingBarangay,
+                        missing_contact: completenessReport.missingContact,
+                        missing_follow_up_date:
+                          completenessReport.missingFollowUpDate,
+                      },
+                    ]
+                  )
+                }
+              />
+            </ReportCard>
             <ReportCard
               title="Disease Surveillance Summary"
               subtitle="Top diagnosis signal from completed Diagnosis + ITR records."
@@ -1422,71 +1489,6 @@ export default function Reports() {
               <BarList rows={diseaseRows} empty="No diagnosis data available." />
             </ReportCard>
 
-            <ReportCard
-              title="Export Center"
-              subtitle={`CSV-safe exports using the selected RHU ${appliedFilters.rhuId} filters.`}
-              icon={<Download size={19} />}
-            >
-              <ExportCenter
-                exporting={exporting}
-                onDiagnosisExport={() => handleBackendDiagnosisExport(false)}
-                onDiagnosisExportMasked={() => handleBackendDiagnosisExport(true)}
-                onSummaryExport={() =>
-                  downloadCsv(
-                    reportFilename("summary-report", appliedFilters),
-                    summaryExportRows
-                  )
-                }
-                onFollowUpExport={() =>
-                  downloadCsv(
-                    reportFilename("followup-report", appliedFilters),
-                    followUpExportRows()
-                  )
-                }
-                onFollowUpExportMasked={() =>
-                  downloadCsvMasked(
-                    reportFilename("followup-report", appliedFilters),
-                    followUpExportRows()
-                  )
-                }
-                onWatchlistExport={() =>
-                  downloadCsv(
-                    reportFilename("barangay-watchlist", appliedFilters),
-                    barangayWatchlist
-                  )
-                }
-                onStaffExport={() =>
-                  downloadCsv(
-                    reportFilename("staff-workload", appliedFilters),
-                    staffWorkloadRows
-                  )
-                }
-                onStaffExportMasked={() =>
-                  downloadCsvMasked(
-                    reportFilename("staff-workload", appliedFilters),
-                    staffWorkloadRows
-                  )
-                }
-                onCompletenessExport={() =>
-                  downloadCsv(
-                    reportFilename("data-completeness", appliedFilters),
-                    [
-                      {
-                        total_records: completenessReport.total,
-                        complete_records: completenessReport.complete,
-                        complete_percent: completenessReport.completePercent,
-                        missing_diagnosis: completenessReport.missingDiagnosis,
-                        missing_treatment: completenessReport.missingTreatment,
-                        missing_barangay: completenessReport.missingBarangay,
-                        missing_contact: completenessReport.missingContact,
-                        missing_follow_up_date:
-                          completenessReport.missingFollowUpDate,
-                      },
-                    ]
-                  )
-                }
-              />
-            </ReportCard>
           </section>
           )}
 
@@ -2323,7 +2325,7 @@ function ExportCenter({
   const exports = [
     {
       label: "Export Diagnosis + ITR CSV",
-      helper: "Formal ITR + SOAP export. Full patient record: name, PhilHealth, address, contact.",
+      helper: "Full patient record: name, PhilHealth, address, contact, SOAP",
       onClick: onDiagnosisExport,
       // The file that actually carries identities. It had no masked
       // version at all while the toggle above it implied everything with
@@ -2332,31 +2334,31 @@ function ExportCenter({
     },
     {
       label: "Export Follow-up CSV",
-      helper: "Open, due, and overdue follow-up rows",
+      helper: "Open, due and overdue follow-ups",
       onClick: onFollowUpExport,
       privacyClick: onFollowUpExportMasked,
     },
     {
       label: "Export Barangay Watchlist CSV",
-      helper: "Barangay case, risk, queue, and follow-up signals",
+      helper: "Cases and risk by barangay. No names",
       onClick: onWatchlistExport,
       privacyClick: null,
     },
     {
       label: "Export Staff Workload CSV",
-      helper: "Completed and diagnosed records by attending staff",
+      helper: "Records handled, by staff member",
       onClick: onStaffExport,
       privacyClick: onStaffExportMasked,
     },
     {
       label: "Export Data Completeness CSV",
-      helper: "Missing diagnosis, treatment, barangay, and contact summary",
+      helper: "What is missing from the records. No names",
       onClick: onCompletenessExport,
       privacyClick: null,
     },
     {
       label: "Export Summary",
-      helper: "Facility report summary",
+      helper: "One-line facility totals. No names",
       onClick: onSummaryExport,
       privacyClick: null,
     },
@@ -2371,15 +2373,13 @@ function ExportCenter({
           onChange={(event) => setPrivacy(event.target.checked)}
           style={{ width: 17, height: 17, accentColor: "#047857", flexShrink: 0 }}
         />
-        <span>
-          <strong>Privacy mode — mask personal data (S********)</strong>
-          <small>
-            Names, PhilHealth numbers, addresses, contact numbers and birthdates
-            export partially hidden — first letter only, mobiles keep the 09
-            prefix, birthdates keep the year. Use it for audit copies, training
-            and anything leaving this office. Every download below that contains
-            personal data is covered, including the Diagnosis + ITR file. The
-            rest are counts with no names in them and are unchanged.
+        <span style={{ display: "grid", gap: 4, minWidth: 0 }}>
+          <strong style={{ display: "block" }}>Privacy mode — mask personal data (S********)</strong>
+          <small style={{ display: "block", lineHeight: 1.45 }}>
+            Hides names, PhilHealth numbers, addresses, contacts and birthdates in
+            every download that contains them — including Diagnosis + ITR. Turn it
+            on for anything leaving this office. The downloads marked “No names”
+            hold only counts and never change.
           </small>
         </span>
       </label>
@@ -2397,12 +2397,18 @@ function ExportCenter({
               disabled={exporting}
             >
               {masked ? <ShieldAlert size={17} /> : <Download size={17} />}
-              <span>
-                <strong>
+
+              {/* Stacked, not inline. <strong> and <small> are both inline
+                  elements, so the name of the file and the sentence
+                  explaining it were rendering as one run-on string. */}
+              <span style={{ display: "grid", gap: 3, minWidth: 0 }}>
+                <strong style={{ display: "block", fontSize: 13.5, lineHeight: 1.35 }}>
                   {item.label}
                   {masked ? " (masked)" : ""}
                 </strong>
-                <small>{masked ? "Names masked (first letter + asterisks)" : item.helper}</small>
+                <small style={{ display: "block", fontSize: 11.5, lineHeight: 1.4, opacity: 0.85 }}>
+                  {masked ? "Names masked (first letter + asterisks)" : item.helper}
+                </small>
               </span>
             </button>
           );

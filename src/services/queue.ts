@@ -697,6 +697,16 @@ export interface AttendanceLogRow {
   channel: "walk_in" | "booked" | "online";
   service: string;
   seen_at: string;
+
+  /* What the detail view shows: not who they are, but what happened to
+     them and how long it took. */
+  barangay?: string | null;
+  status?: string | null;
+  priority_score: number;
+  called_at?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  served_by?: string | null;
 }
 
 export interface AttendanceLog {

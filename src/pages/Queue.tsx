@@ -38,6 +38,7 @@ import {
   type QueueTicket,
 } from "../services/queue";
 import { t } from "../i18n/translations";
+import AttendanceLogPanel from "../components/queue/AttendanceLogPanel";
 import { useLangStore } from "../store/langStore";
 import { useToast } from "../contexts/ToastContext";
 import WalkInPatientModal from "../components/queue/WalkInPatientModal";
@@ -389,6 +390,15 @@ export default function Queue() {
     DEFAULT_QUEUE_SERVICE_TYPE
   );
   // ?status=... lets the assistant open the queue on the right tab.
+  /*
+   * Which board is showing.
+   *
+   * The queue people are waiting in and the log of people already seen are
+   * two different jobs. Stacked down one page, reaching the four patients
+   * still waiting meant scrolling past the hundred already finished.
+   */
+  const [board, setBoard] = useState<"queue" | "log">("queue");
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
     readFilterParam<StatusFilter>(
       new URLSearchParams(window.location.search),
@@ -1185,14 +1195,51 @@ export default function Queue() {
       <section style={boardStyle}>
         <div style={boardHeaderStyle}>
           <div>
-            <h2>{t("q_active_tickets_title", lang)}</h2>
-            <p>{t("q_active_tickets_desc", lang)}</p>
+            <h2>
+              {board === "queue"
+                ? t("q_active_tickets_title", lang)
+                : "Attendance log — today"}
+            </h2>
+            <p>
+              {board === "queue"
+                ? t("q_active_tickets_desc", lang)
+                : "Everyone already seen today, walk-in and online together."}
+            </p>
           </div>
 
           <Users size={24} />
         </div>
 
-        {filteredTickets.length === 0 ? (
+        {/* Two jobs, one at a time. Stacking the finished patients under
+            the waiting ones meant scrolling past a hundred records to
+            reach the four people actually standing there. */}
+        <div style={boardTabRowStyle}>
+          <button
+            type="button"
+            onClick={() => setBoard("queue")
+            }
+            style={boardTabStyle(board === "queue")}
+          >
+            Waiting now
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setBoard("log")}
+            style={boardTabStyle(board === "log")}
+          >
+            Attendance log
+          </button>
+        </div>
+
+        {board === "log" ? (
+          <div style={{ padding: 16 }}>
+            <AttendanceLogPanel rhuId={rhuId} />
+          </div>
+        ) : null}
+
+        {board === "queue" ? (
+          filteredTickets.length === 0 ? (
           <div style={emptyStyle}>
             <strong style={{ display: "block", color: "#0F172A", marginBottom: 4 }}>
               {t("q_empty_no_tickets", lang)}
@@ -1371,7 +1418,8 @@ export default function Queue() {
               </article>
             ))}
           </div>
-        )}
+          )
+        ) : null}
       </section>
 
       <section style={boardStyle}>
@@ -1821,6 +1869,26 @@ const boardStyle: CSSProperties = {
   borderRadius: 22,
   overflow: "hidden",
 };
+
+const boardTabRowStyle: CSSProperties = {
+  display: "flex",
+  gap: 8,
+  padding: "0 16px 12px",
+  flexWrap: "wrap",
+};
+
+function boardTabStyle(active: boolean): CSSProperties {
+  return {
+    padding: "10px 18px",
+    borderRadius: 999,
+    border: active ? "1px solid #047857" : "1px solid #E2E8F0",
+    background: active ? "#047857" : "#FFFFFF",
+    color: active ? "#FFFFFF" : "#334155",
+    fontSize: 13.5,
+    fontWeight: 900,
+    cursor: "pointer",
+  };
+}
 
 const boardHeaderStyle: CSSProperties = {
   padding: 20,
