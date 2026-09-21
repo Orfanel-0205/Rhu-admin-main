@@ -12,10 +12,9 @@
 // afternoon of scrolling through a busy thread quietly holds every photograph
 // ever opened in memory.
 
-import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 
-import apiClient from "../../lib/apiClient";
+import { usePrivateImage } from "../../hooks/usePrivateImage";
 
 export default function ChatAttachment({
   path,
@@ -27,32 +26,7 @@ export default function ChatAttachment({
   alt?: string;
   style?: CSSProperties;
 }) {
-  const [url, setUrl] = useState<string>("");
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let objectUrl = "";
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const response = await apiClient.get(path, { responseType: "blob" });
-
-        if (cancelled) return;
-
-        objectUrl = URL.createObjectURL(response.data as Blob);
-        setUrl(objectUrl);
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [path]);
+  const { url, failed } = usePrivateImage(path);
 
   if (failed) {
     return <div style={{ ...placeholderStyle, ...style }}>Image unavailable</div>;

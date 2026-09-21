@@ -16,6 +16,7 @@ import { useAuthStore } from "../store/authStore";
 import { QUICK_STICKERS, STICKERS, soleSticker, stickerFor } from "../lib/stickers";
 import CallPanel from "../components/CallPanel";
 import ChatAttachment from "../components/chat/ChatAttachment";
+import { usePrivateImage } from "../hooks/usePrivateImage";
 import { startCallRingtone, stopCallRingtone } from "../lib/notificationSound";
 import {
   listConversations,
@@ -112,9 +113,18 @@ function Avatar({
   /** undefined = do not show a presence dot at all (groups, unknown). */
   online?: boolean;
 }) {
-  const inner = url ? (
+  /*
+   * A group picture is served by the API now rather than sitting on the
+   * public disk, so it has to be fetched with the session attached. A
+   * staff profile picture is still an ordinary URL. The hook takes either
+   * and hands back something an <img> can use, which is why none of the
+   * five places that draw an avatar had to learn the difference.
+   */
+  const { url: resolved } = usePrivateImage(url);
+
+  const inner = resolved ? (
     <img
-      src={url}
+      src={resolved}
       alt={name}
       style={{ width: size, height: size, borderRadius: 999, objectFit: "cover", flexShrink: 0 }}
     />
