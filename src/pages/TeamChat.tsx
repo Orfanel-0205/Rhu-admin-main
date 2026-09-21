@@ -15,6 +15,7 @@ import { emitToast } from "../lib/toastBus";
 import { useAuthStore } from "../store/authStore";
 import { QUICK_STICKERS, STICKERS, soleSticker, stickerFor } from "../lib/stickers";
 import CallPanel from "../components/CallPanel";
+import ChatAttachment from "../components/chat/ChatAttachment";
 import { startCallRingtone, stopCallRingtone } from "../lib/notificationSound";
 import {
   listConversations,
@@ -576,7 +577,7 @@ export default function TeamChat() {
     }
     setGroupImageUploading(true);
     try {
-      const uploaded = await uploadAttachment(file);
+      const uploaded = await uploadAttachment(file, "group_image");
       setGroupImage({ path: uploaded.attachment_path, url: uploaded.url });
     } catch (e: any) {
       emitToast(e?.response?.data?.message || "Group image upload failed.", "error");
@@ -757,7 +758,7 @@ export default function TeamChat() {
       return;
     }
     try {
-      const uploaded = await uploadAttachment(file);
+      const uploaded = await uploadAttachment(file, "group_image");
       setSettingsImage({ path: uploaded.attachment_path, url: uploaded.url });
     } catch (e: any) {
       emitToast(e?.response?.data?.message || "Image upload failed.", "error");
@@ -852,7 +853,11 @@ export default function TeamChat() {
     }
     try {
       const uploaded = await uploadAttachment(file);
-      setPendingAttachment(uploaded);
+
+      // The server hands back no url for a private attachment, so the
+      // thumbnail shown before sending comes from the file already on this
+      // machine rather than a round trip.
+      setPendingAttachment({ ...uploaded, url: URL.createObjectURL(file) });
       setAttachOpen(false);
     } catch (e: any) {
       emitToast(e?.response?.data?.message || "Image upload failed.", "error");
@@ -1300,14 +1305,14 @@ export default function TeamChat() {
                             boxShadow: "0 1px 2px rgba(15,23,42,.05)",
                           }}
                         >
+                          {/* Fetched with the session token: these are not
+                              public files any more, so a plain <img src>
+                              would get a 401. */}
                           {m.attachment_url ? (
-                            <a href={m.attachment_url} target="_blank" rel="noreferrer">
-                              <img
-                                src={m.attachment_url}
-                                alt="attachment"
-                                style={{ maxWidth: 260, maxHeight: 260, borderRadius: 10, display: "block" }}
-                              />
-                            </a>
+                            <ChatAttachment
+                              path={m.attachment_url}
+                              style={{ maxWidth: 260, maxHeight: 260, borderRadius: 10, display: "block" }}
+                            />
                           ) : null}
                           {soleSticker(m.body) ? (
                             // A sticker on its own is the message: shown large,

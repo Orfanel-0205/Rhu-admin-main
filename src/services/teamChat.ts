@@ -124,6 +124,7 @@ export interface ConversationSummary {
 
 export interface UploadedAttachment {
   attachment_path: string;
+  /** Null for a private message attachment: there is no public link. */
   url: string;
   attachment_meta: { mime: string; size: number; name: string };
 }
@@ -284,12 +285,27 @@ export async function searchMessages(
   return { data: res.data?.data ?? [], meta: res.data?.meta ?? {} };
 }
 
-export async function uploadAttachment(file: File): Promise<UploadedAttachment> {
+/**
+ * Upload a picture for Team Chat.
+ *
+ * `purpose` decides where it is kept. A message attachment goes to private
+ * storage and comes back with no url, because there is no public link to
+ * give: what staff send each other is wound photographs and laboratory
+ * results. A group avatar stays public -- it is decoration shown beside
+ * the group everywhere, and locking it down costs more than it protects.
+ */
+export async function uploadAttachment(
+  file: File,
+  purpose: "message" | "group_image" = "message"
+): Promise<UploadedAttachment> {
   const form = new FormData();
   form.append("image", file);
+  form.append("purpose", purpose);
+
   const res = await apiClient.post("/team-chat/attachments", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+
   return res.data?.data;
 }
 
