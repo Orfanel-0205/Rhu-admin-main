@@ -2072,9 +2072,14 @@ const errorStyle: CSSProperties = {
   border: "1px solid #FECACA",
 };
 
+// Flex, not an auto-fit grid. The grid gave every control an equal ~180px
+// track, but the scope pill is nowrap and wider than that, so it overflowed
+// its track and ran underneath the Refresh button. Grid tracks do not grow
+// to fit a nowrap child; flex items do, and wrap to a new line when the row
+// runs out of room instead of overlapping.
 const toolbarStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(min(180px, 100%), 1fr))",
+  display: "flex",
+  flexWrap: "wrap",
   gap: 12,
   alignItems: "center",
   padding: 16,
@@ -2092,6 +2097,11 @@ const searchBoxStyle: CSSProperties = {
   borderRadius: 12,
   border: "1px solid #CBD5E1",
   background: "#F8FAFC",
+  // The one control that takes the leftover width. minWidth:0 lets it
+  // actually shrink -- a flex item will not go below its content width
+  // without it, which is the usual cause of a row refusing to wrap.
+  flex: "1 1 240px",
+  minWidth: 0,
 };
 
 const searchInputStyle: CSSProperties = {
@@ -2111,20 +2121,32 @@ const selectStyle: CSSProperties = {
   padding: "0 14px",
   fontWeight: 800,
   color: "#0F172A",
+  // Shrinkable but never stretched: an "All Status" box three hundred
+  // pixels wide was what made the old row look padded out.
+  flex: "0 1 168px",
+  minWidth: 140,
 };
 
+// This is a label, not a control: it says what the Active board already
+// scopes to. It keeps its full text rather than truncating, because a
+// clipped "all telemedi..." is exactly the kind of half-sentence that makes
+// staff think a filter is applied that is not.
 const todayScopePillStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  height: 48,
+  minHeight: 48,
   borderRadius: 999,
   border: "1px solid #99F6E4",
   background: "#F0FDFA",
-  padding: "0 16px",
+  padding: "7px 16px",
   fontWeight: 800,
-  fontSize: 13.5,
+  fontSize: 13,
+  lineHeight: 1.3,
   color: "#0F766E",
-  whiteSpace: "nowrap",
+  // Sized to its text, and allowed to wrap on a phone rather than spill
+  // out of the row.
+  flex: "0 0 auto",
+  maxWidth: "100%",
 };
 
 const refreshButtonStyle: CSSProperties = {
@@ -2139,6 +2161,11 @@ const refreshButtonStyle: CSSProperties = {
   gap: 10,
   fontWeight: 900,
   cursor: "pointer",
+  // Its own padding now. Under the grid it was stretched to a track and
+  // never needed any.
+  padding: "0 24px",
+  flex: "0 0 auto",
+  marginLeft: "auto",
 };
 
 const boardStyle: CSSProperties = {
