@@ -399,6 +399,22 @@ export default function Queue() {
    */
   const [board, setBoard] = useState<"queue" | "log">("queue");
 
+  /*
+   * The patient who has just been served, kept only long enough to ask
+   * what happens next.
+   *
+   * Completing a ticket used to end the interaction silently, and the two
+   * things that usually follow -- writing the notes, arranging a return
+   * visit -- live on a different screen the nurse has to go and find. By
+   * then the patient has left, which is the one moment a follow-up date
+   * can actually be agreed with them.
+   */
+  const [justServed, setJustServed] = useState<{
+    ticketNumber: string;
+    patient: string;
+    consultationId: number | null;
+  } | null>(null);
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
     readFilterParam<StatusFilter>(
       new URLSearchParams(window.location.search),
@@ -769,6 +785,14 @@ export default function Queue() {
       };
       if (successMessages[status]) {
         toast.success(successMessages[status]);
+      }
+
+      if (status === "completed") {
+        setJustServed({
+          ticketNumber: ticket.ticket_number,
+          patient: ticket.patient_name || t("q_patient_fallback", lang),
+          consultationId: ticket.consultation_id ?? null,
+        });
       }
 
       await loadQueue(true);
@@ -1191,6 +1215,56 @@ export default function Queue() {
           </select>
         </label>
       </section>
+
+      {/* Offered at the moment the patient is finished with, because that
+          is when a return visit can still be agreed with them face to
+          face. Both actions open the consultation this visit created. */}
+      {justServed ? (
+        <section style={servedPanelStyle}>
+          <div style={{ minWidth: 0 }}>
+            <strong style={{ fontSize: 15 }}>
+              {justServed.patient} is done ({justServed.ticketNumber})
+            </strong>
+            <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>
+              {justServed.consultationId
+                ? "Write the notes, or arrange a return visit while they are still here."
+                : "No consultation record was created for this ticket."}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {justServed.consultationId ? (
+              <>
+                <button
+                  type="button"
+                  style={servedPrimaryStyle}
+                  onClick={() =>
+                    navigate(`/consultations/${justServed.consultationId}?focus=followup`)
+                  }
+                >
+                  Schedule follow-up
+                </button>
+
+                <button
+                  type="button"
+                  style={servedSecondaryStyle}
+                  onClick={() => navigate(`/consultations/${justServed.consultationId}`)}
+                >
+                  Write SOAP notes
+                </button>
+              </>
+            ) : null}
+
+            <button
+              type="button"
+              style={servedSecondaryStyle}
+              onClick={() => setJustServed(null)}
+            >
+              No follow-up needed
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section style={boardStyle}>
         <div style={boardHeaderStyle}>
@@ -1868,6 +1942,42 @@ const boardStyle: CSSProperties = {
   border: "1px solid #E2E8F0",
   borderRadius: 22,
   overflow: "hidden",
+};
+
+const servedPanelStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 14,
+  flexWrap: "wrap",
+  padding: "16px 18px",
+  marginBottom: 16,
+  borderRadius: 18,
+  background: "#ECFDF5",
+  border: "1px solid #A7F3D0",
+  color: "#065F46",
+};
+
+const servedPrimaryStyle: CSSProperties = {
+  border: 0,
+  borderRadius: 999,
+  padding: "11px 18px",
+  background: "#047857",
+  color: "#FFFFFF",
+  fontWeight: 900,
+  fontSize: 13.5,
+  cursor: "pointer",
+};
+
+const servedSecondaryStyle: CSSProperties = {
+  border: "1px solid #A7F3D0",
+  borderRadius: 999,
+  padding: "11px 18px",
+  background: "#FFFFFF",
+  color: "#047857",
+  fontWeight: 800,
+  fontSize: 13.5,
+  cursor: "pointer",
 };
 
 const boardTabRowStyle: CSSProperties = {

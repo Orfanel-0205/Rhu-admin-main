@@ -417,6 +417,28 @@ export default function ConsultationDetails() {
     if (stashed) applyFollowUpDraft(stashed);
   }, [applyFollowUpDraft]);
 
+  const followUpSectionRef = useRef<HTMLElement | null>(null);
+
+  /*
+   * Arriving from the queue desk with the patient still in front of you.
+   *
+   * The consultation page is long and the follow-up section sits near the
+   * bottom, so landing at the top means scrolling past the whole SOAP form
+   * to reach the one thing you came for. The nurse is brought straight to
+   * it, and it is switched on, because pressing "Schedule follow-up" has
+   * already said that is what they want.
+   */
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).get("focus")) return;
+
+    const timer = window.setTimeout(() => {
+      followUpSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setNeedsFollowUp(true);
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const recognitionRef = useRef<any>(null);
 
   function applyFollowUpReminder(reminder: FollowUpReminder | null) {
@@ -1679,7 +1701,7 @@ export default function ConsultationDetails() {
         </div>
       </section>
 
-      <section style={cardStyle}>
+      <section style={cardStyle} id="followup" ref={followUpSectionRef}>
         <div style={sectionHeaderStyle}>
           <div>
             <h2 style={titleStyle}>Follow-up &amp; SMS Reminder</h2>
