@@ -12,6 +12,15 @@
 // two date boxes are there for the rarer case where they want a stretch. "All
 // dates" is a real option rather than an empty state, because browsing the
 // whole history newest-first is still a legitimate thing to do.
+//
+// LAYOUT
+// ------
+// One row, not a card. The first version gave the date inputs `flex: 1 1 150px`
+// and they grew to fill the width — two 700px-wide boxes holding ten characters
+// each, turning a filter into a second banner above the table it filters. The
+// inputs are now a fixed width and the row wraps only when it has to, so this
+// reads as a control strip attached to the list rather than a panel competing
+// with it.
 
 import type { CSSProperties } from "react";
 import { CalendarDays, X } from "lucide-react";
@@ -56,8 +65,8 @@ export default function DateRangeFilter({
   const shortcuts: Array<{ key: string; label: string; range: DateRange }> = [
     { key: "today", label: "Today", range: { from: isoDay(0), to: isoDay(0) } },
     { key: "yesterday", label: "Yesterday", range: { from: isoDay(-1), to: isoDay(-1) } },
-    { key: "week", label: "Last 7 days", range: { from: isoDay(-6), to: isoDay(0) } },
-    { key: "month", label: "Last 30 days", range: { from: isoDay(-29), to: isoDay(0) } },
+    { key: "week", label: "7 days", range: { from: isoDay(-6), to: isoDay(0) } },
+    { key: "month", label: "30 days", range: { from: isoDay(-29), to: isoDay(0) } },
   ];
 
   function matches(range: DateRange): boolean {
@@ -66,137 +75,129 @@ export default function DateRangeFilter({
 
   return (
     <div style={wrapStyle}>
-      <div style={headRowStyle}>
-        <span style={labelStyle}>
-          <CalendarDays size={15} />
-          {label}
-        </span>
+      <span style={labelStyle}>
+        <CalendarDays size={15} />
+        {label}
+      </span>
 
-        <span style={summaryStyle}>{describeRange(value)}</span>
-      </div>
+      <button
+        type="button"
+        onClick={() => onChange(EMPTY_RANGE)}
+        style={chipStyle(!active)}
+      >
+        All dates
+      </button>
 
-      <div style={chipRowStyle}>
+      {shortcuts.map((shortcut) => (
         <button
+          key={shortcut.key}
           type="button"
-          onClick={() => onChange(EMPTY_RANGE)}
-          style={chipStyle(!active)}
+          onClick={() => onChange(shortcut.range)}
+          style={chipStyle(matches(shortcut.range))}
         >
-          All dates
+          {shortcut.label}
         </button>
+      ))}
 
-        {shortcuts.map((shortcut) => (
-          <button
-            key={shortcut.key}
-            type="button"
-            onClick={() => onChange(shortcut.range)}
-            style={chipStyle(matches(shortcut.range))}
-          >
-            {shortcut.label}
-          </button>
-        ))}
-      </div>
+      <span style={dividerStyle} />
 
-      <div style={inputRowStyle}>
-        <label style={fieldStyle}>
-          <span style={fieldLabelStyle}>From</span>
-          <input
-            type="date"
-            value={value.from}
-            max={value.to || undefined}
-            onChange={(event) => onChange({ ...value, from: event.target.value })}
-            style={inputStyle}
-          />
-        </label>
+      <label style={fieldStyle}>
+        <span style={fieldLabelStyle}>From</span>
+        <input
+          type="date"
+          value={value.from}
+          max={value.to || undefined}
+          onChange={(event) => onChange({ ...value, from: event.target.value })}
+          style={inputStyle}
+        />
+      </label>
 
-        <label style={fieldStyle}>
-          <span style={fieldLabelStyle}>To</span>
-          <input
-            type="date"
-            value={value.to}
-            min={value.from || undefined}
-            onChange={(event) => onChange({ ...value, to: event.target.value })}
-            style={inputStyle}
-          />
-        </label>
+      <label style={fieldStyle}>
+        <span style={fieldLabelStyle}>To</span>
+        <input
+          type="date"
+          value={value.to}
+          min={value.from || undefined}
+          onChange={(event) => onChange({ ...value, to: event.target.value })}
+          style={inputStyle}
+        />
+      </label>
 
-        {active ? (
-          <button type="button" onClick={() => onChange(EMPTY_RANGE)} style={clearStyle}>
-            <X size={14} /> Clear
-          </button>
-        ) : null}
-      </div>
+      {active ? (
+        <button type="button" onClick={() => onChange(EMPTY_RANGE)} style={clearStyle}>
+          <X size={13} /> Clear
+        </button>
+      ) : null}
+
+      {/* Pushed right so the row reads left-to-right as controls, then result. */}
+      <span style={summaryStyle}>{describeRange(value)}</span>
     </div>
   );
 }
 
 const wrapStyle: CSSProperties = {
-  display: "grid",
-  gap: 10,
-  padding: "14px 16px",
-  background: "#FFFFFF",
-  border: "1px solid #E2E8F0",
-  borderRadius: 16,
-};
-
-const headRowStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
-  gap: 12,
+  gap: 7,
   flexWrap: "wrap",
+  padding: "10px 14px",
+  background: "#FFFFFF",
+  border: "1px solid #E2E8F0",
+  borderRadius: 14,
 };
 
 const labelStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 7,
-  fontSize: 13,
+  gap: 6,
+  marginRight: 3,
+  fontSize: 12.5,
   fontWeight: 900,
   color: "#0F172A",
+  whiteSpace: "nowrap",
+};
+
+const dividerStyle: CSSProperties = {
+  width: 1,
+  alignSelf: "stretch",
+  minHeight: 22,
+  margin: "0 4px",
+  background: "#E2E8F0",
 };
 
 const summaryStyle: CSSProperties = {
-  fontSize: 12.5,
+  marginLeft: "auto",
+  paddingLeft: 10,
+  fontSize: 12,
   fontWeight: 700,
   color: "#047857",
-};
-
-const chipRowStyle: CSSProperties = {
-  display: "flex",
-  gap: 7,
-  flexWrap: "wrap",
+  whiteSpace: "nowrap",
 };
 
 function chipStyle(active: boolean): CSSProperties {
   return {
-    padding: "7px 13px",
+    padding: "6px 12px",
     borderRadius: 999,
     border: active ? "1px solid #047857" : "1px solid #E2E8F0",
     background: active ? "#047857" : "#FFFFFF",
     color: active ? "#FFFFFF" : "#334155",
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: 800,
     cursor: "pointer",
     whiteSpace: "nowrap",
   };
 }
 
-const inputRowStyle: CSSProperties = {
-  display: "flex",
-  gap: 10,
-  flexWrap: "wrap",
-  alignItems: "flex-end",
-};
-
 const fieldStyle: CSSProperties = {
-  display: "grid",
-  gap: 4,
-  minWidth: 150,
-  flex: "1 1 150px",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  // Fixed, never grows. This is the whole point of the rewrite.
+  flex: "0 0 auto",
 };
 
 const fieldLabelStyle: CSSProperties = {
-  fontSize: 11,
+  fontSize: 10.5,
   fontWeight: 800,
   letterSpacing: 0.4,
   textTransform: "uppercase",
@@ -204,25 +205,26 @@ const fieldLabelStyle: CSSProperties = {
 };
 
 const inputStyle: CSSProperties = {
-  padding: "9px 11px",
-  borderRadius: 10,
+  width: 142,
+  padding: "6px 9px",
+  borderRadius: 9,
   border: "1px solid #CBD5E1",
   background: "#FFFFFF",
   color: "#0F172A",
-  fontSize: 13.5,
-  width: "100%",
+  fontSize: 12.5,
 };
 
 const clearStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 5,
-  padding: "9px 13px",
+  gap: 4,
+  padding: "6px 11px",
   borderRadius: 999,
   border: "1px solid #CBD5E1",
   background: "#FFFFFF",
   color: "#334155",
-  fontSize: 12.5,
+  fontSize: 12,
   fontWeight: 800,
   cursor: "pointer",
+  whiteSpace: "nowrap",
 };
