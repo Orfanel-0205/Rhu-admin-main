@@ -1631,37 +1631,49 @@ export default function Prescriptions() {
                     </p>
                   </div>
 
-                  <div style={labGroupGridStyle}>
-                    <LabTestGroup
-                      title="Laboratory"
-                      groups={LABORATORY_GROUPS}
-                      selected={form.lab_tests.laboratory}
-                      otherValue={form.lab_tests.others.laboratory || ""}
-                      onToggle={(option, checked) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          lab_tests: updateLabSection(
-                            prev.lab_tests,
-                            "laboratory",
-                            option,
-                            checked
-                          ),
-                        }))
-                      }
-                      onOtherChange={(value) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          lab_tests: {
-                            ...prev.lab_tests,
-                            others: {
-                              ...prev.lab_tests.others,
-                              laboratory: value,
-                            },
+                  {/*
+                      Laboratory takes the full width; X-Ray and Ultrasound share a
+                      row underneath.
+                  
+                      All three used to be equal columns of a single grid. With
+                      thirty-two laboratory tests against three X-ray entries that
+                      produced one very tall narrow column beside two mostly empty
+                      ones, and -- because a stretched grid item stretches its own
+                      auto rows -- the short sections spread their few checkboxes
+                      down the full height, leaving Others stranded at the bottom.
+                  */}
+                  <LabTestGroup
+                    title="Laboratory"
+                    groups={LABORATORY_GROUPS}
+                    selected={form.lab_tests.laboratory}
+                    otherValue={form.lab_tests.others.laboratory || ""}
+                    onToggle={(option, checked) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        lab_tests: updateLabSection(
+                          prev.lab_tests,
+                          "laboratory",
+                          option,
+                          checked
+                        ),
+                      }))
+                    }
+                    onOtherChange={(value) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        lab_tests: {
+                          ...prev.lab_tests,
+                          others: {
+                            ...prev.lab_tests.others,
+                            laboratory: value,
                           },
-                        }))
-                      }
-                    />
+                        },
+                      }))
+                    }
+                  />
 
+
+                  <div style={labGroupGridStyle}>
                     <LabTestGroup
                       title="X-Ray"
                       groups={XRAY_GROUPS}
@@ -2451,6 +2463,10 @@ const labGroupGridStyle: CSSProperties = {
 
 const labGroupStyle: CSSProperties = {
   display: "grid",
+  // Keep rows at their natural height. A grid item stretched by its
+  // parent stretches its own auto rows too, which is what pushed the
+  // X-Ray section's Others field to the bottom of an empty column.
+  alignContent: "start",
   gap: 10,
   border: "1px solid #E2E8F0",
   borderRadius: 14,
@@ -2483,7 +2499,8 @@ const labCountStyle: CSSProperties = {
 // The group headings inside a section ("Tuberculosis", "Blood sugar").
 // Quieter than the section legend so the hierarchy reads at a glance.
 const labSubGroupTitleStyle: CSSProperties = {
-  margin: "8px 0 6px",
+  gridColumn: "1 / -1",
+  margin: "10px 0 4px",
   fontSize: 10.5,
   fontWeight: 800,
   letterSpacing: 0.5,
@@ -2523,8 +2540,10 @@ const labNoMatchStyle: CSSProperties = {
 
 const labCheckboxGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-  gap: 8,
+  // Narrower than the label column so a full-width Laboratory section
+  // flows into three or four columns instead of one long list.
+  gridTemplateColumns: "repeat(auto-fill, minmax(215px, 1fr))",
+  gap: "6px 12px",
 };
 
 const labCheckboxLabelStyle: CSSProperties = {
