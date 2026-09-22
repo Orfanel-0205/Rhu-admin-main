@@ -195,11 +195,18 @@ export async function getPrescriptions(params?: {
   status?: string;
   consultation_id?: string | number;
   resident_profile_id?: string | number;
+  /** Inclusive YYYY-MM-DD bounds on prescription_date. Empty means unbounded. */
+  from?: string;
+  to?: string;
 }): Promise<Prescription[]> {
   const response = await apiClient.get("/prescriptions", {
     params: {
       ...params,
       status: params?.status === "all" ? undefined : params?.status,
+      // Only send bounds that are actually set — an empty string would be
+      // parsed as a date server-side and match nothing.
+      from: params?.from || undefined,
+      to: params?.to || undefined,
       per_page: 100,
     },
   });

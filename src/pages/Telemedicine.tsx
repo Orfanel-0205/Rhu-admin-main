@@ -52,6 +52,11 @@ import {
   type TelemedicineRequest,
   type TelemedicineSession,
 } from "../services/telemedicine";
+import DateRangeFilter, {
+  EMPTY_RANGE,
+  describeRange,
+  type DateRange,
+} from "../components/DateRangeFilter";
 import { useToast } from "../contexts/ToastContext";
 
 type StatusFilter =
@@ -530,6 +535,12 @@ export default function Telemedicine() {
 
   const [selected, setSelected] = useState<TelemedicineRequest | null>(null);
 
+  // Server-side, because the board is capped at 100 rows: narrowing it in the
+  // browser would only ever search the newest hundred requests and miss the
+  // day being looked for.
+  const [range, setRange] = useState<DateRange>(EMPTY_RANGE);
+  const rangeActive = !!(range.from || range.to);
+
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -546,6 +557,8 @@ export default function Telemedicine() {
         status,
         urgency_level: urgency,
         board,
+        from: range.from,
+        to: range.to,
       });
 
       setRequests(data);
@@ -555,7 +568,7 @@ export default function Telemedicine() {
     } finally {
       setLoading(false);
     }
-  }, [status, urgency, board, selectedRhuId]);
+  }, [status, urgency, board, selectedRhuId, range.from, range.to]);
 
   useEffect(() => {
     load();
@@ -1057,6 +1070,12 @@ export default function Telemedicine() {
         </button>
       </section>
 
+      <DateRangeFilter
+        value={range}
+        onChange={setRange}
+        label="Request date"
+      />
+
       <section style={boardStyle}>
         <div style={boardHeaderStyle}>
           <div>
@@ -1083,6 +1102,17 @@ export default function Telemedicine() {
               <>
                 <strong>No telemedicine requests match your search.</strong>
                 <span>Try a different patient name, complaint, or urgency.</span>
+              </>
+            ) : rangeActive ? (
+              <>
+                <strong>
+                  No {selectedRhuLabel} telemedicine requests{" "}
+                  {describeRange(range).toLowerCase()}.
+                </strong>
+                <span>
+                  Pick another day, or choose All dates to see every request
+                  newest first.
+                </span>
               </>
             ) : (
               <>

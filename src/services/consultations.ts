@@ -277,11 +277,18 @@ export async function getConsultations(params?: {
   search?: string;
   rhu_id?: number;
   per_page?: number;
+  /** Inclusive YYYY-MM-DD bounds on consultation_date. Empty means unbounded. */
+  from?: string;
+  to?: string;
 }): Promise<Consultation[]> {
   const res = await apiClient.get("/admin/consultations", {
     params: {
       ...params,
       status: params?.status === "all" ? undefined : params?.status,
+      // Send the bounds only when set. An empty string would be parsed as a
+      // date server-side and silently match nothing.
+      from: params?.from || undefined,
+      to: params?.to || undefined,
       per_page: params?.per_page ?? 100,
     },
   });

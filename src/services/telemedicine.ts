@@ -358,6 +358,9 @@ export async function getTelemedicineRequests(params?: {
   status?: string;
   urgency_level?: string;
   date?: string;
+  /** Inclusive YYYY-MM-DD bounds on the request date. Empty means unbounded. */
+  from?: string;
+  to?: string;
   board?: TelemedicineBoard;
   include_archived?: boolean;
 }): Promise<TelemedicineRequest[]> {
@@ -370,6 +373,10 @@ export async function getTelemedicineRequests(params?: {
       urgency_level:
         params?.urgency_level === "all" ? undefined : params?.urgency_level,
       date: params?.date,
+      // Only send bounds that are set — an empty string would be parsed as a
+      // date server-side and match nothing.
+      from: params?.from || undefined,
+      to: params?.to || undefined,
       board: params?.board || undefined,
       include_archived: params?.include_archived ? "true" : undefined,
       per_page: 100,

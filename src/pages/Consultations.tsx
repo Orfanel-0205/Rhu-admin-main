@@ -38,6 +38,11 @@ import {
   type Consultation,
 } from "../services/consultations";
 import { getConsultations } from "../services/consultations";
+import DateRangeFilter, {
+  EMPTY_RANGE,
+  describeRange,
+  type DateRange,
+} from "../components/DateRangeFilter";
 import { useAuthStore } from "../store/authStore";
 import { isGlobalRhuRole } from "../lib/rhu";
 import { readFilterParam } from "../lib/urlFilters";
@@ -110,6 +115,12 @@ export default function Consultations() {
       ? "All RHUs"
       : rhuOptions.find((option) => option.id === rhuFilter)?.label ?? `RHU ${rhuFilter}`;
 
+  // Filtering by day happens server-side: the list is capped at 100 rows, so
+  // narrowing it here would only ever search the newest hundred consultations
+  // and quietly miss the day being looked for.
+  const [range, setRange] = useState<DateRange>(EMPTY_RANGE);
+  const rangeActive = !!(range.from || range.to);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
@@ -123,6 +134,8 @@ export default function Consultations() {
         search,
         status,
         rhu_id: rhuFilter === "all" ? undefined : rhuFilter,
+        from: range.from,
+        to: range.to,
         per_page: 100,
       });
 
@@ -137,7 +150,7 @@ export default function Consultations() {
     } finally {
       setLoading(false);
     }
-  }, [search, status, rhuFilter]);
+  }, [search, status, rhuFilter, range.from, range.to]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -401,6 +414,12 @@ export default function Consultations() {
         </button>
       </section>
 
+      <DateRangeFilter
+        value={range}
+        onChange={setRange}
+        label="Consultation date"
+      />
+
       <section style={boardStyle}>
         <div style={boardHeaderStyle}>
           <div>
@@ -427,6 +446,14 @@ export default function Consultations() {
               <>
                 <strong>No consultations match your search.</strong>
                 <span>Try a different name, barangay, or clear the search.</span>
+              </>
+            ) : rangeActive ? (
+              <>
+                <strong>No consultations for {describeRange(range).toLowerCase()}.</strong>
+                <span>
+                  Pick another day, or choose All dates to see every record
+                  newest first.
+                </span>
               </>
             ) : rhuFilter !== "all" ? (
               <>

@@ -43,6 +43,11 @@ import {
   type Prescription,
   type PrescriptionFormType,
 } from "../services/prescriptions";
+import DateRangeFilter, {
+  EMPTY_RANGE,
+  describeRange,
+  type DateRange,
+} from "../components/DateRangeFilter";
 
 import {
   searchPrescriptionPatients,
@@ -417,6 +422,12 @@ export default function Prescriptions() {
   const [patientLoading, setPatientLoading] = useState(false);
   const [patientError, setPatientError] = useState("");
 
+  // Server-side, because the list is capped at 100 rows: filtering in the
+  // browser would only ever search the newest hundred prescriptions and miss
+  // the day being looked for.
+  const [range, setRange] = useState<DateRange>(EMPTY_RANGE);
+  const rangeActive = !!(range.from || range.to);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actionId, setActionId] = useState<number | null>(null);
@@ -435,6 +446,8 @@ export default function Prescriptions() {
         const data = await getPrescriptions({
           search: search.trim() || undefined,
           status,
+          from: range.from,
+          to: range.to,
         });
 
         setPrescriptions(data);
@@ -448,7 +461,7 @@ export default function Prescriptions() {
         setLoading(false);
       }
     },
-    [search, status]
+    [search, status, range.from, range.to]
   );
 
   useEffect(() => {
@@ -1088,12 +1101,24 @@ export default function Prescriptions() {
               {t("appt_status_cancelled", lang)}
             </option>
           </select>
+
+          <DateRangeFilter
+            value={range}
+            onChange={setRange}
+            label="Prescription date"
+          />
         </div>
       </section>
 
       <section style={cardStyle}>
         {loading ? (
           <p style={{ color: "#64748B" }}>{t("rx_loading", lang)}</p>
+        ) : pg.total === 0 && rangeActive ? (
+          <p style={{ color: "#64748B" }}>
+            No prescriptions or lab requests {describeRange(range).toLowerCase()}.
+            Pick another day, or choose All dates to see every record newest
+            first.
+          </p>
         ) : pg.total === 0 ? (
           <p style={{ color: "#64748B" }}>
             No prescriptions or lab requests yet. Create a medicine prescription or lab request after consultation.
