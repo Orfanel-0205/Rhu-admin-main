@@ -43,6 +43,14 @@ import {
   type Prescription,
   type PrescriptionFormType,
 } from "../services/prescriptions";
+import {
+  LABORATORY_GROUPS,
+  ULTRASOUND_GROUPS,
+  XRAY_GROUPS,
+  flattenTests,
+  labelForValue,
+  type LabTestGroupDef,
+} from "../constants/labTests";
 import DateRangeFilter, {
   EMPTY_RANGE,
   describeRange,
@@ -156,30 +164,9 @@ function freshEmptyForm(): FormState {
   };
 }
 
-const LABORATORY_OPTIONS = [
-  "CBC",
-  "Urinalysis",
-  "Fecalysis",
-  "FBS",
-  "HBA1C",
-  "B.U.A",
-  "ALT",
-  "AST",
-  "Creatinine",
-  "B.U.N",
-  "Total Lipid Profile",
-];
-
-const XRAY_OPTIONS = ["CXR - PA View", "CXR - Apicolordotic View"];
-
-const ULTRASOUND_OPTIONS = [
-  "Whole Abdomen",
-  "Lower Abdomen",
-  "Upper Abdomen",
-  "Prostate",
-  "HBT",
-  "KUB",
-];
+// The catalogue lives in src/constants/labTests.ts and is mirrored by
+// app/Support/LabTestCatalogue.php, which the printed request is built
+// from. These three arrays used to be defined here, eleven tests long.
 
 const RX_STATUS_KEYS: Record<string, string> = {
   active: "rx_status_active",
@@ -307,9 +294,15 @@ function summarizeLabTests(labTests?: LabTestsInput | null): string {
   if (!labTests) return "No tests listed";
 
   const tests = [
-    ...labTests.laboratory,
-    ...labTests.xray,
-    ...labTests.ultrasound,
+    // Read as the names a clinician recognises: the stored values are
+    // terse codes ("B.U.A", "HBA1C") kept stable for matching.
+    ...labTests.laboratory.map((value) =>
+      labelForValue(LABORATORY_GROUPS, value)
+    ),
+    ...labTests.xray.map((value) => labelForValue(XRAY_GROUPS, value)),
+    ...labTests.ultrasound.map((value) =>
+      labelForValue(ULTRASOUND_GROUPS, value)
+    ),
     labTests.others.laboratory,
     labTests.others.xray,
     labTests.others.ultrasound,
@@ -1641,7 +1634,7 @@ export default function Prescriptions() {
                   <div style={labGroupGridStyle}>
                     <LabTestGroup
                       title="Laboratory"
-                      options={LABORATORY_OPTIONS}
+                      groups={LABORATORY_GROUPS}
                       selected={form.lab_tests.laboratory}
                       otherValue={form.lab_tests.others.laboratory || ""}
                       onToggle={(option, checked) =>
@@ -1671,7 +1664,7 @@ export default function Prescriptions() {
 
                     <LabTestGroup
                       title="X-Ray"
-                      options={XRAY_OPTIONS}
+                      groups={XRAY_GROUPS}
                       selected={form.lab_tests.xray}
                       otherValue={form.lab_tests.others.xray || ""}
                       onToggle={(option, checked) =>
@@ -1701,7 +1694,7 @@ export default function Prescriptions() {
 
                     <LabTestGroup
                       title="Ultrasound"
-                      options={ULTRASOUND_OPTIONS}
+                      groups={ULTRASOUND_GROUPS}
                       selected={form.lab_tests.ultrasound}
                       otherValue={form.lab_tests.others.ultrasound || ""}
                       onToggle={(option, checked) =>
@@ -1866,37 +1859,125 @@ function Field({
   );
 }
 
+/**
+ * One section of the laboratory request.
+ *
+ * The RHU asked for this because the system they use today presents about
+ * thirty tests as one unordered run of checkboxes in a scrolling modal, and
+ * their own IT staff called it too complicated to use. Three things address
+ * that, and none of them is shortening the list:
+ *
+ *   - headings, so the eye lands on "Tuberculosis" rather than reading
+ *     thirty labels to find DSSM;
+ *   - a filter box, once a section is long enough that scanning is slower
+ *     than typing;
+ *   - the current selection as removable chips, so what has been ticked is
+ *     legible without scrolling back through the whole list.
+ */
 function LabTestGroup({
   title,
-  options,
+  groups,
   selected,
   otherValue,
   onToggle,
   onOtherChange,
 }: {
   title: string;
-  options: string[];
+  groups: LabTestGroupDef[];
   selected: string[];
   otherValue: string;
   onToggle: (option: string, checked: boolean) => void;
   onOtherChange: (value: string) => void;
 }) {
+  const [query, setQuery] = useState("");
+
+  const all = useMemo(() => flattenTests(groups), [groups]);
+
+  // Only worth a filter box once the list is long enough that reading it is
+  // slower than typing. X-Ray has three entries; Laboratory has thirty-two.
+  const searchable = all.length > 12;
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    if (!q) return groups;
+
+    return groups
+      .map((group) => ({
+        ...group,
+        tests: group.tests.filter(
+          (test) =>
+            test.label.toLowerCase().includes(q) ||
+            test.value.toLowerCase().includes(q) ||
+            group.group.toLowerCase().includes(q)
+        ),
+      }))
+      .filter((group) => group.tests.length > 0);
+  }, [groups, query]);
+
   return (
     <fieldset style={labGroupStyle}>
-      <legend style={labGroupTitleStyle}>{title}</legend>
+      <legend style={labGroupTitleStyle}>
+        {title}
+        {selected.length > 0 ? (
+          <span style={labCountStyle}>{selected.length} selected</span>
+        ) : null}
+      </legend>
 
-      <div style={labCheckboxGridStyle}>
-        {options.map((option) => (
-          <label key={option} style={labCheckboxLabelStyle}>
-            <input
-              type="checkbox"
-              checked={selected.includes(option)}
-              onChange={(event) => onToggle(option, event.target.checked)}
-            />
-            <span>{option}</span>
-          </label>
-        ))}
-      </div>
+      {selected.length > 0 ? (
+        <div style={labChipRowStyle}>
+          {selected.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onToggle(value, false)}
+              style={labChipStyle}
+              title="Remove this test"
+            >
+              {labelForValue(groups, value)}
+              <X size={12} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {searchable ? (
+        <input
+          className="input"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={"Filter " + all.length + " tests..."}
+          style={{ marginBottom: 4 }}
+        />
+      ) : null}
+
+      {visible.length === 0 ? (
+        <p style={labNoMatchStyle}>
+          Nothing matches that. If the RHU offers the test and it is not
+          listed, type it into Others below.
+        </p>
+      ) : null}
+
+      {visible.map((group) => (
+        <div key={group.group}>
+          <div style={labSubGroupTitleStyle}>{group.group}</div>
+
+          <div style={labCheckboxGridStyle}>
+            {group.tests.map((test) => (
+              <label key={test.value} style={labCheckboxLabelStyle}>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(test.value)}
+                  onChange={(event) =>
+                    onToggle(test.value, event.target.checked)
+                  }
+                />
+                <span>{test.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
 
       <label style={{ display: "grid", gap: 6 }}>
         <span style={fieldLabelStyle}>Others</span>
@@ -2364,7 +2445,7 @@ const labRequestHelperStyle: CSSProperties = {
 
 const labGroupGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
   gap: 12,
 };
 
@@ -2379,14 +2460,70 @@ const labGroupStyle: CSSProperties = {
 };
 
 const labGroupTitleStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
   color: "#0F766E",
   fontSize: 13,
   fontWeight: 900,
   padding: "0 4px",
 };
 
+// How many tests are ticked in this section, next to its name. Without it
+// the only way to know was to scroll the list looking for ticks.
+const labCountStyle: CSSProperties = {
+  padding: "2px 8px",
+  borderRadius: 999,
+  background: "#CCFBF1",
+  color: "#0F766E",
+  fontSize: 11,
+  fontWeight: 800,
+};
+
+// The group headings inside a section ("Tuberculosis", "Blood sugar").
+// Quieter than the section legend so the hierarchy reads at a glance.
+const labSubGroupTitleStyle: CSSProperties = {
+  margin: "8px 0 6px",
+  fontSize: 10.5,
+  fontWeight: 800,
+  letterSpacing: 0.5,
+  textTransform: "uppercase",
+  color: "#64748B",
+};
+
+// Selected tests, repeated as removable chips above the list. A clinician
+// reviewing a request should not have to scroll thirty checkboxes to see
+// what they ticked.
+const labChipRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+};
+
+const labChipStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  padding: "4px 9px",
+  borderRadius: 999,
+  border: "1px solid #99F6E4",
+  background: "#F0FDFA",
+  color: "#0F766E",
+  fontSize: 11.5,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const labNoMatchStyle: CSSProperties = {
+  margin: 0,
+  color: "#64748B",
+  fontSize: 12.5,
+  fontWeight: 700,
+};
+
 const labCheckboxGridStyle: CSSProperties = {
   display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
   gap: 8,
 };
 
