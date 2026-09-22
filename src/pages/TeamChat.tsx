@@ -7,7 +7,7 @@
 // into the existing global toast (emitToast) without modifying it.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, Search, Plus, Users, Send, ArrowLeft, ImagePlus, Smile, X, Trash2, Settings, Pencil, Phone, Video, PhoneOff, Check, CheckCheck } from "lucide-react";
+import { MessageSquare, Search, Plus, Users, Send, ArrowLeft, Paperclip, Mic, Square, Smile, X, Trash2, Settings, Pencil, Phone, Video, PhoneOff, Check, CheckCheck } from "lucide-react";
 import { color, radius, space } from "../theme/tokens";
 import ModuleTabs from "../components/ui/ModuleTabs";
 import ImageUploader, { CMS_CROP_PRESETS } from "../components/ImageUploader";
@@ -16,6 +16,7 @@ import { useAuthStore } from "../store/authStore";
 import { QUICK_STICKERS, STICKERS, soleSticker, stickerFor } from "../lib/stickers";
 import CallPanel from "../components/CallPanel";
 import ChatAttachment from "../components/chat/ChatAttachment";
+import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { usePrivateImage } from "../hooks/usePrivateImage";
 import { startCallRingtone, stopCallRingtone } from "../lib/notificationSound";
 import {
@@ -227,6 +228,17 @@ export default function TeamChat() {
     { attachment_path: string; url: string; attachment_meta: any } | null
   >(null);
   const [attachOpen, setAttachOpen] = useState(false);
+
+  /*
+   * The file picker is the device's own.
+   *
+   * Attaching used to open a modal with a cropping tool set to 4:3, which
+   * is a content-management control that had been reused here. Nobody
+   * crops a laboratory result to 4:3 before sending it to a colleague. A
+   * hidden input opens the same picker every other application opens, and
+   * on a phone that includes the camera and the gallery.
+   */
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<"stickers" | "emoji">("stickers");
 
@@ -861,6 +873,35 @@ export default function TeamChat() {
     }
   }, [searchTerm]);
 
+  /*
+   * A spoken message, for the people who cannot type just now: a midwife
+   * mid-delivery, a BHW walking between houses, anyone with one hand full.
+   * It uploads and sends itself, because a voice note that then needs a
+   * second press to send defeats the point.
+   */
+  const voice = useVoiceRecorder(
+    useCallback(
+      async (file: File) => {
+        if (!activeId) return;
+
+        try {
+          const uploaded = await uploadAttachment(file);
+
+          const msg = await sendMessage(activeId, {
+            attachment_path: uploaded.attachment_path,
+            attachment_meta: uploaded.attachment_meta,
+          });
+
+          setThread((prev) => [...prev, msg]);
+          maxSeenRef.current = Math.max(maxSeenRef.current, msg.id);
+        } catch (e: any) {
+          emitToast(e?.response?.data?.message || "Could not send the voice message.", "error");
+        }
+      },
+      [activeId]
+    )
+  );
+
   const onPickImage = useCallback(async (file: File | null) => {
     if (!file) {
       setPendingAttachment(null);
@@ -1326,6 +1367,7 @@ export default function TeamChat() {
                           {m.attachment_url ? (
                             <ChatAttachment
                               path={m.attachment_url}
+                              meta={m.attachment_meta}
                               style={{ maxWidth: 260, maxHeight: 260, borderRadius: 10, display: "block" }}
                             />
                           ) : null}
@@ -1569,10 +1611,69 @@ export default function TeamChat() {
                 </div>
               ) : null}
 
+              {/* Recording is a state somebody must never be in by accident,
+                  so it is said plainly and can be thrown away rather than
+                  sent. */}
+              {voice.recording ? (
+                <div style={recordingStripStyle}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <span style={recordingDotStyle} />
+                    Recording {Math.floor(voice.seconds / 60)}:
+                    {String(voice.seconds % 60).padStart(2, "0")}
+                  </span>
+
+                  <button type="button" onClick={voice.cancel} style={discardBtnStyle}>
+                    Discard
+                  </button>
+                </div>
+              ) : null}
+
+              {voice.error ? (
+                <div style={{ ...recordingStripStyle, background: "#FEF2F2", color: "#B91C1C" }}>
+                  {voice.error}
+                </div>
+              ) : null}
+
               <div style={{ padding: 12, borderTop: `1px solid ${color.line}`, display: "flex", gap: 8, alignItems: "flex-end" }}>
-                <button type="button" onClick={() => setAttachOpen(true)} style={iconBtn} aria-label="Attach photo">
-                  <ImagePlus size={20} />
+                {/* Opens the device's own picker: gallery, files, and the
+                    camera on a phone. */}
+                <input
+                  ref={fileInputRef}
+                  id="team-chat-attachment"
+                  type="file"
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                  style={{ display: "none" }}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+
+                    void onPickImage(file);
+
+                    // Cleared so picking the same file twice still fires.
+                    event.target.value = "";
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={iconBtn}
+                  aria-label="Attach a photo, video or file"
+                  title="Photo, video or file"
+                >
+                  <Paperclip size={20} />
                 </button>
+
+                {voice.supported ? (
+                  <button
+                    type="button"
+                    onClick={() => (voice.recording ? voice.stop() : voice.start())}
+                    style={voice.recording ? recordingBtn : iconBtn}
+                    aria-label={voice.recording ? "Stop and send" : "Record a voice message"}
+                    title={voice.recording ? "Stop and send" : "Record a voice message"}
+                  >
+                    {voice.recording ? <Square size={16} /> : <Mic size={20} />}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setEmojiOpen((open) => !open)}
@@ -1616,18 +1717,6 @@ export default function TeamChat() {
         </div>
       </div>
 
-      {/* ATTACH MODAL */}
-      {attachOpen ? (
-        <Modal title="Attach a photo" onClose={() => setAttachOpen(false)}>
-          <ImageUploader
-            label="Chat photo (max 8 MB)"
-            maxSizeMB={8}
-            aspect={4 / 3}
-            presets={CMS_CROP_PRESETS}
-            onChange={onPickImage}
-          />
-        </Modal>
-      ) : null}
 
       {/* NEW CHAT / GROUP MODAL */}
       {newChatOpen ? (
@@ -1864,6 +1953,50 @@ const pillBtn: React.CSSProperties = {
   background: color.surface,
   color: color.slateFg,
   fontSize: 13,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const recordingBtn: React.CSSProperties = {
+  border: "1px solid #FCA5A5",
+  background: "#FEE2E2",
+  color: "#B91C1C",
+  borderRadius: 10,
+  padding: 8,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const recordingStripStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  padding: "9px 14px",
+  background: "#FFF7ED",
+  color: "#9A3412",
+  fontSize: 13,
+  fontWeight: 700,
+  borderTop: "1px solid #FED7AA",
+};
+
+const recordingDotStyle: React.CSSProperties = {
+  width: 9,
+  height: 9,
+  borderRadius: 999,
+  background: "#DC2626",
+  display: "inline-block",
+};
+
+const discardBtnStyle: React.CSSProperties = {
+  border: "1px solid #FED7AA",
+  background: "#FFFFFF",
+  color: "#9A3412",
+  borderRadius: 999,
+  padding: "5px 12px",
+  fontSize: 12,
   fontWeight: 800,
   cursor: "pointer",
 };
