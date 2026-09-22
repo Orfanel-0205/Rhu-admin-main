@@ -1805,6 +1805,23 @@ export const T: Record<string, Record<Lang, string>> = {
     tag: "Karagdagang Tagubilin",
     pag: "Arum nin Bilin",
   },
+  // Field label. rx_dispense_prompt is the sentence asked at dispensing
+  // time ("Dispensing note (optional):") and is not interchangeable.
+  rx_f_dispensing_notes: {
+    en: "Dispensing Notes",
+    tag: "Tala sa Pag-dispense",
+    pag: "Nota ed Panagdispense",
+  },
+  rx_search_patient: {
+    en: "Search Patient",
+    tag: "Maghanap ng Pasyente",
+    pag: "Mananap na Pasyente",
+  },
+  cd_transcript_required: {
+    en: "Paste or record a transcript first.",
+    tag: "I-paste o i-record muna ang transcript.",
+    pag: "I-paste odino i-record nia so transcript.",
+  },
   rx_btn_creating: {
     en: "Creating...",
     tag: "Ginagawa...",
@@ -3245,6 +3262,16 @@ export const T: Record<string, Record<Lang, string>> = {
 };
 
 const ALIASES: Record<string, string> = {
+  // Prescriptions.tsx asks for these under longer names than the entries
+  // were defined with. Until they were aliased, t() fell through to
+  // humanizeKey() and the prescription form rendered "F Medicine Name",
+  // "F Controlled" and "F Additional Instructions" -- the f_ ("field")
+  // namespace leaking onto a clinical form, in English, whatever language
+  // the user had chosen.
+  rx_f_medicine_name: "rx_f_med_name",
+  rx_f_additional_instructions: "rx_f_additional",
+  rx_f_controlled: "rx_controlled_med",
+
   // Users.tsx currently uses users_* while translations use usr_*
   users_title: "usr_title",
   users_subtitle: "usr_subtitle",
@@ -3535,7 +3562,12 @@ const EXTRA: Record<string, Record<Lang, string>> = {
 
 function humanizeKey(key: string): string {
   return key
-    .replace(/^(usr|users|sms|tm|appt|inv|rx|con|dash|evt|ev2|set|rep|an|hm|nav)_/i, "")
+    .replace(/^(usr|users|sms|tm|appt|inv|rx|con|cd|dash|evt|ev2|set|rep|an|hm|nav)_/i, "")
+    // Strips the f_ ("field") namespace. Without this a missing rx_f_* key
+    // rendered as "F Medicine Name", which is how a stray F reached the
+    // prescription form. A safety net, not the fix: a key that lands here
+    // is still untranslated, because there is nothing to translate it with.
+    .replace(/^f_/i, "")
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
