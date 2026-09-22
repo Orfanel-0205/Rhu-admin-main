@@ -230,6 +230,16 @@ const navConfig: NavEntry[] = [
         superAdminOnly: true,
       },
       {
+        labelKey: "nav_health_services",
+        fallback: "Health Services",
+        path: "/health-services",
+        icon: Stethoscope,
+        // Adding a service changes what staff can queue and what ticket
+        // numbers look like, so it sits with the other decisions that
+        // reshape the system rather than in Queue Management.
+        superAdminOnly: true,
+      },
+      {
         labelKey: "nav_settings",
         fallback: "Settings",
         path: "/settings",

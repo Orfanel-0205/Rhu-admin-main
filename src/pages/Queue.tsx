@@ -37,6 +37,11 @@ import {
   type QueueSummary,
   type QueueTicket,
 } from "../services/queue";
+import {
+  getActiveServiceOptions,
+  FALLBACK_SERVICE_OPTIONS,
+  type QueueServiceOption,
+} from "../services/queueServices";
 import { t } from "../i18n/translations";
 import AttendanceLogPanel from "../components/queue/AttendanceLogPanel";
 import { useLangStore } from "../store/langStore";
@@ -389,6 +394,57 @@ export default function Queue() {
   const [serviceType, setServiceType] = useState<QueueServiceType>(
     DEFAULT_QUEUE_SERVICE_TYPE
   );
+
+  /*
+   * The services this RHU offers, from the catalogue an MHO maintains in
+   * Administration -> Health Services.
+   *
+   * Seeded with the built-in list rather than an empty array: a service
+   * picker with nothing in it means no ticket can be issued, and the queue
+   * desk is the worst place to discover a slow network.
+   */
+  const [serviceOptions, setServiceOptions] = useState<QueueServiceOption[]>(
+    FALLBACK_SERVICE_OPTIONS
+  );
+
+  /*
+   * The name for a service code, preferring the live catalogue.
+   *
+   * getServiceLabel() only knows the ten services compiled into this
+   * build. For anything the RHU has added since, it falls back to
+   * un-slugging the code -- which reads acceptably for
+   * "animal_bite_treatment" and badly for anything whose name had
+   * punctuation in it.
+   */
+  const labelForService = useCallback(
+    (code?: string | null): string =>
+      serviceOptions.find((option) => option.value === code)?.label ??
+      getServiceLabel(code),
+    [serviceOptions]
+  );
+  useEffect(() => {
+    let cancelled = false;
+
+    getActiveServiceOptions().then((options) => {
+      if (cancelled) return;
+
+      setServiceOptions(options);
+
+      // The selected service may have been switched off since this tab
+      // was opened. Falling back to the first available one beats leaving
+      // a select pointing at something the server will now reject.
+      setServiceType((current) =>
+        options.some((option) => option.value === current)
+          ? current
+          : ((options[0]?.value ?? DEFAULT_QUEUE_SERVICE_TYPE) as QueueServiceType)
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // ?status=... lets the assistant open the queue on the right tab.
   /*
    * Which board is showing.
@@ -616,7 +672,7 @@ export default function Queue() {
 
   async function handleCallNext() {
     const confirmed = window.confirm(
-      `Call next patient for ${getServiceLabel(serviceType)}?\n\nOnly press OK if staff is ready.`
+      `Call next patient for ${labelForService(serviceType)}?\n\nOnly press OK if staff is ready.`
     );
 
     if (!confirmed) return;
@@ -657,7 +713,7 @@ export default function Queue() {
 
   async function handleCallPriorityNext() {
     const confirmed = window.confirm(
-      `Call the next PRIORITY patient for ${getServiceLabel(serviceType)}?\n\n` +
+      `Call the next PRIORITY patient for ${labelForService(serviceType)}?\n\n` +
         "This pulls the highest-priority waiting patient (senior, PWD, pregnant, " +
         "pediatric, or emergency). Only press OK if staff is ready."
     );
@@ -865,7 +921,7 @@ export default function Queue() {
               }
               style={inputStyle}
             >
-              {QUEUE_SERVICE_OPTIONS.map((option) => (
+              {serviceOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -972,7 +1028,7 @@ export default function Queue() {
         <div style={selectedHeaderStyle}>
           <div>
             <small>{t("q_selected_desk", lang)}</small>
-            <h2>{getServiceLabel(serviceType)}</h2>
+            <h2>{labelForService(serviceType)}</h2>
           </div>
           <span style={livePillStyle}>{t("q_live", lang)}</span>
         </div>
@@ -1005,7 +1061,7 @@ export default function Queue() {
                 />
                 <Info label="Age" value={patientAgeLabel(currentTicket)} />
                 <Info label="Barangay" value={patientBarangayLabel(currentTicket)} />
-                <Info label="Service" value={getServiceLabel(serviceType)} />
+                <Info label="Service" value={labelForService(serviceType)} />
                 <Info label="Complaint" value={complaintLabel(currentTicket)} />
                 <Info
                   label="Priority"
@@ -1321,7 +1377,7 @@ export default function Queue() {
             {statusFilter === "active" || statusFilter === "all"
               ? t("q_empty_checklist", lang, {
                   rhu: rhuId,
-                  desk: getServiceLabel(serviceType),
+                  desk: labelForService(serviceType),
                 })
               : t("q_empty_status_hint", lang)}
           </div>
@@ -1500,7 +1556,7 @@ export default function Queue() {
         <div style={boardHeaderStyle}>
           <div>
             <h2>{t("q_selected_desk_summary", lang)}</h2>
-            <p>{t("q_selected_desk_overview", lang, { desk: getServiceLabel(serviceType) })}</p>
+            <p>{t("q_selected_desk_overview", lang, { desk: labelForService(serviceType) })}</p>
           </div>
         </div>
 

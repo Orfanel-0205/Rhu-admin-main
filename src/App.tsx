@@ -28,6 +28,7 @@ import Inventory from "./pages/Inventory";
 import Queue from "./pages/Queue";
 import Feedback from "./pages/Feedback";
 import Reports from "./pages/Reports";
+import HealthServices from "./pages/HealthServices";
 import RhuFacilities from "./pages/RhuFacilities";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
@@ -399,6 +400,15 @@ export default function App() {
           element={
             <ProtectedPage>
               <RhuFacilities />
+            </ProtectedPage>
+          }
+        />
+
+        <Route
+          path="/health-services"
+          element={
+            <ProtectedPage>
+              <HealthServices />
             </ProtectedPage>
           }
         />
