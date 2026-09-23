@@ -3394,6 +3394,68 @@ const EXTRA: Record<string, Record<Lang, string>> = {
   dash_tip_headline: { en: "Review today’s queue and follow-ups before the next clinic block.", tag: "Suriin ang pila at follow-up ngayon bago ang susunod na clinic block.", pag: "Nengnengen so pila tan follow-up natan antis so onsublay ya clinic block." },
   dash_tip_body: { en: "Use the live reports, follow-up list, and inventory totals to decide which desk, staff, or medicine stock needs attention first.", tag: "Gamitin ang live reports, follow-up list, at inventory totals para malaman kung aling desk, staff, o gamot ang dapat unahin.", pag: "Usaren so live reports, follow-up list, tan inventory totals pian naamtaan no anton desk, staff, odino gamot so unaen." },
 
+  /*
+   * Dashboard.
+   *
+   * These forty-seven keys were used by Dashboard.tsx and defined nowhere,
+   * so t() fell through to humanizeKey() for every one of them. That reads
+   * acceptably in English -- "dash_quick_actions" becomes "Quick Actions" --
+   * which is exactly why nobody noticed that the busiest screen in the
+   * system ignored the language setting completely. A user who switched to
+   * Tagalog or Pangasinan got English here and nowhere else.
+   *
+   * The Pangasinan needs a native speaker to read it before handover. Where
+   * a term was uncertain the Tagalog word is used rather than an invented
+   * one, which is the same rule the assistant prompt follows.
+   */
+  dash_greeting_morning: { en: "Good morning", tag: "Magandang umaga", pag: "Maabig ya kabuasan" },
+  dash_greeting_afternoon: { en: "Good afternoon", tag: "Magandang hapon", pag: "Maabig ya ngarem" },
+  dash_greeting_evening: { en: "Good evening", tag: "Magandang gabi", pag: "Maabig ya labi" },
+  dash_error_fallback: { en: "Could not load the dashboard. Check the backend connection.", tag: "Hindi ma-load ang dashboard. Suriin ang koneksyon sa backend.", pag: "Ag naload so dashboard. Usisaen so koneksyon ed backend." },
+  dash_alert_resolved: { en: "Alert resolved.", tag: "Naayos na ang alerto.", pag: "Naareglo la so alerto." },
+  dash_alert_resolve_failed: { en: "Could not resolve the alert.", tag: "Hindi naayos ang alerto.", pag: "Ag naareglo so alerto." },
+  dash_unspecified: { en: "Unspecified", tag: "Hindi tinukoy", pag: "Ag nibaga" },
+  dash_cases: { en: "cases", tag: "kaso", pag: "kaso" },
+  dash_consultations: { en: "consultations", tag: "konsultasyon", pag: "konsultasyon" },
+  dash_mins_avg: { en: "mins avg", tag: "min avg", pag: "min avg" },
+  dash_quick_actions: { en: "Quick actions", tag: "Mabilis na aksyon", pag: "Maples ya kiwas" },
+  dash_add_patient: { en: "Add patient", tag: "Magdagdag ng pasyente", pag: "Mangiyarum na pasyente" },
+  dash_manage_queue: { en: "Manage queue", tag: "Pamahalaan ang pila", pag: "Manageng so pila" },
+  dash_open_appointments: { en: "Open appointments", tag: "Buksan ang appointments", pag: "Lukasan so appointments" },
+  dash_create_prescription: { en: "Create prescription", tag: "Gumawa ng reseta", pag: "Manggawa na reseta" },
+  dash_send_sms: { en: "Send SMS", tag: "Magpadala ng SMS", pag: "Mangibaki na SMS" },
+  dash_scheduled_today: { en: "Scheduled today", tag: "Nakatakda ngayon", pag: "Naplano natan" },
+  dash_needs_queue: { en: "Needs queueing", tag: "Kailangang ipila", pag: "Kaukolan ya ipila" },
+  dash_remote_attention: { en: "Needs attention", tag: "Kailangan ng atensyon", pag: "Kaukolan na atension" },
+  dash_no_chart_data: { en: "No data to chart yet.", tag: "Wala pang datos na maipapakita.", pag: "Anggapo ni datos ya nipanengneng." },
+  dash_view_all: { en: "View all", tag: "Tingnan lahat", pag: "Nengnengen amin" },
+  dash_no_complaint: { en: "No complaint recorded", tag: "Walang naitalang reklamo", pag: "Anggapoy nirekord ya reklamo" },
+  dash_no_recent_consults: { en: "No recent consultations.", tag: "Walang kamakailang konsultasyon.", pag: "Anggapoy kaunuran ya konsultasyon." },
+  dash_todays_queue: { en: "Today's queue", tag: "Pila ngayong araw", pag: "Pila natan ya agew" },
+  dash_manage: { en: "Manage", tag: "Pamahalaan", pag: "Manageng" },
+  dash_case_count: { en: "{count} cases", tag: "{count} kaso", pag: "{count} kaso" },
+  dash_no_queue: { en: "Nobody is in the queue.", tag: "Walang nasa pila.", pag: "Anggapoy walad pila." },
+  dash_recent_consultations: { en: "Recent consultations", tag: "Kamakailang konsultasyon", pag: "Kaunuran ya konsultasyon" },
+  dash_important_alerts: { en: "Important alerts", tag: "Mahahalagang alerto", pag: "Importantin alerto" },
+  dash_active_alerts: { en: "{count} active", tag: "{count} aktibo", pag: "{count} aktibo" },
+  dash_no_system_alerts: { en: "No system alerts", tag: "Walang alerto ng sistema", pag: "Anggapoy alerto na sistema" },
+  dash_alert_monitoring: { en: "Monitoring", tag: "Binabantayan", pag: "Babantayan" },
+  dash_all_clear: { en: "All clear", tag: "Walang problema", pag: "Anggapoy problema" },
+  dash_pending_telemedicine: { en: "{count} pending telemedicine", tag: "{count} nakabinbing telemedicine", pag: "{count} akabitin ya telemedicine" },
+  dash_telemedicine_attention: { en: "Waiting for review", tag: "Naghihintay ng review", pag: "Manaalagar na review" },
+  dash_low_stock_item: { en: "{count} low on stock", tag: "{count} kulang na ang stock", pag: "{count} kulang so stock" },
+  dash_inventory_low: { en: "Reorder soon", tag: "Mag-order na agad muli", pag: "Mangorder lamet magano" },
+  dash_heatmap_title: { en: "Barangay health map", tag: "Mapa ng kalusugan ng barangay", pag: "Mapa na bunigas na barangay" },
+  dash_heatmap_activity: { en: "Barangay activity", tag: "Aktibidad ng barangay", pag: "Kiwas na barangay" },
+  dash_heatmap_subtitle: { en: "Where cases are coming from", tag: "Saan nanggagaling ang mga kaso", pag: "Iner so panlalapuan na saray kaso" },
+  dash_outbreak_alerts: { en: "Outbreak alerts", tag: "Alerto sa outbreak", pag: "Alerto ed outbreak" },
+  dash_resolve: { en: "Resolve", tag: "Ayusin", pag: "Areglo" },
+  dash_left: { en: "left", tag: "natitira", pag: "akera" },
+  dash_mascot_alt: { en: "Ka-Agapay mascot", tag: "Mascot ng Ka-Agapay", pag: "Mascot na Ka-Agapay" },
+  dash_heatmap_empty: { en: "No barangay data yet.", tag: "Wala pang datos ng barangay.", pag: "Anggapo ni datos na barangay." },
+  dash_risk_legend: { en: "Risk", tag: "Panganib", pag: "Peligro" },
+  dash_view_full_map: { en: "View full map", tag: "Tingnan ang buong mapa", pag: "Nengnengen so interon mapa" },
+
   usr_add_patient_mobile_title: { en: "Add Patient / Mobile Account", tag: "Magdagdag ng Pasyente / Mobile Account", pag: "Mangiyarum na Pasyente / Mobile Account" },
   usr_add_patient_mobile_subtitle: { en: "Creates a resident mobile login and saves ITR details for consultation records.", tag: "Gumagawa ng resident mobile login at sine-save ang ITR details para sa consultation records.", pag: "Manggawa na resident mobile login tan isave so ITR details para ed consultation records." },
   usr_account_details: { en: "Account Details", tag: "Detalye ng Account", pag: "Detalye na Account" },
