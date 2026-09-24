@@ -48,6 +48,7 @@ import AppointmentsReport from "../components/reports/AppointmentsReport";
 import TelemedicineReport from "../components/reports/TelemedicineReport";
 import { getCurrentUserRhuId, isGlobalRhuRole } from "../services/queue";
 import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
+import AnalyticsBriefing from "../components/AnalyticsBriefing";
 
 // Malasiqui operates two facilities. Global staff (super_admin / MHO) may switch
 // between them; facility-scoped staff are locked to their own RHU (the backend
@@ -895,28 +896,42 @@ export default function Reports() {
    */
   const reportSummary = summaryExportRows[0];
 
+  /*
+   * One set of figures for two readers.
+   *
+   * The assistant sees these when staff ask it a question from any
+   * screen, and the briefing panel sends the same set. Built once so a
+   * briefing cannot describe different numbers than the assistant can
+   * see, which would be very hard to explain to anyone.
+   */
+  const reportScope = `RHU ${appliedFilters.rhuId}, ${appliedFilters.from} to ${appliedFilters.to}`;
+
+  const reportFigures = [
+    { label: "Patients", value: String(reportSummary.patients) },
+    { label: "Completed consultations", value: String(reportSummary.completed_consultations) },
+    { label: "Diagnosed consultations", value: String(reportSummary.diagnosed_consultations) },
+    { label: "Records in this report", value: String(reportSummary.total_report_records) },
+    { label: "ITR completeness", value: `${reportSummary.itr_complete_percent}%` },
+    { label: "Missing diagnosis", value: String(reportSummary.missing_diagnosis) },
+    { label: "Missing treatment", value: String(reportSummary.missing_treatment) },
+    { label: "Missing barangay", value: String(reportSummary.missing_barangay) },
+    { label: "Missing contact number", value: String(reportSummary.missing_contact) },
+    { label: "Follow-ups scheduled", value: String(reportSummary.followups_scheduled) },
+    { label: "Overdue follow-ups", value: String(reportSummary.overdue_followups) },
+    { label: "Queue tickets", value: String(reportSummary.queue_tickets) },
+    { label: "Top diagnosis", value: `${reportSummary.top_diagnosis} (${reportSummary.top_diagnosis_cases} cases)` },
+  ];
+
+  const reportNotes = [
+    ...diseaseRows.slice(0, 6).map((row: any) => `Diagnosis ${row.label}: ${row.value} cases`),
+    ...ageGroupRows.slice(0, 6).map((row: any) => `Age group ${row.label}: ${row.value}`),
+  ];
+
   useScreenSnapshot({
     title: "Reports",
-    scope: `RHU ${appliedFilters.rhuId}, ${appliedFilters.from} to ${appliedFilters.to}`,
-    figures: [
-      { label: "Patients", value: String(reportSummary.patients) },
-      { label: "Completed consultations", value: String(reportSummary.completed_consultations) },
-      { label: "Diagnosed consultations", value: String(reportSummary.diagnosed_consultations) },
-      { label: "Records in this report", value: String(reportSummary.total_report_records) },
-      { label: "ITR completeness", value: `${reportSummary.itr_complete_percent}%` },
-      { label: "Missing diagnosis", value: String(reportSummary.missing_diagnosis) },
-      { label: "Missing treatment", value: String(reportSummary.missing_treatment) },
-      { label: "Missing barangay", value: String(reportSummary.missing_barangay) },
-      { label: "Missing contact number", value: String(reportSummary.missing_contact) },
-      { label: "Follow-ups scheduled", value: String(reportSummary.followups_scheduled) },
-      { label: "Overdue follow-ups", value: String(reportSummary.overdue_followups) },
-      { label: "Queue tickets", value: String(reportSummary.queue_tickets) },
-      { label: "Top diagnosis", value: `${reportSummary.top_diagnosis} (${reportSummary.top_diagnosis_cases} cases)` },
-    ],
-    notes: [
-      ...diseaseRows.slice(0, 6).map((row: any) => `Diagnosis ${row.label}: ${row.value} cases`),
-      ...ageGroupRows.slice(0, 6).map((row: any) => `Age group ${row.label}: ${row.value}`),
-    ],
+    scope: reportScope,
+    figures: reportFigures,
+    notes: reportNotes,
   });
 
   // One shared row-shape for BOTH the plaintext and the privacy-masked
@@ -1151,6 +1166,20 @@ export default function Reports() {
           </p>
         </div>
       </section>
+
+      {/*
+          Below the validation reminder on purpose.
+
+          The reminder says these figures may be incomplete; the briefing
+          comments on them. Reading them the other way round would invite
+          treating the commentary as a finding about complete data.
+      */}
+      <AnalyticsBriefing
+        tabLabel="Report"
+        scope={reportScope}
+        figures={reportFigures}
+        notes={reportNotes}
+      />
 
       {loading ? (
         <section style={loadingStyle}>

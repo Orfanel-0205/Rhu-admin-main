@@ -60,6 +60,7 @@ import {
   type FacilityHeatmapFacility,
   type PressureLevel,
 } from "../services/facilityHeatmap";
+import AnalyticsBriefing from "../components/AnalyticsBriefing";
 import {
   fetchHeatmapAnalytics,
   filterCasePoints,
@@ -440,6 +441,66 @@ export default function HeatmapAnalytics() {
     };
   }, [casePoints, points.length, facilityHeatmap.facilities]);
 
+  /*
+   * What this screen is currently showing, for the briefing panel.
+   *
+   * The two workspaces answer different questions -- queue pressure per
+   * facility, and disease signal per barangay -- so each sends its own
+   * figures. Sending the barangay picture while someone reads the queue
+   * board would produce advice about numbers they cannot see.
+   */
+  const heatmapScope =
+    focusRhu === "all"
+      ? "All RHUs, live"
+      : `RHU ${focusRhu}, live`;
+
+  const heatmapFigures = useMemo(() => {
+    if (activeWorkspace === "queue") {
+      return [
+        { label: "RHU facilities", value: String(facilityHeatmap.facilities.length) },
+        { label: "Patients waiting now", value: String(summary.queueLoad) },
+        {
+          label: "Priority patients waiting",
+          value: String(
+            facilityHeatmap.facilities.reduce(
+              (sum, facility) => sum + Number(facility.priorityCount ?? 0),
+              0
+            )
+          ),
+        },
+        { label: "Active events today", value: String(facilityHeatmap.events.length) },
+      ];
+    }
+
+    return [
+      { label: "Barangays monitored", value: String(summary.barangays) },
+      { label: "Active case signals", value: String(summary.totalCases) },
+      { label: "High-risk barangays", value: String(summary.highRisk) },
+      { label: "Critical barangays", value: String(summary.critical) },
+    ];
+  }, [activeWorkspace, facilityHeatmap.facilities, facilityHeatmap.events.length, summary]);
+
+  const heatmapNotes = useMemo(() => {
+    if (activeWorkspace === "queue") {
+      return facilityHeatmap.facilities.map(
+        (facility) =>
+          `${facility.name}: ${facility.waitingCount} waiting, ` +
+          `${facility.priorityCount} priority, ${facility.inServiceCount} in service`
+      );
+    }
+
+    // The worst barangays by name, which is what turns "four critical"
+    // into somewhere a health worker can actually be sent.
+    return [...casePoints]
+      .sort((a, b) => Number(b.total_cases ?? 0) - Number(a.total_cases ?? 0))
+      .slice(0, 8)
+      .map(
+        (point: any) =>
+          `Barangay ${point.barangay ?? point.barangay_name}: ` +
+          `${point.total_cases ?? 0} case signal(s), risk ${point.risk_level ?? "unknown"}`
+      );
+  }, [activeWorkspace, casePoints, facilityHeatmap.facilities]);
+
   const sortedRows = useMemo(() => {
     return [...focusPoints].sort((a, b) => {
       const levelDiff = riskRank(b.risk_level) - riskRank(a.risk_level);
@@ -602,6 +663,13 @@ export default function HeatmapAnalytics() {
 
         {/* Labels spell out the unit (barangays vs case signals vs patients)
             so barangay-level counts can never be misread as case totals. */}
+        <AnalyticsBriefing
+          tabLabel={activeWorkspace === "queue" ? "Queue" : "Barangay"}
+          scope={heatmapScope}
+          figures={heatmapFigures}
+          notes={heatmapNotes}
+        />
+
         <div style={heroMetricsRowStyle}>
           {activeWorkspace === "queue" ? (
             <>
