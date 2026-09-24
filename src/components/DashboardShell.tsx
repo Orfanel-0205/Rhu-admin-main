@@ -18,6 +18,7 @@ import AIChatAssistant from "./AIChatAssistant";
 import GlobalSearch from "./GlobalSearch";
 
 import { useAuthStore } from "../store/authStore";
+import { sidebarWidth } from "../lib/layout";
 import { useLangStore } from "../store/langStore";
 import { t } from "../i18n/translations";
 
@@ -220,7 +221,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   // Sidebar collapse is owned here so the content <main> reflows into the freed
-  // width (the fixed-position sidebar shrinks 248→72 on collapse). Persisted for
+  // width (the fixed-position sidebar shrinks on collapse). Persisted for
   // the session so it survives page navigation.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => (typeof window !== "undefined" && localStorage.getItem("ka_sidebar_collapsed") === "1")
@@ -475,7 +476,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       <main
         className="dashboard-main"
         style={{
-          marginLeft: isMobile ? 0 : sidebarCollapsed ? 72 : 248,
+          marginLeft: isMobile ? 0 : sidebarWidth(sidebarCollapsed),
           transition: "margin-left 0.2s ease",
           minHeight: "100vh",
           padding: isMobile ? 16 : 28,

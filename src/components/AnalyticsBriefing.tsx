@@ -16,7 +16,7 @@
 // the period, the facility, the barangay risk ranking. Never a patient or a
 // record -- the same rule src/lib/screenContext.ts follows.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { AlertTriangle, RefreshCw, Sparkles } from "lucide-react";
 
@@ -24,12 +24,19 @@ import apiClient from "../lib/apiClient";
 import type { ScreenFigure } from "../lib/screenContext";
 
 interface Props {
+  /** Which tab these figures belong to: Overview, Clinical, Queue, Telemedicine. */
+  tabLabel: string;
   scope: string;
   figures: ScreenFigure[];
   notes?: string[];
 }
 
-export default function AnalyticsBriefing({ scope, figures, notes }: Props) {
+export default function AnalyticsBriefing({
+  tabLabel,
+  scope,
+  figures,
+  notes,
+}: Props) {
   const [text, setText] = useState("");
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,13 +44,26 @@ export default function AnalyticsBriefing({ scope, figures, notes }: Props) {
 
   const hasFigures = figures.length > 0;
 
+  /*
+   * A briefing belongs to the tab it was generated on.
+   *
+   * Leaving it up after a tab change would show commentary about queue
+   * waiting times above a screen of telemedicine figures, which reads as a
+   * statement about what is on screen. Clearing is the honest default.
+   */
+  useEffect(() => {
+    setText("");
+    setGeneratedAt(null);
+    setError("");
+  }, [tabLabel, scope]);
+
   async function generate() {
     setLoading(true);
     setError("");
 
     try {
       const response = await apiClient.post("/analytics/insight", {
-        title: "Analytics",
+        title: `Analytics — ${tabLabel}`,
         scope,
         figures: figures.map((figure) => ({
           label: figure.label,
@@ -71,7 +91,7 @@ export default function AnalyticsBriefing({ scope, figures, notes }: Props) {
         <div>
           <h3 style={titleStyle}>
             <Sparkles size={17} />
-            Ask the assistant about these numbers
+            Ask the assistant about these {tabLabel.toLowerCase()} numbers
           </h3>
 
           <p style={subtitleStyle}>

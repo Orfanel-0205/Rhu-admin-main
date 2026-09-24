@@ -33,6 +33,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useLangStore } from "../store/langStore";
 import { t } from "../i18n/translations";
 import { useAuthStore } from "../store/authStore";
+import { sidebarWidth } from "../lib/layout";
 import { authService } from "../services/auth";
 import { fetchRealtimeDashboard } from "../services/dashboard";
 import { getSmsLogs } from "../services/sms";
@@ -564,7 +565,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       style={{
-        width: isCollapsed ? 72 : 248,
+        width: sidebarWidth(isCollapsed),
         minHeight: "100vh",
         background:
           "linear-gradient(180deg, #064E3B 0%, #065F46 48%, #0F766E 100%)",

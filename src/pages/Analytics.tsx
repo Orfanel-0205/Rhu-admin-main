@@ -753,13 +753,6 @@ export default function Analytics() {
     [risk]
   );
 
-  useScreenSnapshot({
-    title: "Analytics",
-    scope: screenScope,
-    figures: screenFigures,
-    notes: screenNotes,
-  });
-
   const filteredDiagnosisCases = useMemo(() => {
     const barangayKeyword = appliedFilters.barangay.trim().toLowerCase();
     const rows = Array.isArray(diagnosisItr.recent_diagnosis_itr_cases)
@@ -1361,6 +1354,88 @@ export default function Analytics() {
     ? `${Math.round(numberValue(overview.average_wait_minutes))} min`
     : "—";
 
+  /*
+   * The figures for the tab being viewed.
+   *
+   * Each tab answers a different question -- clinical documentation, queue
+   * pressure, telemedicine uptake -- so a briefing built from the overview
+   * totals would be commenting on numbers the reader cannot see. Worse than
+   * silence, because it still reads authoritative.
+   *
+   * These mirror the metric cards on each tab. If a card is added there,
+   * add it here or the briefing will not know about it.
+   */
+  const tabFigures = useMemo((): Array<{ label: string; value: string }> => {
+    const text = (value: unknown) =>
+      value === null || value === undefined || value === "" ? "—" : String(value);
+
+    if (tab === "clinical") {
+      return [
+        { label: "With Diagnosis", value: text(diagnosisItr.total_diagnosed_consultations) },
+        { label: "Completed Consultations", value: text(diagnosisItr.total_completed_consultations) },
+        { label: "Follow-ups Due", value: text(diagnosisItr.followups_scheduled) },
+        { label: "Top Diagnosis", value: text(normalizeDiagnosisLabel(diagnosisItr.top_diagnosis)) },
+        { label: "Average Patients / Day", value: text(attendanceStats.averagePerDay) },
+        { label: "Active Visit Days", value: text(attendanceStats.activeDays) },
+      ];
+    }
+
+    if (tab === "queue") {
+      return [
+        { label: "Average Wait Time", value: text(avgWaitLabel) },
+        { label: "Patients Waiting Now", value: text(queueWaiting ?? overview?.total_queue_tickets) },
+        { label: "Queue Tickets (period)", value: text(overview?.total_queue_tickets) },
+        { label: "Pending Appointments", value: text(overview?.pending_appointments ?? overview?.total_pending_appointments) },
+        { label: "Peak Day", value: `${attendanceStats.peakDay || "—"} (${attendanceStats.peakTotal} visits)` },
+      ];
+    }
+
+    if (tab === "telemedicine") {
+      return [
+        { label: "Online Requests", value: text(overview?.total_telemedicine_requests) },
+        { label: "Completion Rate", value: teleRate !== null ? `${teleRate}%` : "—" },
+        { label: "Completed Sessions", value: text(teleCompleted) },
+        { label: "All Sessions", value: text(teleTotal) },
+      ];
+    }
+
+    return screenFigures;
+  }, [
+    tab,
+    screenFigures,
+    diagnosisItr,
+    attendanceStats,
+    avgWaitLabel,
+    queueWaiting,
+    overview,
+    teleRate,
+    teleCompleted,
+    teleTotal,
+  ]);
+
+  const tabLabel =
+    tab === "clinical"
+      ? "Clinical"
+      : tab === "queue"
+        ? "Queue"
+        : tab === "telemedicine"
+          ? "Telemedicine"
+          : "Overview";
+
+  /*
+   * Barangay risk is only meaningful alongside the clinical picture. On the
+   * queue or telemedicine tabs it is context the reader has not got on
+   * screen, and the briefing would cite it as if they had.
+   */
+  const tabNotes = tab === "overview" || tab === "clinical" ? screenNotes : [];
+
+  useScreenSnapshot({
+    title: `Analytics — ${tabLabel}`,
+    scope: screenScope,
+    figures: tabFigures,
+    notes: tabNotes,
+  });
+
   return (
     <div className="analytics-page">
       <style>{pageStyles}</style>
@@ -1728,6 +1803,13 @@ export default function Analytics() {
           </section>
           </div>
 
+          <AnalyticsBriefing
+            tabLabel={tabLabel}
+            scope={screenScope}
+            figures={tabFigures}
+            notes={tabNotes}
+          />
+
           <div style={{ flex: "3 1 460px", minWidth: 0, display: "grid", gap: 18 }}>
 
           <section className="metric-grid diagnosis-metric-grid" style={{ display: "none" }}>
@@ -1793,11 +1875,6 @@ export default function Analytics() {
 
           </section>
 
-          <AnalyticsBriefing
-            scope={screenScope}
-            figures={screenFigures}
-            notes={screenNotes}
-          />
 
           <Expandable title="Weekly patterns & priority scoring">
             <section className="chart-grid main-grid">
