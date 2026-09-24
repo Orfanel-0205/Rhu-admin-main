@@ -1089,7 +1089,7 @@ export default function Queue() {
               <div style={triageNoteStyle}>
                 <ShieldAlert size={16} />
                 <span>
-                  AI triage is a support tool only. RHU staff must validate
+                  Priority scoring is a support tool only. RHU staff must validate
                   urgency and priority before final action. Reason:{" "}
                   <strong>{priorityReason(currentTicket)}</strong>
                   {toNumber(currentTicket.priority_score, 0) > 0
@@ -1438,7 +1438,7 @@ export default function Queue() {
                   <Info label="Complaint" value={complaintLabel(ticket)} />
                   <Info label="Priority reason" value={priorityReason(ticket)} />
                   <Info
-                    label="AI triage"
+                    label="Priority score"
                     value={`${priorityLevelLabel(ticket)}${
                       toNumber(ticket.priority_score, 0) > 0
                         ? ` · ${toNumber(ticket.priority_score, 0)}`
@@ -1455,7 +1455,7 @@ export default function Queue() {
                 <div style={triageNoteStyle}>
                   <ShieldAlert size={15} />
                   <span>
-                    AI triage is a support tool only. RHU staff must validate
+                    Priority scoring is a support tool only. RHU staff must validate
                     urgency and priority before final action.
                   </span>
                 </div>

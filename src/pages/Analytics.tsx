@@ -75,6 +75,7 @@ import {
 } from "../utils/rhuAnalyticsHelpers";
 import { useToast } from "../contexts/ToastContext";
 import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
+import AnalyticsBriefing from "../components/AnalyticsBriefing";
 
 type FilterState = {
   from: string;
@@ -723,18 +724,40 @@ export default function Analytics() {
    * about these numbers instead of numbers in general, without anything
    * identifiable leaving the system.
    */
+  /*
+   * The figures this page is showing, in one place.
+   *
+   * The same set feeds two things: what the assistant can see when staff
+   * ask it a question from any screen, and the briefing panel below. They
+   * must not drift apart -- a briefing about different numbers than the
+   * assistant can see would be very hard to explain.
+   */
+  const screenScope = `${selectedRhuLabel}, ${appliedFilters.from} to ${appliedFilters.to}`;
+
+  const screenFigures = useMemo(
+    () =>
+      summaryRows.map((row) => ({
+        label: String(row.Metric),
+        value: String(row.Value ?? ""),
+      })),
+    [summaryRows]
+  );
+
+  const screenNotes = useMemo(
+    () =>
+      risk.slice(0, 6).map((item) => {
+        const score = riskScore(item);
+
+        return `Barangay ${normalizeBarangayName((item as any).barangay ?? (item as any).barangay_name)}: risk ${normalizeRiskLevel((item as any).risk_level, score)} (score ${score})`;
+      }),
+    [risk]
+  );
+
   useScreenSnapshot({
     title: "Analytics",
-    scope: `${selectedRhuLabel}, ${appliedFilters.from} to ${appliedFilters.to}`,
-    figures: summaryRows.map((row) => ({
-      label: String(row.Metric),
-      value: String(row.Value ?? ""),
-    })),
-    notes: risk.slice(0, 6).map((item) => {
-      const score = riskScore(item);
-
-      return `Barangay ${normalizeBarangayName((item as any).barangay ?? (item as any).barangay_name)}: risk ${normalizeRiskLevel((item as any).risk_level, score)} (score ${score})`;
-    }),
+    scope: screenScope,
+    figures: screenFigures,
+    notes: screenNotes,
   });
 
   const filteredDiagnosisCases = useMemo(() => {
@@ -1770,7 +1793,13 @@ export default function Analytics() {
 
           </section>
 
-          <Expandable title="Weekly patterns & AI triage">
+          <AnalyticsBriefing
+            scope={screenScope}
+            figures={screenFigures}
+            notes={screenNotes}
+          />
+
+          <Expandable title="Weekly patterns & priority scoring">
             <section className="chart-grid main-grid">
               <AveragePatientsWeekCard
                 stats={attendanceStats}
@@ -1789,7 +1818,7 @@ export default function Analytics() {
                 data={aiTriageBars}
                 exportName={`${selectedRhuSlug}-ai-triage-priority-distribution.csv`}
                 rawRows={(pickArray(overview, ["ai_triage_distribution", "aiTriageDistribution"]).length ? pickArray(overview, ["ai_triage_distribution", "aiTriageDistribution"]) : aiTriageBars) as any}
-                emptyText="No AI triage priority data available"
+                emptyText="No priority scoring data available"
                 showLevel
                 chartType="vertical"
                 showPercent
@@ -2281,7 +2310,7 @@ function Metric({
         <span>{label}</span>
         <strong title={String(displayValue)}>{displayValue}</strong>
         <small>{helper}</small>
-        {insight ? <em className="metric-insight">✦ AI insight: {insight}</em> : null}
+        {insight ? <em className="metric-insight">What this means: {insight}</em> : null}
       </div>
 
       <div className="metric-icon">{icon}</div>

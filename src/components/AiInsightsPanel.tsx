@@ -1,6 +1,6 @@
 // src/components/AiInsightsPanel.tsx
 //
-// Presentational panel for the proactive AI insights produced by
+// Presentational panel for the alerts produced by
 // src/lib/aiInsights.ts. It renders ONE card with a compact, ranked list of
 // insights (instead of many separate cards) so the dashboard reads as a single
 // "assistant" zone. Each row explains what the live data shows, the recommended
@@ -62,7 +62,7 @@ export default function AiInsightsPanel({
             <Sparkles size={22} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <h2 style={titleStyle}>Ka-Agapay AI Insights</h2>
+            <h2 style={titleStyle}>What needs attention</h2>
             <p style={subtitleStyle}>
               Automatic analysis of today&apos;s live data — no numbers are invented.
               {updatedLabel ? ` Updated ${updatedLabel}.` : ""}
