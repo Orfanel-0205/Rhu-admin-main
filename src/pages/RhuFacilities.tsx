@@ -387,14 +387,47 @@ export default function RhuFacilities() {
               {editingBarangaysFor === facility.id ? (
                 <div style={barangayPanelStyle}>
                   <p style={mutedTextStyle}>
-                    Tick the barangays this RHU serves. A barangay belongs to one RHU: ticking it
-                    here moves it away from its current one. Unticking returns it to the first RHU.
+                    Tick the barangays this RHU serves. More than one RHU can
+                    serve the same barangay — ticking it here does not take it
+                    away from another facility. That is what keeps a barangay
+                    covered when one RHU is closed.
                   </p>
+
+                  <div style={selectAllRowStyle}>
+                    <button
+                      type="button"
+                      style={chipButtonStyle}
+                      onClick={() =>
+                        setSelectedBarangays(
+                          new Set(barangays.map((item) => item.barangay_id))
+                        )
+                      }
+                    >
+                      Select all {barangays.length}
+                    </button>
+
+                    <button
+                      type="button"
+                      style={chipButtonStyle}
+                      onClick={() => setSelectedBarangays(new Set())}
+                    >
+                      Clear all
+                    </button>
+
+                    <span style={selectAllCountStyle}>
+                      {selectedBarangays.size} of {barangays.length} selected
+                    </span>
+                  </div>
 
                   <div style={barangayGridStyle}>
                     {barangays.map((barangay) => {
                       const checked = selectedBarangays.has(barangay.barangay_id);
-                      const elsewhere =
+                      /*
+                       * Which facility a resident here is routed to by
+                       * default. Coverage is shared; the home facility is
+                       * not, and it is worth seeing while deciding.
+                       */
+                      const homeElsewhere =
                         barangay.rhu_id != null && barangay.rhu_id !== facility.id;
 
                       return (
@@ -416,9 +449,9 @@ export default function RhuFacilities() {
                           />
                           <span style={{ minWidth: 0 }}>
                             {barangay.name}
-                            {elsewhere ? (
-                              <small style={{ color: "#B45309", display: "block" }}>
-                                now RHU {barangay.rhu_id}
+                            {homeElsewhere ? (
+                              <small style={{ color: "#64748B", display: "block" }}>
+                                home: RHU {barangay.rhu_id}
                               </small>
                             ) : null}
                           </span>
@@ -611,6 +644,31 @@ const labelStyle: CSSProperties = {
 
 // Sits under the coordinate fields: the instruction is short enough to
 // follow without leaving the page, which is the point of putting it here.
+const selectAllRowStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
+  marginBottom: 4,
+};
+
+const chipButtonStyle: CSSProperties = {
+  padding: "7px 14px",
+  borderRadius: 999,
+  border: "1px solid #CBD5E1",
+  background: "#FFFFFF",
+  color: "#0F766E",
+  fontSize: 12.5,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const selectAllCountStyle: CSSProperties = {
+  fontSize: 12.5,
+  fontWeight: 700,
+  color: "#64748B",
+};
+
 const hintStyle: CSSProperties = {
   margin: 0,
   fontSize: 12,
