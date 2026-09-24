@@ -42,6 +42,7 @@ import {
   FALLBACK_SERVICE_OPTIONS,
   type QueueServiceOption,
 } from "../services/queueServices";
+import { useRhuOptions } from "../hooks/useRhuOptions";
 import { t } from "../i18n/translations";
 import AttendanceLogPanel from "../components/queue/AttendanceLogPanel";
 import { useLangStore } from "../store/langStore";
@@ -388,9 +389,22 @@ export default function Queue() {
   const lang = useLangStore((state) => state.lang);
   const toast = useToast();
   const isGlobalScope = useMemo(() => isGlobalRhuRole(), []);
-  // Global staff (super_admin/mho) can switch between RHU 1 and RHU 2. Everyone
+  // Global staff (super_admin/mho) can switch between facilities. Everyone
   // else is locked server-side to their assigned RHU regardless of this value.
   const [rhuId, setRhuId] = useState(1);
+
+  /*
+   * The facilities that actually exist.
+   *
+   * This picker listed RHU 1 and RHU 2 as two hardcoded options, so when a
+   * resident booked at RHU 3 the appointment arrived, told staff to "switch
+   * to RHU 3 and matching desk" -- and the dropdown had no RHU 3 to switch
+   * to. The patient sat in a queue nobody could open.
+   *
+   * useRhuOptions is the same list nine other screens already use. This one
+   * was simply missed when RHU Facilities shipped.
+   */
+  const rhuOptions = useRhuOptions();
   const [serviceType, setServiceType] = useState<QueueServiceType>(
     DEFAULT_QUEUE_SERVICE_TYPE
   );
@@ -904,8 +918,11 @@ export default function Queue() {
                 style={inputStyle}
                 title="Switch RHU facility"
               >
-                <option value={1}>RHU 1</option>
-                <option value={2}>RHU 2</option>
+                {rhuOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             ) : (
               <div style={lockedRhuStyle}>{`RHU ${rhuId}`}</div>
