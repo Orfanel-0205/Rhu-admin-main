@@ -1645,8 +1645,20 @@ export default function Analytics() {
             style={{ marginBottom: 4 }}
           />
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start" }}>
-          <div style={{ flex: "1 1 260px", minWidth: 0, maxWidth: 400 }}>
+          {/*
+              One block under another, each the full width.
+
+              This was a flex row with the metrics squeezed into a 400px
+              column and the charts beside them. Four metric cards ran down
+              a thin strip while most of the page sat empty, and anything
+              added to the row -- the briefing panel -- had to fight for the
+              same horizontal space.
+
+              A stack also means a block can grow when its content arrives
+              without crowding its neighbours: it just pushes them down.
+          */}
+          <div style={{ display: "grid", gap: 20, alignItems: "start" }}>
+          <div style={{ minWidth: 0 }}>
           <section className="overview-snapshot">
             <div className="snapshot-header">
               <div>
@@ -1810,7 +1822,7 @@ export default function Analytics() {
             notes={tabNotes}
           />
 
-          <div style={{ flex: "3 1 460px", minWidth: 0, display: "grid", gap: 18 }}>
+          <div style={{ minWidth: 0, display: "grid", gap: 18 }}>
 
           <section className="metric-grid diagnosis-metric-grid" style={{ display: "none" }}>
             <Metric
@@ -3324,9 +3336,9 @@ const pageStyles = `
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
-/* At-a-glance card lives in the narrow LEFT column now: header stacks
-   (title above, helper text below, no clipping) and the two metric cards
-   stack vertically per the 2-column spec. */
+/* At a glance spans the full width, so its cards spread across a fluid
+   grid rather than queueing down a narrow column. One card per row on a
+   phone, four on a desktop, and whatever fits in between. */
 .overview-snapshot .snapshot-header {
   display: grid;
   gap: 6px;
@@ -3335,7 +3347,9 @@ const pageStyles = `
 .overview-snapshot .metric-grid,
 .overview-snapshot.overview-metrics,
 .overview-snapshot .overview-metrics {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  align-items: start;
 }
 
 .chart-card,

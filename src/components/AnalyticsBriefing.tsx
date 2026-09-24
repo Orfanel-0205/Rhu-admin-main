@@ -129,6 +129,14 @@ export default function AnalyticsBriefing({
         </div>
       ) : null}
 
+      {loading && !text ? (
+        <div style={skeletonStyle}>
+          <span style={skeletonLineStyle(92)} />
+          <span style={skeletonLineStyle(78)} />
+          <span style={skeletonLineStyle(85)} />
+        </div>
+) : null}
+
       {text ? (
         <div style={bodyStyle}>
           {text.split(/\n{2,}/).map((paragraph, index) => (
@@ -220,7 +228,33 @@ const bodyStyle: CSSProperties = {
   borderRadius: 14,
   background: "#FFFFFF",
   border: "1px solid #CCFBF1",
+  // Grows with the answer. No fixed height: a briefing about a quiet week
+  // is three lines and one about a busy one is a dozen.
+  minHeight: 120,
 };
+
+// Roughly where the text will land, so the page settles once rather than
+// jumping when the answer arrives.
+const skeletonStyle: CSSProperties = {
+  display: "grid",
+  gap: 10,
+  padding: 16,
+  borderRadius: 14,
+  background: "#FFFFFF",
+  border: "1px solid #CCFBF1",
+  minHeight: 120,
+  alignContent: "start",
+};
+
+function skeletonLineStyle(widthPercent: number): CSSProperties {
+  return {
+    display: "block",
+    width: `${widthPercent}%`,
+    height: 12,
+    borderRadius: 6,
+    background: "#E2F5F1",
+  };
+}
 
 const paragraphStyle: CSSProperties = {
   margin: 0,
