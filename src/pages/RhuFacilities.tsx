@@ -34,6 +34,8 @@ const emptyForm = {
   name: "",
   short_name: "",
   address: "",
+  latitude: "",
+  longitude: "",
   contact_number: "",
 };
 
@@ -78,6 +80,21 @@ export default function RhuFacilities() {
   );
 
   async function handleCreate() {
+    const latitude = Number(form.latitude);
+    const longitude = Number(form.longitude);
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 ||
+      Math.abs(longitude) > 180
+    ) {
+      toast.error(
+        "Enter the latitude and longitude. Without them this facility cannot appear on the queue map or the heatmap."
+      );
+      return;
+    }
+
     if (!form.code.trim() || !form.name.trim() || !form.short_name.trim()) {
       toast.error("Code, full name and short name are required.");
       return;
@@ -91,6 +108,8 @@ export default function RhuFacilities() {
         name: form.name.trim(),
         short_name: form.short_name.trim(),
         address: form.address.trim() || null,
+        latitude,
+        longitude,
         contact_number: form.contact_number.trim() || null,
       });
 
@@ -261,6 +280,42 @@ export default function RhuFacilities() {
                 placeholder="09XX XXX XXXX"
               />
             </label>
+
+            {/*
+                Required, and asked here for a reason.
+
+                Without coordinates a facility cannot be drawn on the queue
+                map or the barangay heatmap, and there is no way to work them
+                out afterwards without sending someone to stand outside the
+                building. The moment the facility is created is the only
+                moment anybody knows the answer.
+            */}
+            <label style={labelStyle}>
+              Latitude
+              <input
+                style={inputStyle}
+                value={form.latitude}
+                onChange={(event) => setForm({ ...form, latitude: event.target.value })}
+                placeholder="15.909129"
+                inputMode="decimal"
+              />
+            </label>
+
+            <label style={labelStyle}>
+              Longitude
+              <input
+                style={inputStyle}
+                value={form.longitude}
+                onChange={(event) => setForm({ ...form, longitude: event.target.value })}
+                placeholder="120.490027"
+                inputMode="decimal"
+              />
+            </label>
+
+            <p style={{ ...hintStyle, gridColumn: "1 / -1" }}>
+              Open the facility in Google Maps, long-press the building, and
+              copy the two numbers it shows. Latitude first.
+            </p>
           </div>
 
           <button type="button" style={primaryButton} disabled={saving} onClick={() => void handleCreate()}>
@@ -551,6 +606,16 @@ const labelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: "0.04em",
   textTransform: "uppercase",
+  color: "#64748B",
+};
+
+// Sits under the coordinate fields: the instruction is short enough to
+// follow without leaving the page, which is the point of putting it here.
+const hintStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 600,
   color: "#64748B",
 };
 

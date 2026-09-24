@@ -311,10 +311,27 @@ function cleanParams(params?: AnalyticsFilters): Record<string, any> | undefined
 
     const cleanValue = typeof value === "string" ? value.trim() : value;
 
-    // RHU isolation: forward any real facility id (RHU 1 or 2) so the backend
-    // can scope to it. Only "all"/blank/invalid ids are dropped (handled above +
-    // here) — this used to hard-lock every analytics call to RHU 1.
-    if (key === "rhu_id" && !["1", "2"].includes(String(cleanValue))) return;
+    /*
+     * Forward any facility id the backend will recognise.
+     *
+     * This used to allow only "1" and "2", which silently dropped the
+     * parameter for anything else. Selecting RHU 3 therefore sent no filter
+     * at all, and the page answered with system-wide totals under the RHU 3
+     * heading: 33 telemedicine requests and 31 completed visits for a
+     * facility that had 0 of each. Staff had no way to tell.
+     *
+     * The backend already validates the id against the rhus table and falls
+     * back to the user's own facility for scoped staff, so a bad value is
+     * rejected there rather than guessed at here.
+     */
+    if (key === "rhu_id") {
+      const id = Number(cleanValue);
+
+      if (!Number.isFinite(id) || id <= 0) return;
+
+      cleaned[key] = id;
+      return;
+    }
 
     cleaned[key] = cleanValue;
   });

@@ -1,4 +1,5 @@
 import { eventsService } from "./events";
+import { getRhuFacilities } from "./rhus";
 import { getLiveQueue, type QueueTicket } from "./queue";
 import type { Event } from "../types/cms";
 
@@ -44,24 +45,57 @@ export interface FacilityHeatmapData {
   hasLiveQueueData: boolean;
 }
 
-// Static RHU facility list. Markers ALWAYS render from this list (RHU 1 and
-// RHU 2) regardless of queue/case data — live status is overlaid separately.
-// RHU 2 (Don Pedro) coordinates are an approximate Malasiqui location and can be
-// adjusted by the RHU; they exist so the RHU 2 marker is always shown.
-export const RHU_FACILITIES = [
-  {
-    id: 1,
-    name: "RHU 1 Malasiqui",
-    latitude: 15.919664,
-    longitude: 120.412487,
-  },
-  {
-    id: 2,
-    name: "RHU 2 Malasiqui (Don Pedro)",
-    latitude: 15.945,
-    longitude: 120.445,
-  },
-] as const;
+export interface MapFacility {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+/*
+ * Where the facilities are.
+ *
+ * This was a hardcoded array of RHU 1 and RHU 2. A third facility opened
+ * from Administration -> RHU Facilities appeared on every screen except
+ * the map, because there was nowhere to put its coordinates and no code
+ * path that would have read them.
+ *
+ * They live on the rhus table now and are required when a facility is
+ * created. A facility still missing them -- one that predates the column
+ * -- is left off the map rather than dropped at a guessed position.
+ */
+export const FALLBACK_FACILITIES: MapFacility[] = [
+  { id: 1, name: "RHU 1 Malasiqui", latitude: 15.919664, longitude: 120.412487 },
+  { id: 2, name: "RHU 2 Malasiqui (Don Pedro)", latitude: 15.945, longitude: 120.445 },
+];
+
+export async function loadMapFacilities(): Promise<MapFacility[]> {
+  try {
+    const rows = await getRhuFacilities();
+
+    const mapped = rows
+      .filter((row) => row.is_active !== false)
+      .map((row) => ({
+        id: Number(row.id),
+        name: String(row.name ?? row.short_name ?? `RHU ${row.id}`),
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+      }))
+      .filter(
+        (row) =>
+          Number.isFinite(row.latitude) &&
+          Number.isFinite(row.longitude) &&
+          row.latitude !== 0 &&
+          row.longitude !== 0
+      );
+
+    // An empty result means every facility is missing coordinates, which
+    // would render an empty map. The two known positions beat nothing.
+    return mapped.length > 0 ? mapped : FALLBACK_FACILITIES;
+  } catch {
+    return FALLBACK_FACILITIES;
+  }
+}
 
 const levelRank: Record<PressureLevel, number> = {
   low: 1,
@@ -196,12 +230,12 @@ function eventRegistrants(event: Event): number | null {
   return null;
 }
 
-function eventFacility(event: Event): (typeof RHU_FACILITIES)[number] {
+function eventFacility(event: Event, facilities: MapFacility[]): MapFacility {
   const rhuId = numberOrZero((event as any).rhu_id ?? (event as any).facility_id);
-  return RHU_FACILITIES.find((facility) => facility.id === rhuId) ?? RHU_FACILITIES[0];
+  return facilities.find((facility) => facility.id === rhuId) ?? facilities[0];
 }
 
-function eventCoordinates(event: Event, facility: (typeof RHU_FACILITIES)[number]) {
+function eventCoordinates(event: Event, facility: MapFacility) {
   const latitude = Number(event.latitude);
   const longitude = Number(event.longitude);
 
@@ -215,12 +249,15 @@ function eventCoordinates(event: Event, facility: (typeof RHU_FACILITIES)[number
   };
 }
 
-function normalizeEvent(event: Event): FacilityHeatmapEvent | null {
+function normalizeEvent(
+  event: Event,
+  facilities: MapFacility[]
+): FacilityHeatmapEvent | null {
   if (event.event_type === "announcement" || !sameDay(event.starts_at ?? event.event_date)) {
     return null;
   }
 
-  const facility = eventFacility(event);
+  const facility = eventFacility(event, facilities);
   const coordinates = eventCoordinates(event, facility);
   const registrants = eventRegistrants(event);
   const slots = event.max_slots ?? null;
@@ -241,8 +278,10 @@ function normalizeEvent(event: Event): FacilityHeatmapEvent | null {
 }
 
 export async function fetchFacilityHeatmapData(): Promise<FacilityHeatmapData> {
+  const mapFacilities = await loadMapFacilities();
+
   const queueResults = await Promise.allSettled(
-    RHU_FACILITIES.map((facility) => getLiveQueue({ rhu_id: facility.id }))
+    mapFacilities.map((facility) => getLiveQueue({ rhu_id: facility.id }))
   );
 
   const eventsResult = await eventsService.fetchEvents({
@@ -252,10 +291,10 @@ export async function fetchFacilityHeatmapData(): Promise<FacilityHeatmapData> {
   });
 
   const events = eventsResult.data
-    .map(normalizeEvent)
+    .map((event) => normalizeEvent(event, mapFacilities))
     .filter(Boolean) as FacilityHeatmapEvent[];
 
-  const facilities = RHU_FACILITIES.map((facility, index) => {
+  const facilities = mapFacilities.map((facility, index) => {
     const queueResult = queueResults[index];
     const hasLiveQueueData = queueResult.status === "fulfilled";
     const tickets =

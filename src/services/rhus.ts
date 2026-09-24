@@ -7,6 +7,9 @@
 import apiClient from "../lib/apiClient";
 
 export interface RhuFacility {
+  /** Decimal degrees. Null for a facility created before these were recorded. */
+  latitude?: number | null;
+  longitude?: number | null;
   id: number;
   code: string;
   name: string;
@@ -21,6 +24,9 @@ export interface RhuFacility {
 }
 
 export interface RhuFacilityPayload {
+  /** Required when opening a facility: without it there is no map pin. */
+  latitude?: number | null;
+  longitude?: number | null;
   code: string;
   name: string;
   short_name: string;

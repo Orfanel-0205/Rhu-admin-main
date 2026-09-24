@@ -763,7 +763,20 @@ export default function Analytics() {
       const barangayMatch =
         !barangayKeyword ||
         diagnosisCaseBarangay(row).toLowerCase().includes(barangayKeyword);
-      const rhuMatch = !row.rhu_id || String(row.rhu_id) === "1";
+      /*
+       * Match whichever facility is selected, not RHU 1.
+       *
+       * This was hardcoded to "1", so the recent-cases table showed RHU 1
+       * rows no matter which facility the filter was set to -- and showed
+       * them under that facility's heading.
+       *
+       * A row with no rhu_id is legacy data from before facilities were
+       * recorded; it stays with the default facility, matching how the
+       * backend scopes the same rows.
+       */
+      const rhuMatch = row.rhu_id
+        ? Number(row.rhu_id) === Number(selectedRhuId)
+        : Number(selectedRhuId) === 1;
 
       return barangayMatch && rhuMatch;
     });

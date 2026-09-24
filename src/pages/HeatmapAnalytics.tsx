@@ -55,7 +55,7 @@ import {
 } from "../services/analytics";
 import {
   fetchFacilityHeatmapData,
-  RHU_FACILITIES,
+  FALLBACK_FACILITIES,
   type FacilityHeatmapData,
   type FacilityHeatmapFacility,
   type PressureLevel,
@@ -235,7 +235,7 @@ function signalStatusStyle(fresh: boolean): React.CSSProperties {
 
 function emptyFacilityData(): FacilityHeatmapData {
   return {
-    facilities: RHU_FACILITIES.map((facility) => ({
+    facilities: FALLBACK_FACILITIES.map((facility) => ({
       ...facility,
       hasLiveQueueData: false,
       queueCount: 0,
