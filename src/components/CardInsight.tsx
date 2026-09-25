@@ -119,9 +119,11 @@ export default function CardInsight({
 }
 
 const wrapStyle: CSSProperties = {
-  marginTop: 10,
+  marginTop: 14,
+  paddingTop: 12,
+  borderTop: "1px solid #E2E8F0",
   display: "grid",
-  gap: 8,
+  gap: 10,
 };
 
 const rowStyle: CSSProperties = {
@@ -131,18 +133,28 @@ const rowStyle: CSSProperties = {
   gap: 10,
 };
 
+/*
+ * A button, not a line of text.
+ *
+ * It first shipped as a bare teal link under the chart legend, where it
+ * read as a caption rather than something to press -- easy to scroll past
+ * on a page carrying sixteen charts. Filled, with a border and a bit of
+ * padding, it looks like the control it is.
+ */
 const linkStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 6,
-  padding: 0,
-  border: "none",
-  background: "none",
-  color: "#0F766E",
+  gap: 7,
+  padding: "9px 16px",
+  borderRadius: 999,
+  border: "1px solid #0F766E",
+  background: "#0F766E",
+  color: "#FFFFFF",
   fontSize: 12.5,
   fontWeight: 800,
   cursor: "pointer",
   textAlign: "left",
+  boxShadow: "0 1px 2px rgba(15, 118, 110, .18)",
 };
 
 const dismissStyle: CSSProperties = {
