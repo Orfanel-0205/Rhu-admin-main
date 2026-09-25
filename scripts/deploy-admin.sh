@@ -27,6 +27,9 @@
 #   * The previous build is kept as dist.prev-<timestamp>; that is the rollback.
 #   * `set -e` on both ends, so a failed check stops the deploy instead of
 #     carrying on into the directory swap.
+#   * The test suite passed. Not as ceremony: every test in tests/ guards a
+#     bug that already reached the running system, and every one of those
+#     typechecked and bundled cleanly on the way out.
 
 set -euo pipefail
 
@@ -35,6 +38,22 @@ DOCROOT="${DOCROOT:-/var/www/ka-agapay-admin}"
 ADMIN_URL="${ADMIN_URL:-https://rhu-kaagapay.129-212-236-47.sslip.io}"
 
 cd "$(dirname "$0")/.."
+
+# --- test -----------------------------------------------------------------
+# Under a second, and it runs before the build so a failure costs nothing.
+#
+# SKIP_TESTS=1 exists on purpose. This is a clinic system, and there will be
+# an evening when something is broken in front of patients and the fix has to
+# go out now. Without a documented way past the gate, the way past it is
+# pasting the deploy by hand -- which is precisely what took the site down on
+# 22 September. An escape hatch that is used and logged beats a rule that is
+# bypassed and silent.
+if [ "${SKIP_TESTS:-}" = "1" ]; then
+    echo "==> SKIPPING TESTS (SKIP_TESTS=1) — run npm test afterwards."
+else
+    echo "==> Testing"
+    npm test
+fi
 
 # --- build ----------------------------------------------------------------
 # check-api-url.mjs runs as prebuild and postbuild; it refuses to produce or

@@ -2,10 +2,11 @@
 #
 # WHY THIS EXISTS
 # ---------------
-# This repo had no version control at all until 2026-09-02 and no CI until
-# 2026-09-05. It also has zero automated tests, so this pipeline cannot check
-# behaviour -- but it CAN check the two things that actually broke here before:
-# that the code still typechecks, and that it still produces a real build.
+# This repo had no version control at all until 2026-09-02, no CI until
+# 2026-09-05 and no tests until 2026-09-25. It now has three gates, in the
+# order they catch things: the tests check behaviour that broke in
+# production before, the typecheck catches what the compiler can see, and
+# the build proves the thing still bundles.
 #
 # Deploy for this app is manual (build -> zip -> scp to the droplet, no CI/CD),
 # which means a broken build is discovered on the server rather than before
@@ -47,6 +48,13 @@ jobs:
       # the tree at deploy time.
       - name: Install dependencies
         run: npm ci
+
+      # Behaviour, before anything else, because it is the only step here
+      # that would have caught the bugs it covers -- each one typechecked,
+      # bundled and shipped. Under a second to run; see tests/ for what
+      # each one is guarding and which incident it came from.
+      - name: Test
+        run: npm test
 
       - name: Typecheck
         run: npx tsc --noEmit
