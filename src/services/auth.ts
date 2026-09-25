@@ -220,10 +220,28 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
+    /*
+     * POST /logout, not /admin/logout.
+     *
+     * There is no /admin/logout route and there never was. Every request to it
+     * returned 404, the catch below swallowed it, and the browser cleared its
+     * own session -- so logout LOOKED like it worked while the Sanctum token
+     * stayed valid on the server. 172 tokens had accumulated, the oldest from
+     * 19 June, none of them revoked by anyone pressing Log out.
+     *
+     * That is what made it invisible: the only symptom was on a table nobody
+     * reads. The mobile client had the path right all along, which is why the
+     * audit trail shows LOGOUT events from phones and none from the dashboard.
+     */
     try {
-      await apiClient.post("/admin/logout");
+      await apiClient.post("/logout");
     } catch {
-      // Local logout is handled by the auth store even if the backend endpoint is missing.
+      /*
+       * Still swallowed, and deliberately: the store clears the local session
+       * either way. A staff member on a shared clinic computer must be able to
+       * log out of THIS browser even when the server is unreachable -- failing
+       * that would leave the session open, which is worse than a stale token.
+       */
     }
   },
 };
