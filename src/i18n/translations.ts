@@ -3652,3 +3652,20 @@ export const t = (
 
   return str;
 };
+
+/**
+ * Is there a real translation behind this key?
+ *
+ * `t()` never fails: an unknown key comes back humanised, so `t("queue_call")`
+ * renders as "Queue Call" and looks like a label somebody wrote. That is right
+ * for the running dashboard — a missing string should not blank a button — but
+ * it means an untranslated key is invisible in English and shows English text
+ * to a Pangasinense or Tagalog reader with no clue anything is wrong.
+ *
+ * This is how the test in tests/translationKeys.test.ts tells the difference.
+ */
+export function hasTranslation(key: string): boolean {
+  const resolvedKey = ALIASES[key] ?? key;
+
+  return Boolean(T[resolvedKey] ?? EXTRA[key] ?? EXTRA[resolvedKey]);
+}

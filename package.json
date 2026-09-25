@@ -8,7 +8,9 @@
     "prebuild": "node scripts/check-api-url.mjs",
     "build": "tsc && vite build",
     "postbuild": "node scripts/check-api-url.mjs --artifact",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@babel/parser": "^7.29.7",
@@ -29,6 +31,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.2",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^5.0.1"
   }
 }

@@ -299,7 +299,15 @@ export function normalizeOverview(source: any): Record<string, any> {
   return overview;
 }
 
-function cleanParams(params?: AnalyticsFilters): Record<string, any> | undefined {
+/**
+ * Strip empty filters before they go on the query string.
+ *
+ * Exported for the regression test in tests/analyticsFilters.test.ts: the
+ * facility filter was silently dropped here once already, and a page that
+ * answers with the wrong numbers under the right heading is the kind of bug
+ * nobody reports because nothing looks broken.
+ */
+export function cleanParams(params?: AnalyticsFilters): Record<string, any> | undefined {
   if (!params) return undefined;
 
   const cleaned: Record<string, any> = {};
