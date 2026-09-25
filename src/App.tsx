@@ -6,6 +6,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
 } from "react-router-dom";
 
 import DashboardShell from "./components/DashboardShell";
@@ -29,6 +30,7 @@ import Queue from "./pages/Queue";
 import Feedback from "./pages/Feedback";
 import Reports from "./pages/Reports";
 import HealthServices from "./pages/HealthServices";
+import ErrorBoundary from "./components/ErrorBoundary";
 import RhuFacilities from "./pages/RhuFacilities";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
@@ -144,10 +146,25 @@ function ProtectedPage({
   children: JSX.Element;
   roles?: string[];
 }) {
+  const location = useLocation();
+
   return (
     <RequireAuth>
       <RequireRoles roles={roles ?? STAFF_PAGE_ROLES}>
-        <DashboardShell>{children}</DashboardShell>
+        <DashboardShell>
+          {/*
+              Inside the shell, so a crashed screen keeps the sidebar and
+              the header. Staff can walk away to another page instead of
+              being left on a blank document with nowhere to go.
+
+              Keyed on the path so navigating away clears the error: without
+              it the boundary holds its failed state and every subsequent
+              page renders this message instead of itself.
+          */}
+          <ErrorBoundary key={location.pathname} area={location.pathname}>
+            {children}
+          </ErrorBoundary>
+        </DashboardShell>
       </RequireRoles>
     </RequireAuth>
   );
