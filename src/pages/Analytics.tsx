@@ -76,6 +76,7 @@ import {
 import { useToast } from "../contexts/ToastContext";
 import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
 import AnalyticsBriefing from "../components/AnalyticsBriefing";
+import CardInsight from "../components/CardInsight";
 
 type FilterState = {
   from: string;
@@ -1896,6 +1897,15 @@ export default function Analytics() {
               <Insight
                 text={`Peak day so far is ${attendanceStats.peakDay || "—"} with ${compactNumber(attendanceStats.peakTotal)} visits; the average is ${attendanceStats.averagePerDay} patient(s) per day. Plan staffing around the peak days.`}
               />
+
+              <CardInsight
+                cardTitle="Patient Attendance by Day"
+                scope={screenScope}
+                figures={attendanceByDate.map((item) => ({
+                  label: String(item.label),
+                  value: String(item.value),
+                }))}
+              />
             </section>
 
           </section>
@@ -1904,6 +1914,7 @@ export default function Analytics() {
           <Expandable title="Weekly patterns & priority scoring">
             <section className="chart-grid main-grid">
               <AveragePatientsWeekCard
+                scope={screenScope}
                 stats={attendanceStats}
                 data={attendanceByDayOfWeek}
                 rawRows={(overview?.attendance_by_day_of_week || attendanceByDayOfWeek) as any}
@@ -1914,6 +1925,7 @@ export default function Analytics() {
             </section>
             <section className="chart-grid main-grid">
               <ChartCard
+                scope={screenScope}
                 title="AI Triage Priority Distribution"
                 subtitle="Urgent, high, moderate, and low priority classifications. Staff validation is required."
                 icon={<ShieldAlert size={18} />}
@@ -1935,6 +1947,7 @@ export default function Analytics() {
           <>
           <section className="chart-grid main-grid">
             <ChartCard
+              scope={screenScope}
               title="Top Diagnoses / Complaints"
               subtitle="Ranked diagnosis or complaint labels from completed consultations."
               icon={<FileText size={18} />}
@@ -1955,6 +1968,7 @@ export default function Analytics() {
           <Expandable title="More clinical charts">
           <section className="chart-grid">
             <ChartCard
+              scope={screenScope}
               title={c.barangayRiskTitle}
               subtitle={c.barangayRiskSub}
               icon={<Activity size={18} />}
@@ -1967,6 +1981,7 @@ export default function Analytics() {
             />
 
             <ChartCard
+              scope={screenScope}
               title={c.diseaseTitle}
               subtitle={c.diseaseSub}
               icon={<Stethoscope size={18} />}
@@ -1979,6 +1994,7 @@ export default function Analytics() {
             />
 
             <ChartCard
+              scope={screenScope}
               title={c.chatbotTitle}
               subtitle={c.chatbotSub}
               icon={<Bot size={18} />}
@@ -2005,6 +2021,7 @@ export default function Analytics() {
             </section>
 
             <ChartCard
+              scope={screenScope}
               title="Follow-up Status Distribution"
               subtitle="Follow-up status from completed Diagnosis + ITR records."
               icon={<CheckCircle size={18} />}
@@ -2023,6 +2040,7 @@ export default function Analytics() {
           <>
           <section className="chart-grid main-grid">
             <ChartCard
+              scope={screenScope}
               title="Queue Volume by Hour"
               subtitle={`Hourly ${selectedRhuLabel} queue arrivals to identify peak service windows.`}
               icon={<TrendingUp size={18} />}
@@ -2055,6 +2073,7 @@ export default function Analytics() {
           </section>
           <section className="chart-grid">
             <ChartCard
+              scope={screenScope}
               title="Queue Performance"
               subtitle={`${selectedRhuLabel} queue workload from available ticket counters.`}
               icon={<Users size={18} />}
@@ -2066,6 +2085,7 @@ export default function Analytics() {
             />
 
             <ChartCard
+              scope={screenScope}
               title="Priority Patient Breakdown"
               subtitle="Senior, PWD, pregnant, child, urgent, and regular queue signals."
               icon={<ShieldAlert size={18} />}
@@ -2078,6 +2098,7 @@ export default function Analytics() {
             />
 
             <ChartCard
+              scope={screenScope}
               title="Appointment Status Distribution"
               subtitle="Pending, approved, completed, cancelled, rejected, and no-show appointments if tracked."
               icon={<CalendarDays size={18} />}
@@ -2098,6 +2119,7 @@ export default function Analytics() {
           <>
           <section className="chart-grid main-grid">
             <ChartCard
+              scope={screenScope}
               title="Telemedicine Status Distribution"
               subtitle="Online consultation demand and completed telemedicine sessions."
               icon={<Activity size={18} />}
@@ -2118,6 +2140,7 @@ export default function Analytics() {
           <Expandable title="Demographics & services">
           <section className="chart-grid">
             <ChartCard
+              scope={screenScope}
               title="Age Group Distribution"
               subtitle={`${selectedRhuLabel} completed consultation records grouped by age, where available.`}
               icon={<Users size={18} />}
@@ -2130,6 +2153,7 @@ export default function Analytics() {
             />
 
             <ChartCard
+              scope={screenScope}
               title="Sex / Gender Distribution"
               subtitle={`${selectedRhuLabel} completed consultation records grouped by sex or gender, where available.`}
               icon={<Users size={18} />}
@@ -2142,6 +2166,7 @@ export default function Analytics() {
             />
 
             <ChartCard
+              scope={screenScope}
               title="Chatbot Inquiry Categories"
               subtitle={`Resident question categories that ${selectedRhuLabel} may convert into announcements or FAQs.`}
               icon={<Bot size={18} />}
@@ -2153,6 +2178,7 @@ export default function Analytics() {
             />
 
             <ChartCard
+              scope={screenScope}
               title="Program and Event Participation"
               subtitle="Registrations or attendees by program/event title. Barangay detail is shown when the backend provides it."
               icon={<MapPinned size={18} />}
@@ -2166,6 +2192,7 @@ export default function Analytics() {
 
           <section className="chart-grid two-column-grid">
             <ChartCard
+              scope={screenScope}
               title={`${selectedRhuLabel} Service Load`}
               subtitle={`${selectedRhuLabel} completed Diagnosis + ITR consultation records in the selected period.`}
               icon={<BarChart3 size={18} />}
@@ -2433,6 +2460,7 @@ function ChartCard({
   chartType = "horizontal",
   showPercent,
   insight,
+  scope,
 }: {
   title: string;
   subtitle: string;
@@ -2447,6 +2475,13 @@ function ChartCard({
   showPercent?: boolean;
   /** Integrated interpretation strip shown inside the card, under the chart. */
   insight?: string;
+  /**
+   * Period and facility, for the per-card assistant answer.
+   *
+   * Without it the model would be reading a bar chart with no idea whether
+   * it covers a week or a year, which changes what the numbers mean.
+   */
+  scope?: string;
 }) {
   return (
     <section className="chart-card">
@@ -2479,6 +2514,20 @@ function ChartCard({
       />
 
       {insight ? <Insight text={insight} /> : null}
+
+      {/*
+          The computed interpretation above says what the chart shows. This
+          asks the assistant what it means, for this chart alone -- the
+          page-level briefing at the top covers the screen as a whole.
+      */}
+      <CardInsight
+        cardTitle={title}
+        scope={scope ?? ""}
+        figures={data.map((item) => ({
+          label: String(item.label),
+          value: String(item.value),
+        }))}
+      />
     </section>
   );
 }
@@ -2490,6 +2539,7 @@ function AveragePatientsWeekCard({
   csvLabel,
   rhuLabel,
   rhuSlug,
+  scope,
 }: {
   stats: AttendanceStats;
   data: BarItem[];
@@ -2497,6 +2547,7 @@ function AveragePatientsWeekCard({
   csvLabel: string;
   rhuLabel: string;
   rhuSlug: string;
+  scope: string;
 }) {
   return (
     <section className="chart-card attendance-card">
@@ -2553,6 +2604,20 @@ function AveragePatientsWeekCard({
       <div className="rhu-action-line">
         RHU action: assign more staff on peak days and review barangay follow-up when attendance rises.
       </div>
+
+      <CardInsight
+        cardTitle="Average Patients Throughout the Week"
+        scope={scope}
+        figures={data.map((item) => ({
+          label: String(item.label),
+          value: String(item.value),
+        }))}
+        notes={[
+          `Peak day ${stats.peakDay || "none"} with ${stats.peakTotal} patients`,
+          `Lowest day ${stats.slowestDay || "none"} with ${stats.slowestTotal} patients`,
+          `${stats.activeDays} active visit day(s), averaging ${stats.averagePerDay} per day`,
+        ]}
+      />
     </section>
   );
 }

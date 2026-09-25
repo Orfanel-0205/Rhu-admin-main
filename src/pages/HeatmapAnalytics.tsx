@@ -61,6 +61,7 @@ import {
   type PressureLevel,
 } from "../services/facilityHeatmap";
 import AnalyticsBriefing from "../components/AnalyticsBriefing";
+import CardInsight from "../components/CardInsight";
 import {
   fetchHeatmapAnalytics,
   filterCasePoints,
@@ -1018,6 +1019,24 @@ type="button"
           </div>
           )}
         </div>
+
+        {/*
+            The map card's own answer.
+
+            The briefing at the top of the page covers the screen; this asks
+            about what is on the map -- which facility is under pressure, or
+            which barangays the signals are coming from.
+        */}
+        <CardInsight
+          cardTitle={
+            activeWorkspace === "queue"
+              ? "RHU Facility Queue Map"
+              : "Barangay case signals map"
+          }
+          scope={heatmapScope}
+          figures={heatmapFigures}
+          notes={heatmapNotes}
+        />
       </section>
       )}
 
