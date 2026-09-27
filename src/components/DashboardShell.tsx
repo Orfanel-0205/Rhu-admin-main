@@ -599,7 +599,14 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 cursor: "pointer",
               }}
             >
-              <Bot size={18} />
+              {/* The Ka-Agapay assistant, not a generic robot glyph. */}
+              <img
+                src="/kaagapay_assistant_icon.png"
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                style={{ width: 22, height: 22, objectFit: "contain", display: "block" }}
+              />
             </button>
 
             <button

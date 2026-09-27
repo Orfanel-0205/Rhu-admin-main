@@ -59,14 +59,15 @@ import {
   type RealtimeDashboardData,
 } from "../services/dashboard";
 
-// The dashboard duck sits still.
+// The dashboard duck.
 //
-// It replaced DASHBOARDLOGO.gif, which was 1.93 MB for an icon about 90px
-// across, downloaded on every visit to the busiest screen in the system. A
-// mascot looping forever also competes with the figures beside it for a
-// reader's attention, which is the opposite of what a dashboard is for.
+// A muted, looping clip rather than an animated GIF: the same motion at a
+// fraction of the weight, because video compresses between frames and GIF
+// does not. DASHBOARDLOGO.gif was 1.93 MB for an icon about 90px across.
 //
-// It moves once, when pressed, and after that it is the assistant's job.
+// The still frame is what anyone sees who has asked for reduced motion,
+// and what shows if the clip cannot play.
+const DASHBOARD_CLIP = "/kaagapay_duck_dashboard.mp4";
 const DASHBOARD_ICON = "/kaagapay_duck_dashboard_default.png";
 
 // ---- Brand palette (matches the RHU healthcare design system) ----
@@ -1056,7 +1057,7 @@ function HeroCard({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
-  const duckIconRef = useRef<HTMLImageElement>(null);
+  const duckIconRef = useRef<HTMLVideoElement>(null);
 
   /** Set while a duck is in flight; holds where it took off from. */
   const [leapFrom, setLeapFrom] = useState<DOMRect | null>(null);
@@ -1130,11 +1131,17 @@ function HeroCard({
               placeItems: "center",
             }}
           >
-            <img
+            <video
               ref={duckIconRef}
-              src={DASHBOARD_ICON}
-              alt={t("dash_mascot_alt", lang)}
-              draggable={false}
+              src={DASHBOARD_CLIP}
+              poster={DASHBOARD_ICON}
+              autoPlay
+              loop
+              muted
+              playsInline
+              // Not a control: it carries no sound and no timeline, and the
+              // button around it is what a reader presses.
+              aria-label={t("dash_mascot_alt", lang)}
               style={{
                 width: "120%",
                 height: "120%",
