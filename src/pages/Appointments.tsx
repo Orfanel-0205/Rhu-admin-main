@@ -56,6 +56,7 @@ import {
   type AppointmentStatus,
   type ConsultationType,
 } from "../services/appointments";
+import PageHero from "../components/ui/PageHero";
 
 type StatusFilter = "all" | AppointmentStatus | "ongoing";
 type TypeFilter = "all" | ConsultationType;
@@ -929,31 +930,23 @@ export default function Appointments() {
 
   return (
     <div className="no-page-overflow" style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Ka-Agapay RHU Appointments</div>
-          <h1 style={heroTitleStyle}>Appointment Management</h1>
-          <p style={heroSubtitleStyle}>
-            Simple RHU appointment board for approving, scheduling, rejecting,
-            adding onsite patients to queue, and starting consultations. Online
-            appointments open the telemedicine room in the same tab.
-          </p>
-
-          <div style={heroMetaStyle}>
-            <span>Total shown: {visibleAppointments.length}</span>
-            <span>
-              Last updated:{" "}
-              {lastUpdated
-                ? new Date(lastUpdated).toLocaleTimeString("en-PH", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "—"}
-            </span>
-          </div>
-        </div>
-
-        <div style={nextCardStyle}>
+      <PageHero
+        eyebrow="Ka-Agapay RHU Appointments"
+        title="Appointment Management"
+        subtitle="Approve, schedule or reject requests, add onsite patients to the queue, and start consultations. Online appointments open the telemedicine room in the same tab."
+        meta={[
+          `Total shown: ${visibleAppointments.length}`,
+          `Last updated: ${
+            lastUpdated
+              ? new Date(lastUpdated).toLocaleTimeString("en-PH", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "—"
+          }`,
+        ]}
+        actions={
+          <div style={nextCardStyle}>
           <div style={eyebrowStyle}>Next Action</div>
           {nextAppointment ? (
             <>
@@ -976,8 +969,9 @@ export default function Appointments() {
               </span>
             </>
           )}
-        </div>
-      </section>
+          </div>
+        }
+      />
 
       <section style={instructionGridStyle}>
         <InstructionCard

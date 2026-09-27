@@ -58,6 +58,7 @@ import DateRangeFilter, {
   type DateRange,
 } from "../components/DateRangeFilter";
 import { useToast } from "../contexts/ToastContext";
+import PageHero from "../components/ui/PageHero";
 
 type StatusFilter =
   | "all"
@@ -932,44 +933,38 @@ export default function Telemedicine() {
 
   return (
     <div className="no-page-overflow" style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Ka-Agapay {selectedRhuLabel} Telemedicine</div>
-          <h1 style={heroTitleStyle}>Telemedicine Management</h1>
-          <p style={heroSubtitleStyle}>
-            Screen {selectedRhuLabel} online consultation requests, open video sessions, track
-            request progress, and safely complete SOAP documentation.
-          </p>
-
-          <div style={heroMetaStyle}>
-            <span>{selectedRhuLabel} only</span>
-            <span>Total shown: {filtered.length}</span>
+      <PageHero
+        eyebrow={`Ka-Agapay ${selectedRhuLabel} Telemedicine`}
+        title="Telemedicine Management"
+        subtitle={`Screen ${selectedRhuLabel} online consultation requests, open video sessions, track request progress, and complete SOAP documentation.`}
+        meta={[
+          `${selectedRhuLabel} only`,
+          `Total shown: ${filtered.length}`,
+          `Last updated: ${
+            lastUpdated
+              ? new Date(lastUpdated).toLocaleTimeString("en-PH", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "—"
+          }`,
+        ]}
+        actions={
+          <div style={nextCardStyle}>
+            <small>Next Action</small>
+            <strong>
+              {nextRequest
+                ? safePatientName(nextRequest)
+                : "No pending telemedicine action"}
+            </strong>
             <span>
-              Last updated:{" "}
-              {lastUpdated
-                ? new Date(lastUpdated).toLocaleTimeString("en-PH", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "—"}
+              {nextRequest
+                ? getTelemedicineNextStepSafe(nextRequest)
+                : `New ${selectedRhuLabel} online consultation requests will appear here.`}
             </span>
           </div>
-        </div>
-
-        <div style={nextCardStyle}>
-          <small>Next Action</small>
-          <strong>
-            {nextRequest
-              ? safePatientName(nextRequest)
-              : "No pending telemedicine action"}
-          </strong>
-          <span>
-            {nextRequest
-              ? getTelemedicineNextStepSafe(nextRequest)
-              : `New ${selectedRhuLabel} online consultation requests will appear here.`}
-          </span>
-        </div>
-      </section>
+        }
+      />
 
       {saved ? (
         <div style={successStyle}>

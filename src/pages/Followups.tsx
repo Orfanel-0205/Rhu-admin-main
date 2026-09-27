@@ -33,6 +33,7 @@ import {
   type FollowUpReminder,
   type FollowUpSummary,
 } from "../services/followups";
+import PageHero from "../components/ui/PageHero";
 
 const STATUS_TABS: { key: FollowUpBoardStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -254,20 +255,17 @@ export default function Followups() {
 
   return (
     <div className="no-page-overflow" style={pageStyle}>
-      <section style={heroStyle}>
-        <div style={{ minWidth: 0 }}>
-          <div style={eyebrowStyle}>Ka-Agapay RHU Follow-ups</div>
-          <h1 style={heroTitleStyle}>Health Follow-up</h1>
-          <p style={heroSubtitleStyle}>
-            Track overdue, due today, upcoming, and completed patient follow-ups.
-          </p>
-        </div>
-
-        <button type="button" onClick={load} disabled={loading} style={refreshButtonStyle}>
-          <RefreshCw size={18} />
-          {loading ? "Loading..." : "Refresh"}
-        </button>
-      </section>
+      <PageHero
+        eyebrow="Ka-Agapay RHU Follow-ups"
+        title="Health Follow-up"
+        subtitle="Track overdue, due today, upcoming, and completed patient follow-ups."
+        actions={
+          <button type="button" onClick={load} disabled={loading} style={refreshButtonStyle}>
+            <RefreshCw size={18} />
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+        }
+      />
 
       {message ? (
         <div style={successBannerStyle}>

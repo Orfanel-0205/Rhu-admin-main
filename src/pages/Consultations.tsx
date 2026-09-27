@@ -51,6 +51,7 @@ import { useRhuOptions } from "../hooks/useRhuOptions";
 /** "all", or a facility id from the live RHU list. */
 type RhuFilter = "all" | number;
 import StatusBadge from "../components/ui/StatusBadge";
+import PageHero from "../components/ui/PageHero";
 
 function truncate(value: string, max = 48): string {
   const text = String(value ?? "").trim();
@@ -211,31 +212,23 @@ export default function Consultations() {
 
   return (
     <div style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Ka-Agapay RHU Consultation Records</div>
-          <h1 style={heroTitleStyle}>Consultation Management</h1>
-          <p style={heroSubtitleStyle}>
-            Review active consultation records, open SOAP documentation, check
-            diagnosis status, and make sure every consultation is properly
-            documented before completion.
-          </p>
-
-          <div style={heroMetaStyle}>
-            <span>Total shown: {filtered.length}</span>
-            <span>
-              Last updated:{" "}
-              {lastUpdated
-                ? new Date(lastUpdated).toLocaleTimeString("en-PH", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "—"}
-            </span>
-          </div>
-        </div>
-
-        <div style={nextCardStyle}>
+      <PageHero
+        eyebrow="Ka-Agapay RHU Consultation Records"
+        title="Consultation Management"
+        subtitle="Review active consultation records, open SOAP documentation, check diagnosis status, and confirm every consultation is documented before completion."
+        meta={[
+          `Total shown: ${filtered.length}`,
+          `Last updated: ${
+            lastUpdated
+              ? new Date(lastUpdated).toLocaleTimeString("en-PH", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "—"
+          }`,
+        ]}
+        actions={
+          <div style={nextCardStyle}>
           <div style={eyebrowStyle}>Next Action</div>
 
           {nextConsultation ? (
@@ -259,8 +252,9 @@ export default function Consultations() {
               </span>
             </>
           )}
-        </div>
-      </section>
+          </div>
+        }
+      />
 
       <section style={instructionGridStyle}>
         <InstructionCard
