@@ -40,8 +40,41 @@ interface Rect {
 /** Breathing room around the highlighted element. */
 const PAD = 6;
 
+/**
+ * Find a control by the words on it.
+ *
+ * This admin has no test ids, and its pages are styled inline rather than
+ * with classes worth targeting, so the visible label is the most stable
+ * handle available. The caller passes text already run through t(), so
+ * this keeps working when the interface is in Tagalog.
+ */
+function findByText(text: string): HTMLElement | null {
+  const needle = text.trim().toLowerCase();
+  if (!needle) return null;
+
+  const candidates = document.querySelectorAll<HTMLElement>(
+    "main button, main a, main h1, main h2, main h3, main section"
+  );
+
+  let best: HTMLElement | null = null;
+
+  for (const node of candidates) {
+    const content = (node.textContent ?? "").trim().toLowerCase();
+    if (!content.includes(needle)) continue;
+
+    // The tightest match wins: a button reading exactly the label beats
+    // the section that happens to contain it.
+    if (!best || content.length < (best.textContent ?? "").trim().length) {
+      best = node;
+    }
+  }
+
+  return best;
+}
+
 export default function CoachSpotlight({
   route,
+  spotText,
   mascot,
   label,
   says,
@@ -49,6 +82,13 @@ export default function CoachSpotlight({
 }: {
   /** The step's route; its sidebar entry is what gets lit. */
   route?: string;
+  /**
+   * A control on the page to light instead of the whole page.
+   *
+   * Already translated by the caller, because it is matched against what
+   * is actually rendered.
+   */
+  spotText?: string;
   /** The step's duck. */
   mascot: string;
   /** What the duck is pointing at, for anyone using a screen reader. */
@@ -88,11 +128,25 @@ export default function CoachSpotlight({
        */
       const here = window.location.pathname === route;
 
-      const target = here
-        ? document.querySelector<HTMLElement>("main.dashboard-main")
-        : document.querySelector<HTMLElement>(`a[href="${route}"]`);
+      /*
+       * Three things can be lit, in order of how specific they are.
+       *
+       * A named control on the page is best: it is what the step is
+       * actually about. Failing that, the page itself, so the reader sees
+       * what is being described. Failing that -- because they are
+       * somewhere else entirely -- the menu entry that takes them there.
+       */
+      const spot = here && spotText ? findByText(spotText) : null;
 
-      setOnPage(here);
+      const target =
+        spot ??
+        (here
+          ? document.querySelector<HTMLElement>("main.dashboard-main")
+          : document.querySelector<HTMLElement>(`a[href="${route}"]`));
+
+      // A lit control is not the whole page, so the duck stands beside it
+      // the way it does beside a menu entry.
+      setOnPage(here && !spot);
 
       if (!target) {
         setRect(null);
@@ -123,7 +177,7 @@ export default function CoachSpotlight({
     frame = window.requestAnimationFrame(track);
 
     return () => window.cancelAnimationFrame(frame);
-  }, [route]);
+  }, [route, spotText]);
 
   if (!rect) return null;
 

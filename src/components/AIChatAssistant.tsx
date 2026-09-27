@@ -47,6 +47,7 @@ import {
   stopSpeaking,
 } from "../lib/assistantVoice";
 import { useLangStore, type Lang } from "../store/langStore";
+import { t } from "../i18n/translations";
 import {
   deleteAdminChatSession,
   endAdminChatSession,
@@ -781,6 +782,15 @@ type TutorialWorkflowStep = {
    * caveat the Pangasinense strings in i18n/translations.ts carry.
    */
   taglish?: string;
+  /**
+   * Controls on the page, walked one at a time after the page itself.
+   *
+   * `key` is a translation key so the pointer finds the control whatever
+   * language the interface is in; matching hard-coded English would break
+   * the moment somebody switches to Tagalog. `says` is the Taglish line
+   * the duck speaks while pointing at it.
+   */
+  spots?: Array<{ key: string; says: string }>;
   route?: string;
   mascot: string;
   header: string;
@@ -806,6 +816,13 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Dashboard",
+    spots: [
+      { key: "dash_add_patient", says: "Pindutin mo 'to kapag may bagong pasyenteng walang account." },
+      { key: "dash_manage_queue", says: "Dito ka dumiretso kapag may naghihintay na sa labas." },
+      { key: "kpi_appointments_today", says: "Ilan ang naka-book ngayong araw. Zero ibig sabihin walang naka-schedule." },
+      { key: "kpi_waiting_queue", says: "Ilan ang nasa pila ngayon. Kung tumataas 'to, kailangan na ng dagdag na tao." },
+      { key: "kpi_telemedicine_pending", says: "Mga online request na hindi pa na-screen. Ito ang unahin mo." },
+    ],
     taglish: "Dito ka mag-start every shift. Makikita mo agad kung ano ang kailangan ng atensyon ngayon.",
     route: "/dashboard",
     mascot: "/Wavingduck.png",
@@ -834,6 +851,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Queue",
+    spots: [
+      { key: "q_rhu_selector", says: "Piliin mo muna kung aling RHU ang hawak mo ngayon." },
+      { key: "q_choose_service_desk", says: "Tapos kung anong desk: OPD, prenatal, immunization, ganoon." },
+    ],
     taglish: "Ito yung pila ngayon. Yung system na ang bahala sa order, kaya Call Next lang ang pindutin mo.",
     route: "/queue",
     mascot: "/Thinkingduck.png",
@@ -848,6 +869,9 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Appointments",
+    spots: [
+      { key: "appt_tab_active", says: "Dito yung mga kailangan pa ng aksyon. Ito ang laging tingnan mo." },
+    ],
     taglish: "Mga booking ng pasyente. I-review muna bago i-approve, tapos automatic na pupunta sa queue.",
     route: "/appointments",
     mascot: "/Thinkingduck.png",
@@ -1257,7 +1281,30 @@ function GuidedTutorialPanel({
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === TUTORIAL_WORKFLOW.length - 1;
 
+  // The pointer matches the control by its visible label, so it needs the
+  // same language the page is rendered in.
+  const lang = useLangStore((state) => state.lang);
+
   const voice = useCoachVoice();
+
+  /**
+   * Which stop within the current module the duck is on.
+   *
+   * 0 is the page itself; 1 upward are its controls. Next walks these
+   * before moving to the next module, so a reader sees what a screen is
+   * for and then what each button on it does, which is the order somebody
+   * standing beside them would use.
+   */
+  const [spotIndex, setSpotIndex] = useState(0);
+
+  // A new module always starts at its page, never mid-way through the
+  // controls of the one before.
+  useEffect(() => setSpotIndex(0), [stepIndex]);
+
+  const spots = step.spots ?? [];
+  const activeSpot = spotIndex > 0 ? spots[spotIndex - 1] : undefined;
+
+  const saying = activeSpot ? activeSpot.says : step.taglish;
 
   /*
    * Reading aloud is remembered across steps, not re-asked for each time.
@@ -1273,6 +1320,13 @@ function GuidedTutorialPanel({
       return;
     }
 
+    // On a control, only the line about that control: the reader is looking
+    // at one button, not the whole module.
+    if (activeSpot) {
+      voice.speak([activeSpot.says]);
+      return;
+    }
+
     // The Taglish line first, because that is the duck talking; the
     // English detail follows for anyone listening the whole way through.
     voice.speak(
@@ -1280,9 +1334,9 @@ function GuidedTutorialPanel({
         ? [step.taglish, step.body, ...step.steps]
         : [step.header, step.body, ...step.steps]
     );
-    // Re-reads whenever the step changes while the voice is on.
+    // Re-reads whenever the step or the stop changes while the voice is on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voiceOn, stepIndex]);
+  }, [voiceOn, stepIndex, spotIndex]);
 
   return (
     <>
@@ -1297,7 +1351,8 @@ function GuidedTutorialPanel({
         route={step.route}
         mascot={step.mascot}
         label={step.module}
-        says={step.taglish}
+        says={saying}
+        spotText={activeSpot ? t(activeSpot.key, lang) : undefined}
         onOpen={() =>
           onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1))
         }
@@ -1336,6 +1391,9 @@ function GuidedTutorialPanel({
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ color: "#0F766E", fontSize: 11, fontWeight: 950 }}>
               Step {stepIndex + 1} of {TUTORIAL_WORKFLOW.length}
+              {spots.length > 0
+                ? ` \u00b7 ${spotIndex + 1}/${spots.length + 1}`
+                : ""}
             </div>
 
             {voice.supported ? (
@@ -1444,7 +1502,13 @@ function GuidedTutorialPanel({
         >
           <button
             type="button"
-            onClick={() => onStepChange(Math.max(0, stepIndex - 1))}
+            onClick={() => {
+              if (spotIndex > 0) {
+                setSpotIndex(spotIndex - 1);
+                return;
+              }
+              onStepChange(Math.max(0, stepIndex - 1));
+            }}
             disabled={isFirst}
             title="Previous tutorial step"
             style={{
@@ -1492,7 +1556,13 @@ function GuidedTutorialPanel({
 
           <button
             type="button"
-            onClick={() => onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1))}
+            onClick={() => {
+              if (spotIndex < spots.length) {
+                setSpotIndex(spotIndex + 1);
+                return;
+              }
+              onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1));
+            }}
             disabled={isLast}
             title="Next tutorial step"
             style={{
