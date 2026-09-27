@@ -44,6 +44,7 @@ export default function CoachSpotlight({
   route,
   mascot,
   label,
+  says,
   onOpen,
 }: {
   /** The step's route; its sidebar entry is what gets lit. */
@@ -52,6 +53,8 @@ export default function CoachSpotlight({
   mascot: string;
   /** What the duck is pointing at, for anyone using a screen reader. */
   label: string;
+  /** One line of Taglish, spoken in a bubble beside the duck. */
+  says?: string;
   /** Called after the reader presses the highlighted entry. */
   onOpen?: () => void;
 }) {
@@ -198,6 +201,37 @@ export default function CoachSpotlight({
       >
         Click to open
       </div>
+
+      {/*
+          What the duck is saying.
+
+          Sits under the mascot rather than beside it, so a long sentence
+          grows downward into empty page instead of sideways into the
+          coach panel on the right.
+      */}
+      {says ? (
+        <div
+          style={{
+            position: "fixed",
+            top: rect.top + rect.height / 2 + duckSize / 2 + 4,
+            left: Math.max(8, Math.min(duckLeft - 40, window.innerWidth - 268)),
+            width: 252,
+            padding: "10px 13px",
+            borderRadius: 14,
+            background: "#FFFFFF",
+            color: "#0F172A",
+            fontSize: 12.5,
+            lineHeight: 1.5,
+            fontWeight: 600,
+            boxShadow: "0 10px 26px rgba(8,24,22,.4)",
+            border: "1px solid #5EEAD4",
+            zIndex: 1202,
+            pointerEvents: "none",
+          }}
+        >
+          {says}
+        </div>
+      ) : null}
 
       <img
         src={mascot}

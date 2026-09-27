@@ -768,6 +768,19 @@ function getPageHelp(button: string): PageHelp {
 
 type TutorialWorkflowStep = {
   module: string;
+  /**
+   * What the duck says out loud, in Taglish.
+   *
+   * The panel text stays formal English because it is documentation and
+   * gets read slowly. This is the sentence a colleague would actually say
+   * while pointing at the menu, and RHU staff here speak Taglish, not
+   * textbook Tagalog or textbook English. One line each: a bubble beside a
+   * pointer is glanced at, not studied.
+   *
+   * Written to be reviewed by a native speaker before handover, the same
+   * caveat the Pangasinense strings in i18n/translations.ts carry.
+   */
+  taglish?: string;
   route?: string;
   mascot: string;
   header: string;
@@ -779,6 +792,7 @@ type TutorialWorkflowStep = {
 const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   {
     module: "Getting Started",
+    taglish: "Hi! Ako ang gabay mo. I-click mo lang yung naka-highlight, at susundan kita sa bawat page.",
     route: "/dashboard",
     mascot: "/Iconwelcome.png",
     header: "Ka-Agapay admin workflow",
@@ -792,6 +806,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Dashboard",
+    taglish: "Dito ka mag-start every shift. Makikita mo agad kung ano ang kailangan ng atensyon ngayon.",
     route: "/dashboard",
     mascot: "/Wavingduck.png",
     header: "Real-Time RHU Dashboard",
@@ -805,6 +820,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Patient Registry",
+    taglish: "Lahat ng rehistradong pasyente nandito. Search mo lang yung pangalan para makita ang buong history niya.",
     route: "/patients",
     mascot: "/HappyDuckloving.png",
     header: "Patient Registry",
@@ -818,6 +834,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Queue",
+    taglish: "Ito yung pila ngayon. Yung system na ang bahala sa order, kaya Call Next lang ang pindutin mo.",
     route: "/queue",
     mascot: "/Thinkingduck.png",
     header: "Queue Management",
@@ -831,6 +848,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Appointments",
+    taglish: "Mga booking ng pasyente. I-review muna bago i-approve, tapos automatic na pupunta sa queue.",
     route: "/appointments",
     mascot: "/Thinkingduck.png",
     header: "Appointment Management",
@@ -844,6 +862,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Consultations",
+    taglish: "Records ng konsulta. Kumpletuhin mo ang SOAP bago i-mark na tapos, para kumpleto ang dokumentasyon.",
     route: "/consultations",
     mascot: "/Consultationduck.png",
     header: "Consultation Management",
@@ -857,6 +876,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Telemedicine",
+    taglish: "Online consultation ito. I-screen mo muna ang request bago simulan ang video call.",
     route: "/telemedicine",
     mascot: "/Duckcheckingmobilephone.png",
     header: "Telemedicine Management",
@@ -870,6 +890,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "E-Prescription / Lab Request",
+    taglish: "Dito gagawin ang reseta at lab request. Ire-release mo yung PDF na dala ng pasyente sa laboratoryo.",
     route: "/prescriptions",
     mascot: "/Consultationduck.png",
     header: "E-Prescription / Lab Request",
@@ -883,6 +904,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Team Chat",
+    taglish: "Usapan ng staff lang ito, hindi para sa pasyente. Pwede kang mag-message, mag-file, o tumawag.",
     route: "/team-chat",
     mascot: "/Side-waved duck.png",
     header: "Team Chat",
@@ -896,6 +918,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Inventory",
+    taglish: "Gamot at supplies. Sundin ang FEFO: yung malapit nang mag-expire, yun ang unang gamitin.",
     route: "/inventory",
     mascot: "/Thinkingduck.png",
     header: "Pamamahala ng Imbentaryo",
@@ -909,6 +932,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "CMS Announcements",
+    taglish: "Mga paskil para sa residente. I-preview mo muna kung paano nila makikita bago mo i-publish.",
     route: "/cms",
     mascot: "/Side-waved duck.png",
     header: "Content Management",
@@ -922,6 +946,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "CMS Events & Programs",
+    taglish: "Mga health program at activity. Makikita mo rin dito kung sino ang nagparehistro.",
     route: "/cms/events",
     mascot: "/Side-waved duck.png",
     header: "Events & Programs Management",
@@ -935,6 +960,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Reports",
+    taglish: "Dito galing ang mga opisyal na report. I-check mo ang petsa at facility bago mag-export.",
     route: "/reports",
     mascot: "/Lightbulbduck.png",
     header: "RHU Reports",
@@ -948,6 +974,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Analytics",
+    taglish: "Mga numero at trend ng RHU. Pwede mo ring tanungin ang assistant kung ano ang ibig sabihin ng chart.",
     route: "/analytics",
     mascot: "/Lightbulbduck.png",
     header: "RHU Analytics",
@@ -961,6 +988,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Heatmap Analytics",
+    taglish: "Mapa ng bawat barangay. Dito mo makikita agad kung saan dumadami ang kaso.",
     route: "/heatmap-analytics",
     mascot: "/Lightbulbduck.png",
     header: "Heatmap Analytics",
@@ -974,6 +1002,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Feedback",
+    taglish: "Sagot ng mga pasyente galing sa mobile app. Basahin mo kung saan pwedeng gumanda ang serbisyo.",
     route: "/feedback",
     mascot: "/HappyDuckloving.png",
     header: "Service Feedback",
@@ -987,6 +1016,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Health Follow-up",
+    taglish: "Mga pasyenteng dapat bumalik. I-check mo ang overdue para walang makalimutan.",
     route: "/follow-up",
     mascot: "/HappyDuckloving.png",
     header: "Health Follow-up",
@@ -1000,6 +1030,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Notifications",
+    taglish: "Lahat ng alerto ng system nandito. Yung unread muna ang tingnan mo.",
     route: "/notifications",
     mascot: "/Lightbulbduck.png",
     header: "Notifications",
@@ -1013,6 +1044,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "SMS Center",
+    taglish: "Pang-text sa mga residente. I-preview mo ang recipients bago mag-send, lalo na kung marami.",
     route: "/sms",
     mascot: "/Duckcheckingmobilephone.png",
     header: "SMS Center",
@@ -1026,6 +1058,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Registration Approvals",
+    taglish: "Mga bagong account na naghihintay. Tingnan mo muna ang ID bago mo aprubahan.",
     route: "/registrations",
     mascot: "/Thinkingduck.png",
     header: "Registration Approvals",
@@ -1039,6 +1072,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Users",
+    taglish: "Accounts ng staff. Mag-ingat sa delete; para lang yan sa mali o doble na account.",
     route: "/users",
     mascot: "/Thinkingduck.png",
     header: "Pamamahala ng User",
@@ -1052,6 +1086,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Settings",
+    taglish: "Setting ng buong system. Huwag basta baguhin ang SMS key, security, o backup.",
     route: "/settings",
     mascot: "/Thumbsupduck.png",
     header: "Settings Management",
@@ -1238,7 +1273,13 @@ function GuidedTutorialPanel({
       return;
     }
 
-    voice.speak([step.header, step.body, ...step.steps]);
+    // The Taglish line first, because that is the duck talking; the
+    // English detail follows for anyone listening the whole way through.
+    voice.speak(
+      step.taglish
+        ? [step.taglish, step.body, ...step.steps]
+        : [step.header, step.body, ...step.steps]
+    );
     // Re-reads whenever the step changes while the voice is on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceOn, stepIndex]);
@@ -1256,6 +1297,7 @@ function GuidedTutorialPanel({
         route={step.route}
         mascot={step.mascot}
         label={step.module}
+        says={step.taglish}
         onOpen={() =>
           onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1))
         }
