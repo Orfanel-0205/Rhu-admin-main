@@ -605,17 +605,24 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               {/*
                   The Ka-Agapay assistant, not a generic robot glyph.
 
-                  Drawn larger than the button and clipped, the same way the
-                  dashboard mascot is. At 22px inside 38px it filled a little
-                  over half the space, and the artwork carries its own margin
-                  on top of that, so the duck read as small and far away.
+                  Sized to the button exactly, not larger.
+
+                  At 22px inside 38px it filled a little over half the space
+                  and read as small. Overshooting to 46px and clipping was
+                  worse: measured, the duck occupies 798x788 of its 910x887
+                  canvas, so its own margin is only about 3.6% -- far less
+                  than the 10% a 46px image loses to a 38px frame. The clip
+                  was cutting into the top of its head.
+
+                  At 38px with contain, the whole duck shows and still fills
+                  roughly 33px of the button.
               */}
               <img
                 src="/kaagapay_assistant_icon.png"
                 alt=""
                 aria-hidden="true"
                 draggable={false}
-                style={{ width: 46, height: 46, objectFit: "contain", display: "block" }}
+                style={{ width: 38, height: 38, objectFit: "contain", display: "block" }}
               />
             </button>
 
