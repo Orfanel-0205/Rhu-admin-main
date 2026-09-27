@@ -61,7 +61,13 @@ import {
   type TutorialCard,
 } from "../services/chatbot";
 import { registerAssistantListener, registerTutorialListener } from "../lib/tutorialBus";
-const MASCOT_SRC = "/kaagapay_duck_jump_launcher.gif";
+// What the launcher wears once it is sitting still.
+//
+// The jumping duck belongs to the leap and nowhere else: looping it here
+// left the button twitching permanently, and at 58px its frames are mostly
+// empty, so the launcher read as a blank teal circle. The duck arrives, and
+// what settles is a calm talking chatbot.
+const MASCOT_SRC = "/kaagapay_chatbot_talking.gif";
 const WELCOME: ChatMessage = {
   id: "welcome-admin",
   role: "assistant",
