@@ -799,6 +799,23 @@ type TutorialWorkflowStep = {
   watch: string;
 };
 
+/** One look for every control on the floating tour bar. */
+function tourBarButtonStyle(active: boolean): CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "6px 11px",
+    borderRadius: 999,
+    border: active ? "none" : "1px solid rgba(94,234,212,.35)",
+    background: active ? "#5EEAD4" : "transparent",
+    color: active ? "#04302B" : "#CCFBF1",
+    fontSize: 11.5,
+    fontWeight: 900,
+    cursor: "pointer",
+  };
+}
+
 const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   {
     module: "Getting Started",
@@ -1272,10 +1289,20 @@ function GuidedTutorialPanel({
   stepIndex,
   onStepChange,
   onOpenRoute,
+  compact,
+  onExit,
 }: {
   stepIndex: number;
   onStepChange: (step: number) => void;
   onOpenRoute: (route: string) => void;
+  /**
+   * True while the chat panel is closed, which is the normal way to take
+   * the tour: the duck, the highlight and a small bar, over the real
+   * interface. The panel version exists for anyone who opens the chat
+   * mid-tour and wants the written detail back.
+   */
+  compact?: boolean;
+  onExit?: () => void;
 }) {
   const step = TUTORIAL_WORKFLOW[stepIndex] ?? TUTORIAL_WORKFLOW[0];
   const isFirst = stepIndex === 0;
@@ -1337,6 +1364,114 @@ function GuidedTutorialPanel({
     // Re-reads whenever the step or the stop changes while the voice is on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceOn, stepIndex, spotIndex]);
+
+  const atEnd = isLast && spotIndex >= spots.length;
+
+  const goNext = () => {
+    if (spotIndex < spots.length) {
+      setSpotIndex(spotIndex + 1);
+      return;
+    }
+    onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1));
+  };
+
+  const goBack = () => {
+    if (spotIndex > 0) {
+      setSpotIndex(spotIndex - 1);
+      return;
+    }
+    onStepChange(Math.max(0, stepIndex - 1));
+  };
+
+  /*
+   * The tour, with the chat panel out of the way.
+   *
+   * The panel used to stay open through the whole walkthrough, covering
+   * the right half of the screen -- including the content the step was
+   * describing. A tour that hides what it is pointing at is working
+   * against itself, so the panel closes and all that remains over the
+   * interface is the duck, the highlight and a bar to move with.
+   */
+  if (compact) {
+    return (
+      <>
+        <CoachSpotlight
+          route={step.route}
+          mascot={step.mascot}
+          label={step.module}
+          says={saying}
+          spotText={activeSpot ? t(activeSpot.key, lang) : undefined}
+          onOpen={goNext}
+        />
+
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 22,
+            transform: "translateX(-50%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "9px 12px",
+            borderRadius: 999,
+            background: "#04302B",
+            border: "1px solid #0F766E",
+            boxShadow: "0 14px 34px rgba(4,48,43,.5)",
+            zIndex: 1210,
+            maxWidth: "calc(100vw - 24px)",
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
+          <span style={{ color: "#5EEAD4", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>
+            {step.module} · {stepIndex + 1}/{TUTORIAL_WORKFLOW.length}
+            {spots.length > 0 ? ` · ${spotIndex + 1}/${spots.length + 1}` : ""}
+          </span>
+
+          {voice.supported ? (
+            <button
+              type="button"
+              onClick={() => setVoiceOn((on) => !on)}
+              title={voiceOn ? "Stop reading aloud" : "Read aloud"}
+              style={tourBarButtonStyle(voiceOn)}
+            >
+              {voiceOn ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={isFirst && spotIndex === 0}
+            style={tourBarButtonStyle(false)}
+          >
+            Back
+          </button>
+
+          <button
+            type="button"
+            onClick={atEnd ? onExit : goNext}
+            style={{
+              ...tourBarButtonStyle(true),
+              padding: "6px 16px",
+            }}
+          >
+            {atEnd ? "Done" : "Next"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onExit}
+            title="Leave the walkthrough"
+            style={tourBarButtonStyle(false)}
+          >
+            <X size={13} />
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -1907,7 +2042,9 @@ export default function AIChatAssistant() {
    */
   useEffect(() => {
     registerTutorialListener(({ firstLogin }) => {
-      setOpen(true);
+      // Closed, not open: the walkthrough needs the screen it is
+      // describing, and the panel covers half of it.
+      setOpen(false);
       setFirstLoginWelcome(Boolean(firstLogin));
       applyAssistantMode("tutorial");
     });
@@ -2674,6 +2811,24 @@ export default function AIChatAssistant() {
 
   return (
     <>
+      {/*
+          The walkthrough runs over the real interface, with the chat
+          panel closed. Opening the chat mid-tour swaps it for the written
+          version rather than stacking one on the other.
+      */}
+      {assistantMode === "tutorial" ? (
+        <GuidedTutorialPanel
+          stepIndex={tutorialStep}
+          onStepChange={setTutorialStep}
+          onOpenRoute={openTutorialRoute}
+          compact={!open}
+          onExit={() => {
+            applyAssistantMode("operations");
+            setTutorialStep(0);
+          }}
+        />
+      ) : null}
+
       <button
         type="button"
         onPointerDown={onLauncherPointerDown}
@@ -3111,13 +3266,6 @@ export default function AIChatAssistant() {
                 </section>
               ) : null}
 
-              {assistantMode === "tutorial" ? (
-                <GuidedTutorialPanel
-                  stepIndex={tutorialStep}
-                  onStepChange={setTutorialStep}
-                  onOpenRoute={openTutorialRoute}
-                />
-              ) : null}
 
               <TutorialCards cards={tutorialCards} />
 
