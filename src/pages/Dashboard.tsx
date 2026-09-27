@@ -39,7 +39,6 @@ import { buildDashboardInsights } from "../lib/aiInsights";
 import { useToast } from "../contexts/ToastContext";
 import { openAssistant } from "../lib/tutorialBus";
 import DuckLeap from "../components/DuckLeap";
-import ChromaDuck from "../components/ChromaDuck";
 import { getConsultationMapping } from "../services/consultations";
 import { getFollowUps, type FollowUpReminder } from "../services/followups";
 import {
@@ -62,13 +61,16 @@ import {
 
 // The dashboard duck.
 //
-// A muted, looping clip rather than an animated GIF: the same motion at a
-// fraction of the weight, because video compresses between frames and GIF
-// does not. DASHBOARDLOGO.gif was 1.93 MB for an icon about 90px across.
+// WebM with VP9 alpha, so the transparency is in the file. The first
+// attempt was an MP4, a format that cannot carry an alpha channel at all,
+// which is why that clip arrived with its backdrop flattened to green and
+// briefly had to be keyed out per frame in the browser. A format that
+// holds transparency does the same job at no runtime cost.
 //
-// The still frame is what anyone sees who has asked for reduced motion,
-// and what shows if the clip cannot play.
-const DASHBOARD_CLIP = "/kaagapay_duck_dashboard.mp4";
+// The still frame is the poster: what shows before the clip loads, what
+// anyone who has asked for reduced motion sees, and the fallback in a
+// browser that will not play VP9 alpha.
+const DASHBOARD_CLIP = "/kaagapay_duck_dashboard.webm";
 const DASHBOARD_ICON = "/kaagapay_duck_dashboard_default.png";
 
 // ---- Brand palette (matches the RHU healthcare design system) ----
@@ -1058,7 +1060,7 @@ function HeroCard({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
-  const duckIconRef = useRef<HTMLCanvasElement>(null);
+  const duckIconRef = useRef<HTMLVideoElement>(null);
 
   /** Set while a duck is in flight; holds where it took off from. */
   const [leapFrom, setLeapFrom] = useState<DOMRect | null>(null);
@@ -1132,15 +1134,18 @@ function HeroCard({
               placeItems: "center",
             }}
           >
-            {/*
-                Keyed in the browser, because MP4 carries no transparency
-                and the clip arrived with its backdrop flattened green.
-            */}
-            <ChromaDuck
-              canvasRef={duckIconRef}
+            <video
+              ref={duckIconRef}
               src={DASHBOARD_CLIP}
               poster={DASHBOARD_ICON}
-              alt={t("dash_mascot_alt", lang)}
+              autoPlay
+              loop
+              muted
+              playsInline
+              // muted and playsInline are what let a mobile browser start
+              // this at all; without them autoplay is refused and the
+              // poster is all anyone sees.
+              aria-label={t("dash_mascot_alt", lang)}
               style={{
                 width: "120%",
                 height: "120%",
