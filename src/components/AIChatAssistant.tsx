@@ -898,7 +898,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   {
     module: "Appointments",
     spots: [
-      { key: "appt_tab_active", says: "Dito yung mga kailangan pa ng aksyon. Ito ang laging tingnan mo." },
+      { text: "Active", says: "Dito yung mga kailangan pa ng aksyon. Ito ang laging tingnan mo." },
     ],
     taglish: "Mga booking ng pasyente. I-review muna bago i-approve, tapos automatic na pupunta sa queue.",
     route: "/appointments",
@@ -954,7 +954,7 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
     module: "E-Prescription / Lab Request",
     spots: [
       { text: "New Prescription", says: "Dito magsisimula ang bagong reseta o lab request." },
-      { text: "Open PDF", says: "Ito yung opisyal na papel na dadalhin ng pasyente sa botika o lab." },
+      { text: "Release PDF", says: "Ito yung opisyal na papel na dadalhin ng pasyente sa botika o lab." },
     ],
     taglish: "Dito gagawin ang reseta at lab request. Ire-release mo yung PDF na dala ng pasyente sa laboratoryo.",
     route: "/prescriptions",
