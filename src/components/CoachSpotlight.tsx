@@ -44,6 +44,7 @@ export default function CoachSpotlight({
   route,
   mascot,
   label,
+  onOpen,
 }: {
   /** The step's route; its sidebar entry is what gets lit. */
   route?: string;
@@ -51,6 +52,8 @@ export default function CoachSpotlight({
   mascot: string;
   /** What the duck is pointing at, for anyone using a screen reader. */
   label: string;
+  /** Called after the reader presses the highlighted entry. */
+  onOpen?: () => void;
 }) {
   const [rect, setRect] = useState<Rect | null>(null);
 
@@ -143,6 +146,58 @@ export default function CoachSpotlight({
           pointerEvents: "none",
         }}
       />
+
+      {/*
+          A press target laid exactly over the entry.
+
+          The dimming panels pass clicks through, so the link underneath is
+          already reachable -- but a reader on the page the step names
+          presses it and nothing appears to happen, because they are
+          already there. This forwards the click to the real link AND tells
+          the coach to move on, so pressing what is highlighted always does
+          something.
+      */}
+      <button
+        type="button"
+        onClick={() => {
+          document.querySelector<HTMLElement>(`a[href="${route}"]`)?.click();
+          onOpen?.();
+        }}
+        aria-label={`Open ${label}`}
+        style={{
+          position: "fixed",
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+          borderRadius: 12,
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          zIndex: 1203,
+        }}
+      />
+
+      {/* Says what pressing it will do, because a glow does not. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          top: rect.top + rect.height + 8,
+          left: rect.left,
+          padding: "3px 9px",
+          borderRadius: 999,
+          background: "#5EEAD4",
+          color: "#04302B",
+          fontSize: 11,
+          fontWeight: 800,
+          whiteSpace: "nowrap",
+          zIndex: 1202,
+          pointerEvents: "none",
+        }}
+      >
+        Click to open
+      </div>
 
       <img
         src={mascot}

@@ -1252,7 +1252,14 @@ function GuidedTutorialPanel({
           prose beside an interface nobody is being pointed at is a manual,
           not a tour.
       */}
-      <CoachSpotlight route={step.route} mascot={step.mascot} label={step.module} />
+      <CoachSpotlight
+        route={step.route}
+        mascot={step.mascot}
+        label={step.module}
+        onOpen={() =>
+          onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1))
+        }
+      />
 
     <section
       aria-label="Getting Started workflow"
