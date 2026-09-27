@@ -523,3 +523,117 @@ body {
     justify-content: flex-start;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Page hero — the band at the top of a page.
+
+   Replaces twenty hand-rolled gradient blocks that disagreed on every
+   measurement and ran 200-440px tall. Queue's pushed "Call Next Patient"
+   below the fold on a laptop. This is the same brand at about 96px, and the
+   height it gives back goes to patient data.
+
+   Media queries live here rather than in the component because inline styles
+   cannot express them, and this band has to work from a phone to a desk.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.ka-page-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+
+  padding: 18px 22px;
+  border-radius: 16px;
+
+  background: linear-gradient(135deg, #065F52 0%, #0F766E 55%, #14B8A6 100%);
+  color: #FFFFFF;
+  box-shadow: 0 8px 22px rgba(15, 118, 110, 0.18);
+}
+
+.ka-page-hero-text {
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.ka-page-hero-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #A7F3D0;
+  margin-bottom: 4px;
+}
+
+.ka-page-hero-title {
+  margin: 0;
+  /* Was up to 38px. Loud enough to lead the page, quiet enough to leave
+     room for the numbers underneath it. */
+  font-size: clamp(19px, 2.1vw, 25px);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.ka-page-hero-sub {
+  margin: 5px 0 0;
+  max-width: 78ch;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #D1FAE5;
+}
+
+.ka-page-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #CCFBF1;
+}
+
+.ka-page-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Tablet and below: actions drop under the title and stretch to a usable
+   width rather than crowding the right edge. */
+@media (max-width: 720px) {
+  .ka-page-hero {
+    padding: 16px 18px;
+    gap: 12px;
+  }
+
+  .ka-page-hero-actions {
+    width: 100%;
+  }
+
+  .ka-page-hero-actions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* Phones: the title and the controls earn their space; a sentence of
+   explanation does not. */
+@media (max-width: 480px) {
+  .ka-page-hero {
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  .ka-page-hero-sub {
+    display: none;
+  }
+
+  .ka-page-hero-meta {
+    gap: 4px 12px;
+    margin-top: 7px;
+  }
+}

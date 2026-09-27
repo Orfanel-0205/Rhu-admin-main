@@ -43,6 +43,7 @@ import {
   type QueueServiceOption,
 } from "../services/queueServices";
 import { useRhuOptions } from "../hooks/useRhuOptions";
+import PageHero from "../components/ui/PageHero";
 import { t } from "../i18n/translations";
 import AttendanceLogPanel from "../components/queue/AttendanceLogPanel";
 import { useLangStore } from "../store/langStore";
@@ -891,24 +892,28 @@ export default function Queue() {
 
   return (
     <div style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>{t("q_eyebrow", lang)}</div>
-          <h1 style={heroTitleStyle}>{t("q_title", lang)}</h1>
-          <p style={heroSubtitleStyle}>{t("q_subtitle", lang)}</p>
+      {/*
+          The band, and nothing else.
 
-          <div style={heroMetaStyle}>
-            <span>
-              {t("q_currently_managing", lang)}: RHU {rhuId}
-              {rhuName ? ` · ${rhuName}` : ""}
-            </span>
-            <span>{t("last_updated", lang)}: {lastUpdated ? formatTime(lastUpdated) : "—"}</span>
-            <span>{autoRefresh ? t("q_auto_on", lang) : t("q_auto_off", lang)}</span>
-            <span>{isGlobalScope ? `Managing RHU ${rhuId}` : t("q_locked_rhu", lang)}</span>
-          </div>
-        </div>
+          This hero used to hold the facility selector, the service-desk
+          selector and three buttons, which pushed it to roughly 440px --
+          so Call Next Patient, the control this page exists for, opened
+          below the fold on a laptop. The controls now sit in a toolbar
+          underneath, where a toolbar belongs.
+      */}
+      <PageHero
+        eyebrow={t("q_eyebrow", lang)}
+        title={t("q_title", lang)}
+        subtitle={t("q_subtitle", lang)}
+        meta={[
+          `${t("q_currently_managing", lang)}: RHU ${rhuId}${rhuName ? ` · ${rhuName}` : ""}`,
+          `${t("last_updated", lang)}: ${lastUpdated ? formatTime(lastUpdated) : "—"}`,
+          autoRefresh ? t("q_auto_on", lang) : t("q_auto_off", lang),
+          isGlobalScope ? `Managing RHU ${rhuId}` : t("q_locked_rhu", lang),
+        ]}
+      />
 
-        <div style={controlPanelStyle}>
+      <section style={queueToolbarStyle}>
           <label style={fieldStyle}>
             <span>{t("q_rhu_selector", lang)}</span>
             {isGlobalScope ? (
@@ -975,7 +980,6 @@ export default function Queue() {
               {autoRefresh ? t("q_auto_short_on", lang) : t("q_auto_short_off", lang)}
             </button>
           </div>
-        </div>
       </section>
 
       {error ? (
@@ -1705,6 +1709,25 @@ const heroMetaStyle: CSSProperties = {
   fontWeight: 900,
 };
 
+/**
+ * The queue controls, now a toolbar under the band instead of a panel
+ * inside it.
+ *
+ * Wraps rather than scrolls: on a phone the three fields stack and the
+ * buttons spread across the width, which is the behaviour a thumb wants.
+ */
+const queueToolbarStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "flex-end",
+  gap: 12,
+  background: "#FFFFFF",
+  border: "1px solid #E2E8F0",
+  borderRadius: 14,
+  padding: 14,
+  boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
+};
+
 const controlPanelStyle: CSSProperties = {
   background: "rgba(255,255,255,.14)",
   border: "1px solid rgba(255,255,255,.28)",
@@ -1732,16 +1755,24 @@ const inputStyle: CSSProperties = {
   outline: 0,
 };
 
+/**
+ * Shown instead of the facility selector to staff who are tied to one RHU.
+ *
+ * It was white text on translucent white, which worked while this sat on
+ * the dark gradient and became invisible the moment the controls moved to a
+ * white toolbar. Nobody with a super-admin login would ever have seen it:
+ * the blank box only appears for scoped staff.
+ */
 const lockedRhuStyle: CSSProperties = {
   height: 46,
   borderRadius: 14,
-  border: "1px solid rgba(255,255,255,.34)",
-  background: "rgba(255,255,255,.16)",
-  color: "#FFFFFF",
+  border: "1px solid #CBD5E1",
+  background: "#F1F5F9",
+  color: "#334155",
   padding: "0 12px",
   display: "flex",
   alignItems: "center",
-  fontWeight: 900,
+  fontWeight: 800,
 };
 
 const buttonRowStyle: CSSProperties = {
