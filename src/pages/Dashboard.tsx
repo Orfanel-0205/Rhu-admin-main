@@ -9,7 +9,7 @@
 // translation fallback table anymore — add new copy directly to
 // translations.ts so every page shares one source of truth.
 
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -37,6 +37,8 @@ import ModuleTabs from "../components/ui/ModuleTabs";
 import AiInsightsPanel from "../components/AiInsightsPanel";
 import { buildDashboardInsights } from "../lib/aiInsights";
 import { useToast } from "../contexts/ToastContext";
+import { openAssistant } from "../lib/tutorialBus";
+import DuckLeap from "../components/DuckLeap";
 import { getConsultationMapping } from "../services/consultations";
 import { getFollowUps, type FollowUpReminder } from "../services/followups";
 import {
@@ -1049,6 +1051,37 @@ function HeroCard({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  const duckIconRef = useRef<HTMLImageElement>(null);
+
+  /** Set while a duck is in flight; holds where it took off from. */
+  const [leapFrom, setLeapFrom] = useState<DOMRect | null>(null);
+
+  /*
+   * Press the duck and it jumps to the assistant.
+   *
+   * Staff did not connect the floating button with the mascot they already
+   * recognise, so the assistant went unused. Sending the duck across the
+   * screen shows where it lives, once, without a tour.
+   *
+   * Anyone who has asked not to see motion gets the destination and none
+   * of the journey: the assistant simply opens.
+   */
+  function startDuckLeap() {
+    const icon = duckIconRef.current;
+
+    const reduced =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!icon || reduced) {
+      openAssistant();
+      return;
+    }
+
+    setLeapFrom(icon.getBoundingClientRect());
+  }
+
   return (
     <section
       className="ka-card ka-fade-in"
@@ -1076,11 +1109,48 @@ function HeroCard({
             overflow: "hidden",
           }}
         >
-          <img
-            src={DASHBOARD_ICON}
-            alt={t("dash_mascot_alt", lang)}
-            style={{ width: "120%", height: "120%", objectFit: "contain", display: "block" }}
-          />
+          <button
+            type="button"
+            onClick={startDuckLeap}
+            title={t("top_assistant", lang)}
+            aria-label={t("top_assistant", lang)}
+            style={{
+              width: "100%",
+              height: "100%",
+              padding: 0,
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <img
+              ref={duckIconRef}
+              src={DASHBOARD_ICON}
+              alt={t("dash_mascot_alt", lang)}
+              draggable={false}
+              style={{
+                width: "120%",
+                height: "120%",
+                objectFit: "contain",
+                display: "block",
+                // Hidden while its copy is in flight, so the screen never
+                // shows two ducks at once.
+                opacity: leapFrom ? 0 : 1,
+              }}
+            />
+          </button>
+
+          {leapFrom ? (
+            <DuckLeap
+              from={leapFrom}
+              onArrive={() => {
+                setLeapFrom(null);
+                openAssistant();
+              }}
+            />
+          ) : null}
         </div>
 
         <div style={{ minWidth: 0, flex: 1 }}>

@@ -61,7 +61,7 @@ import {
   type TutorialCard,
 } from "../services/chatbot";
 import { registerAssistantListener, registerTutorialListener } from "../lib/tutorialBus";
-const MASCOT_SRC = "/kaagapay_hello_animated.gif";
+const MASCOT_SRC = "/kaagapay_duck_jump_launcher.gif";
 const WELCOME: ChatMessage = {
   id: "welcome-admin",
   role: "assistant",
@@ -87,7 +87,9 @@ const CHATBOT_LAYOUT_KEY = "ka_agapay_admin_chatbot_layout_v1";
 // Launcher icon position (panelist follow-up round). Same persistence
 // convention as the chat-panel layout above and langStore: plain
 // localStorage keys — production app, not an artifact.
-const CHATBOT_LAUNCHER_KEY = "ka_agapay_admin_chatbot_launcher_v1";
+// Exported so DuckLeap can land the jumping duck on the launcher wherever
+// staff have dragged it, rather than guessing at the corner.
+export const CHATBOT_LAUNCHER_KEY = "ka_agapay_admin_chatbot_launcher_v1";
 const LAUNCHER_SIZE = 58;
 
 /**
