@@ -790,7 +790,13 @@ type TutorialWorkflowStep = {
    * the moment somebody switches to Tagalog. `says` is the Taglish line
    * the duck speaks while pointing at it.
    */
-  spots?: Array<{ key: string; says: string }>;
+  spots?: Array<{
+    /** Translation key, for controls whose label is translated. */
+    key?: string;
+    /** Literal label, for the many pages here that hard-code English. */
+    text?: string;
+    says: string;
+  }>;
   route?: string;
   mascot: string;
   header: string;
@@ -854,6 +860,11 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Patient Registry",
+    spots: [
+      { text: "Search by patient name", says: "Dito mo hanapin ang pasyente — pangalan o cellphone number, kahit alin." },
+      { text: "Refresh", says: "Pindutin kapag may bagong rehistro at hindi pa lumalabas sa listahan." },
+      { text: "View", says: "Buksan mo ang profile para makita ang buong history ng pasyente." },
+    ],
     taglish: "Lahat ng rehistradong pasyente nandito. Search mo lang yung pangalan para makita ang buong history niya.",
     route: "/patients",
     mascot: "/HappyDuckloving.png",
@@ -903,6 +914,11 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Consultations",
+    spots: [
+      { text: "Consultation Records", says: "Lahat ng konsulta nandito, pinakabago sa taas." },
+      { text: "View History", says: "Tingnan mo ang buong record kasama ang SOAP at reseta." },
+      { text: "7 days", says: "Gamitin ang date filter kapag hinahanap mo ang isang partikular na araw." },
+    ],
     taglish: "Records ng konsulta. Kumpletuhin mo ang SOAP bago i-mark na tapos, para kumpleto ang dokumentasyon.",
     route: "/consultations",
     mascot: "/Consultationduck.png",
@@ -917,6 +933,11 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Telemedicine",
+    spots: [
+      { text: "Active", says: "Ito ang mga kailangan pa ng aksyon. Dito ka tumingin bago ang iba." },
+      { text: "View Details", says: "Buksan mo muna ang request bago mag-video para alam mo ang reklamo." },
+      { text: "Needs SOAP", says: "Tapos na ang tawag pero kulang pa ang dokumentasyon. Huwag itong kalimutan." },
+    ],
     taglish: "Online consultation ito. I-screen mo muna ang request bago simulan ang video call.",
     route: "/telemedicine",
     mascot: "/Duckcheckingmobilephone.png",
@@ -931,6 +952,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "E-Prescription / Lab Request",
+    spots: [
+      { text: "New Prescription", says: "Dito magsisimula ang bagong reseta o lab request." },
+      { text: "Open PDF", says: "Ito yung opisyal na papel na dadalhin ng pasyente sa botika o lab." },
+    ],
     taglish: "Dito gagawin ang reseta at lab request. Ire-release mo yung PDF na dala ng pasyente sa laboratoryo.",
     route: "/prescriptions",
     mascot: "/Consultationduck.png",
@@ -945,6 +970,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Team Chat",
+    spots: [
+      { text: "New chat", says: "Kausapin mo ang isang kasamahan nang sarilinan." },
+      { text: "New group", says: "Gumawa ng grupo para sa buong RHU o sa isang team." },
+    ],
     taglish: "Usapan ng staff lang ito, hindi para sa pasyente. Pwede kang mag-message, mag-file, o tumawag.",
     route: "/team-chat",
     mascot: "/Side-waved duck.png",
@@ -959,6 +988,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Inventory",
+    spots: [
+      { text: "Add Item", says: "Idagdag ang bagong gamot o supply pagdating ng delivery." },
+      { text: "Expired", says: "Tingnan mo ito linggo-linggo. Bawal ipamigay ang expired." },
+    ],
     taglish: "Gamot at supplies. Sundin ang FEFO: yung malapit nang mag-expire, yun ang unang gamitin.",
     route: "/inventory",
     mascot: "/Thinkingduck.png",
@@ -973,6 +1006,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "CMS Announcements",
+    spots: [
+      { text: "New Announcement", says: "Dito gagawin ang paskil na makikita ng mga residente sa app." },
+      { text: "Draft", says: "Kapag hindi pa final, iwan mo muna sa draft bago i-publish." },
+    ],
     taglish: "Mga paskil para sa residente. I-preview mo muna kung paano nila makikita bago mo i-publish.",
     route: "/cms",
     mascot: "/Side-waved duck.png",
@@ -987,6 +1024,9 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "CMS Events & Programs",
+    spots: [
+      { text: "Events", says: "Mga health program at outreach. Makikita mo rin kung sino ang nagparehistro." },
+    ],
     taglish: "Mga health program at activity. Makikita mo rin dito kung sino ang nagparehistro.",
     route: "/cms/events",
     mascot: "/Side-waved duck.png",
@@ -1001,6 +1041,11 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Reports",
+    spots: [
+      { text: "Export Summary", says: "I-download ang buod bilang CSV, pwedeng buksan sa Excel." },
+      { text: "Export Diagnosis", says: "Ito yung detalyadong Diagnosis at ITR para sa opisyal na report." },
+      { text: "Apply", says: "Palitan muna ang petsa at facility bago mag-export." },
+    ],
     taglish: "Dito galing ang mga opisyal na report. I-check mo ang petsa at facility bago mag-export.",
     route: "/reports",
     mascot: "/Lightbulbduck.png",
@@ -1015,6 +1060,11 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Analytics",
+    spots: [
+      { text: "Advanced Filters", says: "Dito mo pipiliin ang barangay, sakit, o ibang detalye." },
+      { text: "Apply", says: "Pagkatapos pumili ng filter, pindutin ito para mag-update ang charts." },
+      { text: "Telemedicine", says: "May hiwalay na tab bawat bahagi: clinical, telemedicine, at operations." },
+    ],
     taglish: "Mga numero at trend ng RHU. Pwede mo ring tanungin ang assistant kung ano ang ibig sabihin ng chart.",
     route: "/analytics",
     mascot: "/Lightbulbduck.png",
@@ -1029,6 +1079,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Heatmap Analytics",
+    spots: [
+      { text: "Barangay Disease Cluster", says: "Dito makikita kung saang barangay dumadami ang kaso." },
+      { text: "RHU Queue Monitoring", says: "Ito naman ang pila sa bawat RHU — kung saan mabigat ngayon." },
+    ],
     taglish: "Mapa ng bawat barangay. Dito mo makikita agad kung saan dumadami ang kaso.",
     route: "/heatmap-analytics",
     mascot: "/Lightbulbduck.png",
@@ -1043,6 +1097,9 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Feedback",
+    spots: [
+      { text: "Refresh", says: "I-refresh para makita ang bagong feedback galing sa mobile app." },
+    ],
     taglish: "Sagot ng mga pasyente galing sa mobile app. Basahin mo kung saan pwedeng gumanda ang serbisyo.",
     route: "/feedback",
     mascot: "/HappyDuckloving.png",
@@ -1057,6 +1114,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Health Follow-up",
+    spots: [
+      { text: "Overdue", says: "Ito ang unahin mo — lampas na sa schedule at hindi pa nakakabalik." },
+      { text: "Due Today", says: "Mga dapat bumalik ngayon. Pwede mo silang i-text mula dito." },
+    ],
     taglish: "Mga pasyenteng dapat bumalik. I-check mo ang overdue para walang makalimutan.",
     route: "/follow-up",
     mascot: "/HappyDuckloving.png",
@@ -1071,6 +1132,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Notifications",
+    spots: [
+      { text: "Mark All Read", says: "Kapag nabasa mo na lahat, linisin mo ang listahan gamit ito." },
+      { text: "Unread", says: "Yung hindi pa nababasa lang ang ipapakita nito." },
+    ],
     taglish: "Lahat ng alerto ng system nandito. Yung unread muna ang tingnan mo.",
     route: "/notifications",
     mascot: "/Lightbulbduck.png",
@@ -1085,6 +1150,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "SMS Center",
+    spots: [
+      { text: "Check Credits", says: "Tingnan muna kung may load pa bago magpadala ng marami." },
+      { text: "Refresh Logs", says: "Dito makikita kung natanggap ba talaga ang mga text." },
+    ],
     taglish: "Pang-text sa mga residente. I-preview mo ang recipients bago mag-send, lalo na kung marami.",
     route: "/sms",
     mascot: "/Duckcheckingmobilephone.png",
@@ -1099,6 +1168,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Registration Approvals",
+    spots: [
+      { text: "Pending", says: "Mga naghihintay ng approval. Ito ang tingnan mo araw-araw." },
+      { text: "Refresh", says: "I-refresh kapag may bagong nag-register habang bukas ang page." },
+    ],
     taglish: "Mga bagong account na naghihintay. Tingnan mo muna ang ID bago mo aprubahan.",
     route: "/registrations",
     mascot: "/Thinkingduck.png",
@@ -1113,6 +1186,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Users",
+    spots: [
+      { text: "Registration Link", says: "Gumawa ng sealed na link para sa bagong staff. Isang beses lang magagamit." },
+      { text: "Add User", says: "Kung ikaw mismo ang gagawa ng account, dito mo iyon gagawin." },
+    ],
     taglish: "Accounts ng staff. Mag-ingat sa delete; para lang yan sa mali o doble na account.",
     route: "/users",
     mascot: "/Thinkingduck.png",
@@ -1127,6 +1204,10 @@ const TUTORIAL_WORKFLOW: TutorialWorkflowStep[] = [
   },
   {
     module: "Settings",
+    spots: [
+      { text: "Save All", says: "Huwag kalimutan pindutin ito. Hindi awtomatiko ang pag-save." },
+      { text: "Reset Changes", says: "Kung nagkamali ka, ibabalik nito ang dating setting bago mo i-save." },
+    ],
     taglish: "Setting ng buong system. Huwag basta baguhin ang SMS key, security, o backup.",
     route: "/settings",
     mascot: "/Thumbsupduck.png",
@@ -1333,6 +1414,13 @@ function GuidedTutorialPanel({
 
   const saying = activeSpot ? activeSpot.says : step.taglish;
 
+  /** The words to hunt for on the page: translated key, or literal label. */
+  const spotText = activeSpot
+    ? activeSpot.key
+      ? t(activeSpot.key, lang)
+      : activeSpot.text
+    : undefined;
+
   /*
    * Reading aloud is remembered across steps, not re-asked for each time.
    *
@@ -1400,7 +1488,7 @@ function GuidedTutorialPanel({
           mascot={step.mascot}
           label={step.module}
           says={saying}
-          spotText={activeSpot ? t(activeSpot.key, lang) : undefined}
+          spotText={spotText}
           onOpen={goNext}
         />
 
@@ -1487,7 +1575,7 @@ function GuidedTutorialPanel({
         mascot={step.mascot}
         label={step.module}
         says={saying}
-        spotText={activeSpot ? t(activeSpot.key, lang) : undefined}
+        spotText={spotText}
         onOpen={() =>
           onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1))
         }
