@@ -300,8 +300,22 @@ export default function HeatmapAnalytics() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefresh, setLastRefresh] = useState("");
   const [showSignals, setShowSignals] = useState(false);
-  const [activeWorkspace, setActiveWorkspace] =
-    useState<HeatmapWorkspace>("queue");
+  /*
+   * Opens on the workspace the link asked for.
+   *
+   * A barangay risk alert names a barangay and an illness, so it has to
+   * land on the disease cluster rather than on queue monitoring, which
+   * says nothing about the thing the reader just clicked.
+   */
+  const [activeWorkspace, setActiveWorkspace] = useState<HeatmapWorkspace>(
+    () => {
+      if (typeof window === "undefined") return "queue";
+
+      const view = new URLSearchParams(window.location.search).get("view");
+
+      return view === "barangay" || view === "cluster" ? "barangay" : "queue";
+    }
+  );
   const [barangayView, setBarangayView] =
     useState<BarangayWorkspaceView>("overview");
 

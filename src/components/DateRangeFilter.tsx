@@ -25,6 +25,9 @@
 import type { CSSProperties } from "react";
 import { CalendarDays, X } from "lucide-react";
 
+/** Keys of the quick-range chips, used to label them with a count. */
+export type DateShortcutKey = "all" | "today" | "yesterday" | "week" | "month";
+
 export interface DateRange {
   /** YYYY-MM-DD, or "" for unbounded. */
   from: string;
@@ -55,14 +58,25 @@ export default function DateRangeFilter({
   value,
   onChange,
   label = "Dates",
+  counts,
 }: {
   value: DateRange;
   onChange: (next: DateRange) => void;
   label?: string;
+  /**
+   * How many records in each window still need someone. Optional, so the
+   * pages that only browse history are unchanged.
+   *
+   * The point is to answer "is there anything for me?" without first
+   * clicking each shortcut to find out. A doctor opening telemedicine
+   * should see that the last week holds one unscreened request before
+   * deciding where to look.
+   */
+  counts?: Partial<Record<DateShortcutKey, number>>;
 }) {
   const active = !!(value.from || value.to);
 
-  const shortcuts: Array<{ key: string; label: string; range: DateRange }> = [
+  const shortcuts: Array<{ key: DateShortcutKey; label: string; range: DateRange }> = [
     { key: "today", label: "Today", range: { from: isoDay(0), to: isoDay(0) } },
     { key: "yesterday", label: "Yesterday", range: { from: isoDay(-1), to: isoDay(-1) } },
     { key: "week", label: "7 days", range: { from: isoDay(-6), to: isoDay(0) } },
@@ -86,6 +100,7 @@ export default function DateRangeFilter({
         style={chipStyle(!active)}
       >
         All dates
+        <CountBadge value={counts?.all} selected={!active} />
       </button>
 
       {shortcuts.map((shortcut) => (
@@ -96,6 +111,10 @@ export default function DateRangeFilter({
           style={chipStyle(matches(shortcut.range))}
         >
           {shortcut.label}
+          <CountBadge
+            value={counts?.[shortcut.key]}
+            selected={matches(shortcut.range)}
+          />
         </button>
       ))}
 
@@ -228,3 +247,43 @@ const clearStyle: CSSProperties = {
   cursor: "pointer",
   whiteSpace: "nowrap",
 };
+
+/**
+ * The small number on a date chip.
+ *
+ * Hidden at zero on purpose: a row of chips each reading 0 is noise, and
+ * the absence of a badge already says there is nothing there.
+ */
+function CountBadge({
+  value,
+  selected,
+}: {
+  value?: number;
+  selected: boolean;
+}) {
+  if (!value || value < 1) return null;
+
+  return (
+    <span
+      style={{
+        marginLeft: 6,
+        minWidth: 18,
+        height: 18,
+        padding: "0 5px",
+        borderRadius: 999,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 11,
+        fontWeight: 800,
+        lineHeight: 1,
+        fontVariantNumeric: "tabular-nums",
+        background: selected ? "rgba(255,255,255,0.28)" : "#B45309",
+        color: "#FFFFFF",
+      }}
+      aria-label={`${value} needing attention`}
+    >
+      {value > 99 ? "99+" : value}
+    </span>
+  );
+}

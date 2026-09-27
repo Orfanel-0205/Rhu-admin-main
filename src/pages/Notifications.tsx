@@ -73,11 +73,27 @@ function timeAgo(value?: string | null): string {
   return formatDate(value);
 }
 
+/**
+ * Paths the server sends that this app does not actually have.
+ *
+ * Barangay risk alerts carry action_url "/analytics/heatmap". No such
+ * route is registered, so React Router fell through to the catch-all and
+ * sent the reader to the dashboard -- the one screen that does not show
+ * the cluster they clicked on. 232 notifications already exist carrying
+ * the old path, so fixing the server alone would not repair them.
+ */
+const LEGACY_ROUTES: Record<string, string> = {
+  "/analytics/heatmap": "/heatmap-analytics?view=barangay",
+  "/heatmap": "/heatmap-analytics?view=barangay",
+  "/analytics/heatmap-analytics": "/heatmap-analytics?view=barangay",
+};
+
 function getNotificationRoute(notification: AppNotification): string | null {
   const actionUrl = notification.action_url;
 
   if (actionUrl && actionUrl.startsWith("/")) {
-    return actionUrl;
+    const [rawPath] = actionUrl.split("?");
+    return LEGACY_ROUTES[rawPath] ?? actionUrl;
   }
 
   const data = notification.data ?? {};
@@ -102,6 +118,15 @@ function getNotificationRoute(notification: AppNotification): string | null {
   if (relatedType.includes("inventory")) return "/inventory";
   if (relatedType.includes("queue")) return "/queue";
   if (relatedType.includes("telemedicine")) return "/telemedicine";
+
+  // Barangay risk and outbreak alerts open the disease cluster workspace.
+  if (
+    relatedType.includes("heatmap") ||
+    relatedType.includes("outbreak") ||
+    relatedType.includes("barangay")
+  ) {
+    return "/heatmap-analytics?view=barangay";
+  }
 
   if (relatedType.includes("event") && relatedId) {
     return `/cms/events/${relatedId}/registrants`;

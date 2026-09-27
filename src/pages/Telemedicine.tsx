@@ -574,6 +574,59 @@ export default function Telemedicine() {
     load();
   }, [load]);
 
+  /*
+   * How many requests in each date window still need a clinician.
+   *
+   * Shown on the date chips, so a doctor can see that the last week holds
+   * one unscreened request without clicking through every range to find
+   * out. Counted from the requests already loaded for this facility, so the
+   * numbers always agree with the board underneath them.
+   *
+   * Awaiting means nobody has dealt with it yet: pending, screening,
+   * screened or endorsed. Completed, cancelled and scheduled sessions are
+   * not outstanding tasks and are deliberately left out.
+   */
+  const awaitingByWindow = useMemo(() => {
+    const AWAITING = [
+      "pending",
+      "screening",
+      "screened",
+      "endorsed_to_doctor",
+    ];
+
+    const startOfDay = (offsetDays: number) => {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() + offsetDays);
+      return day.getTime();
+    };
+
+    const todayStart = startOfDay(0);
+    const yesterdayStart = startOfDay(-1);
+    const weekStart = startOfDay(-6);
+    const monthStart = startOfDay(-29);
+
+    const tally = { all: 0, today: 0, yesterday: 0, week: 0, month: 0 };
+
+    for (const item of requests) {
+      const status = String(item.status || "").toLowerCase();
+      if (!AWAITING.includes(status)) continue;
+
+      tally.all += 1;
+
+      const at = item.created_at ? new Date(item.created_at).getTime() : NaN;
+      if (!Number.isFinite(at)) continue;
+
+      if (at >= todayStart) tally.today += 1;
+      else if (at >= yesterdayStart) tally.yesterday += 1;
+
+      if (at >= weekStart) tally.week += 1;
+      if (at >= monthStart) tally.month += 1;
+    }
+
+    return tally;
+  }, [requests]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
@@ -1074,6 +1127,7 @@ export default function Telemedicine() {
         value={range}
         onChange={setRange}
         label="Request date"
+        counts={awaitingByWindow}
       />
 
       <section style={boardStyle}>

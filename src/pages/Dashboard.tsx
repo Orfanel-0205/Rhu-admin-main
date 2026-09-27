@@ -57,7 +57,10 @@ import {
   type RealtimeDashboardData,
 } from "../services/dashboard";
 
-const DASHBOARD_ICON = "/DASHBOARDLOGO.gif";
+// The animated Ka-Agapay mascot. Replaces DASHBOARDLOGO.gif, which was
+// 1.93 MB for an icon roughly 90px across -- about seven times the weight of
+// this one, downloaded on every visit to the busiest screen in the system.
+const DASHBOARD_ICON = "/kaagapay_hello_animated.gif";
 
 // ---- Brand palette (matches the RHU healthcare design system) ----
 const COLORS = {
