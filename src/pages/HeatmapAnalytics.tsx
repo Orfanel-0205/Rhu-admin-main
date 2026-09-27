@@ -68,6 +68,7 @@ import {
   type HeatmapPoint,
 } from "../services/heatmap";
 import { useLangStore } from "../store/langStore";
+import PageHero from "../components/ui/PageHero";
 
 // ── design tokens (presentation only — nothing below reads these as data) ──
 
@@ -611,21 +612,16 @@ export default function HeatmapAnalytics() {
     <div style={pageShellStyle}>
       <style>{HEATMAP_DASHBOARD_CSS}</style>
       {/* ── 1. HERO — the 5-second overview ─────────────────────────────── */}
-      <section style={heroStyle}>
-        <div style={heroTopRowStyle}>
-          <div style={{ minWidth: 260, flex: "1 1 320px" }}>
-            <div style={eyebrowStyle}>Ka-Agapay RHU Intelligence</div>
-            <h1 style={heroTitleStyle}>Heatmap Analytics</h1>
-            <p style={heroTextStyle}>
-              Separate operational workspaces for RHU queue monitoring and
-              barangay disease cluster surveillance.
-            </p>
-            <p style={heroSmallStyle}>
-              Last refreshed: {formatTime(lastRefresh || generatedAt)}
-              {refreshing ? " · Updating live data…" : ""}
-            </p>
-          </div>
-
+      <PageHero
+        eyebrow="Ka-Agapay RHU Intelligence"
+        title="Heatmap Analytics"
+        subtitle="Separate workspaces for RHU queue monitoring and barangay disease cluster surveillance."
+        meta={[
+          `Last refreshed: ${formatTime(lastRefresh || generatedAt)}${
+            refreshing ? " · updating live data…" : ""
+          }`,
+        ]}
+        actions={
           <div style={heroControlsStyle}>
             <div style={segmentGroupStyle} role="tablist" aria-label="Date range">
               <button
@@ -672,7 +668,8 @@ export default function HeatmapAnalytics() {
               {refreshing ? "Updating…" : "Refresh"}
             </button>
           </div>
-        </div>
+        }
+      />
 
         <RhuFilterChips value={focusRhu} onChange={setFocusRhu} counts={rhuCounts} />
 
@@ -719,7 +716,6 @@ export default function HeatmapAnalytics() {
           ))}
         </div>
         )}
-      </section>
 
       {/* ── Barangay Watch — top 2 alerts ───────────────────────────────── */}
       <section style={workspaceNavStyle}>
@@ -1703,7 +1699,8 @@ const heroLegendRowStyle: React.CSSProperties = {
 };
 
 const heroLegendTitleStyle: React.CSSProperties = {
-  color: "rgba(255,255,255,.7)",
+  // Was white, for the dark band. The legend sits on the page now.
+  color: "#64748B",
   fontSize: 11.5,
   fontWeight: 800,
   textTransform: "uppercase",
@@ -1720,7 +1717,7 @@ const heroLegendItemStyle: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: 6,
-  color: "rgba(255,255,255,.92)",
+  color: "#334155",
   fontSize: 12.5,
   fontWeight: 650,
 };

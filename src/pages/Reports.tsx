@@ -49,6 +49,7 @@ import TelemedicineReport from "../components/reports/TelemedicineReport";
 import { getCurrentUserRhuId, isGlobalRhuRole } from "../services/queue";
 import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
 import AnalyticsBriefing from "../components/AnalyticsBriefing";
+import PageHero from "../components/ui/PageHero";
 
 // Malasiqui operates two facilities. Global staff (super_admin / MHO) may switch
 // between them; facility-scoped staff are locked to their own RHU (the backend
@@ -987,31 +988,18 @@ export default function Reports() {
 
   return (
     <div style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={heroKickerStyle}>
-            <FileText size={16} />
-            Ka-Agapay RHU {appliedFilters.rhuId} Reporting Center
-          </div>
-
-          <h1 style={heroTitleStyle}>RHU {appliedFilters.rhuId} Reports</h1>
-
-          <p style={heroTextStyle}>
-            Formal Diagnosis + ITR consultation records, follow-up tracking,
-            data completeness, staff workload, barangay watchlist, and CSV
-            exports for RHU {appliedFilters.rhuId} reporting.
-          </p>
-
-          <div style={heroMetaStyle}>
-            <CalendarDays size={15} />
-            {formatDate(appliedFilters.from)} – {formatDate(appliedFilters.to)}
-            <span>•</span>
-            Last updated: {formatDate(lastUpdated)} {formatTime(lastUpdated)}
-            {refreshing ? " • Refreshing..." : ""}
-          </div>
-        </div>
-
-        <div style={heroActionStyle}>
+      <PageHero
+        eyebrow={`Ka-Agapay RHU ${appliedFilters.rhuId} Reporting Center`}
+        title={`RHU ${appliedFilters.rhuId} Reports`}
+        subtitle="Diagnosis and ITR consultation records, follow-up tracking, data completeness, staff workload, barangay watchlist, and CSV exports."
+        meta={[
+          `${formatDate(appliedFilters.from)} – ${formatDate(appliedFilters.to)}`,
+          `Last updated: ${formatDate(lastUpdated)} ${formatTime(lastUpdated)}${
+            refreshing ? " · Refreshing…" : ""
+          }`,
+        ]}
+        actions={
+          <div style={heroActionStyle}>
           <button
             type="button"
             style={heroButtonStyle}
@@ -1045,8 +1033,9 @@ export default function Reports() {
             <Download size={16} />
             Export Diagnosis + ITR CSV
           </button>
-        </div>
-      </section>
+          </div>
+        }
+      />
 
       <section style={filterPanelStyle}>
         <label style={filterFieldStyle}>
