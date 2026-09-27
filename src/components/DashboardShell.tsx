@@ -597,15 +597,25 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 display: "grid",
                 placeItems: "center",
                 cursor: "pointer",
+                // Clips the oversized icon back to the rounded square.
+                overflow: "hidden",
+                padding: 0,
               }}
             >
-              {/* The Ka-Agapay assistant, not a generic robot glyph. */}
+              {/*
+                  The Ka-Agapay assistant, not a generic robot glyph.
+
+                  Drawn larger than the button and clipped, the same way the
+                  dashboard mascot is. At 22px inside 38px it filled a little
+                  over half the space, and the artwork carries its own margin
+                  on top of that, so the duck read as small and far away.
+              */}
               <img
                 src="/kaagapay_assistant_icon.png"
                 alt=""
                 aria-hidden="true"
                 draggable={false}
-                style={{ width: 22, height: 22, objectFit: "contain", display: "block" }}
+                style={{ width: 46, height: 46, objectFit: "contain", display: "block" }}
               />
             </button>
 
