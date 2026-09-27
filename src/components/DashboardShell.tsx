@@ -482,6 +482,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           padding: isMobile ? 16 : 28,
           position: "relative",
           zIndex: 1,
+
+          /*
+           * Containment, so one wide child cannot drag the page sideways.
+           *
+           * minWidth 0 stops the usual grid/flex blowout, where a child with
+           * its own minimum refuses to shrink and pushes the whole layout
+           * wider than the screen. maxWidth 100% holds the box to the
+           * viewport. Tables stay scrollable inside their own wrappers, which
+           * is where sideways scrolling belongs -- in the table, never in the
+           * page.
+           */
+          minWidth: 0,
+          maxWidth: "100%",
+          overflowX: "clip",
         }}
       >
         <div
