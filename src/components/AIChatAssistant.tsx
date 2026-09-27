@@ -61,6 +61,8 @@ import {
   type TutorialCard,
 } from "../services/chatbot";
 import { registerAssistantListener, registerTutorialListener } from "../lib/tutorialBus";
+import CoachSpotlight from "./CoachSpotlight";
+import { useCoachVoice } from "../hooks/useCoachVoice";
 // What the launcher wears once it is sitting still.
 //
 // The jumping duck belongs to the leap and nowhere else: looping it here
@@ -1220,7 +1222,38 @@ function GuidedTutorialPanel({
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === TUTORIAL_WORKFLOW.length - 1;
 
+  const voice = useCoachVoice();
+
+  /*
+   * Reading aloud is remembered across steps, not re-asked for each time.
+   *
+   * Somebody who turned the voice on at step 3 wants it at step 4. Making
+   * them press it twenty-two times would be its own small torture.
+   */
+  const [voiceOn, setVoiceOn] = useState(false);
+
+  useEffect(() => {
+    if (!voiceOn) {
+      voice.stop();
+      return;
+    }
+
+    voice.speak([step.header, step.body, ...step.steps]);
+    // Re-reads whenever the step changes while the voice is on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceOn, stepIndex]);
+
   return (
+    <>
+      {/*
+          Lights the sidebar entry for the module being explained.
+
+          Naming a screen is not the same as showing it: twenty-two steps of
+          prose beside an interface nobody is being pointed at is a manual,
+          not a tour.
+      */}
+      <CoachSpotlight route={step.route} mascot={step.mascot} label={step.module} />
+
     <section
       aria-label="Getting Started workflow"
       style={{
@@ -1251,8 +1284,35 @@ function GuidedTutorialPanel({
           }}
         />
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ color: "#0F766E", fontSize: 11, fontWeight: 950 }}>
-            Step {stepIndex + 1} of {TUTORIAL_WORKFLOW.length}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ color: "#0F766E", fontSize: 11, fontWeight: 950 }}>
+              Step {stepIndex + 1} of {TUTORIAL_WORKFLOW.length}
+            </div>
+
+            {voice.supported ? (
+              <button
+                type="button"
+                onClick={() => setVoiceOn((on) => !on)}
+                title={voiceOn ? "Stop reading aloud" : "Read the steps aloud"}
+                aria-pressed={voiceOn}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  border: voiceOn ? "1px solid #0F766E" : "1px solid #CCFBF1",
+                  background: voiceOn ? "#0F766E" : "#FFFFFF",
+                  color: voiceOn ? "#FFFFFF" : "#0F766E",
+                  fontSize: 10.5,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                {voiceOn ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                {voiceOn ? (voice.speaking ? "Reading" : "Voice on") : "Read aloud"}
+              </button>
+            ) : null}
           </div>
           <h3
             style={{
@@ -1407,6 +1467,7 @@ function GuidedTutorialPanel({
         </div>
       </div>
     </section>
+    </>
   );
 }
 
