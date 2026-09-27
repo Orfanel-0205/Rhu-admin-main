@@ -61,7 +61,7 @@ import {
   type TutorialCard,
 } from "../services/chatbot";
 import { registerAssistantListener, registerTutorialListener } from "../lib/tutorialBus";
-const MASCOT_SRC = "/ai-chatbot-doctor-quack.png";
+const MASCOT_SRC = "/kaagapay_hello_animated.gif";
 const WELCOME: ChatMessage = {
   id: "welcome-admin",
   role: "assistant",
@@ -89,6 +89,21 @@ const CHATBOT_LAYOUT_KEY = "ka_agapay_admin_chatbot_layout_v1";
 // localStorage keys — production app, not an artifact.
 const CHATBOT_LAUNCHER_KEY = "ka_agapay_admin_chatbot_launcher_v1";
 const LAUNCHER_SIZE = 58;
+
+/**
+ * Smaller on a phone, where 58px of floating button is a large share of a
+ * narrow screen and sits close to the browser's own chrome.
+ */
+function launcherSize(): number {
+  if (typeof window === 'undefined') return LAUNCHER_SIZE;
+  return window.innerWidth < 480 ? 46 : LAUNCHER_SIZE;
+}
+
+/** Gap from the screen edge; tighter on phones. */
+function launcherGap(): number {
+  if (typeof window === 'undefined') return 28;
+  return window.innerWidth < 480 ? 12 : 28;
+}
 
 // Lowest point the launcher may be dragged to. Above this sits the top bar,
 // which spans the full width and would hide it.
@@ -255,25 +270,53 @@ type LauncherPosition = { left: number; top: number };
 function clampLauncherPosition(position: LauncherPosition): LauncherPosition {
   if (typeof window === "undefined") return position;
 
+  const size = launcherSize();
+
   return {
-    left: clampNumber(position.left, 8, Math.max(8, window.innerWidth - LAUNCHER_SIZE - 8)),
+    left: clampNumber(position.left, 8, Math.max(8, window.innerWidth - size - 8)),
     // Never above LAUNCHER_TOP_MIN: the top bar runs the full width there, and
     // a launcher dragged into it disappears behind the bar.
     top: clampNumber(
       position.top,
       LAUNCHER_TOP_MIN,
-      Math.max(LAUNCHER_TOP_MIN, window.innerHeight - LAUNCHER_SIZE - 8)
+      Math.max(LAUNCHER_TOP_MIN, window.innerHeight - size - 8)
     ),
   };
+}
+
+/**
+ * Pull the launcher to whichever side edge is nearer.
+ *
+ * Dragging stays free, but the button always comes to rest against an edge
+ * instead of wherever the finger left it. Before this it could be parked
+ * anywhere, and in practice it ended up mid-screen -- sitting on top of a
+ * consultation row, a prescription and the appointment board. A cartoon
+ * covering clinical data is the last thing a health system should do.
+ */
+function snapLauncherToEdge(position: LauncherPosition): LauncherPosition {
+  if (typeof window === 'undefined') return position;
+
+  const size = launcherSize();
+  const gap = launcherGap();
+  const centre = position.left + size / 2;
+  const onLeftHalf = centre < window.innerWidth / 2;
+
+  return clampLauncherPosition({
+    left: onLeftHalf ? gap : window.innerWidth - size - gap,
+    top: position.top,
+  });
 }
 
 function defaultLauncherPosition(): LauncherPosition {
   if (typeof window === "undefined") return { left: 24, top: 24 };
 
-  // Matches the previous fixed spot (right: 28, bottom: 28).
+  // Bottom-right, clear of the edge by a margin that shrinks on phones.
+  const size = launcherSize();
+  const gap = launcherGap();
+
   return {
-    left: window.innerWidth - LAUNCHER_SIZE - 28,
-    top: window.innerHeight - LAUNCHER_SIZE - 28,
+    left: window.innerWidth - size - gap,
+    top: window.innerHeight - size - gap,
   };
 }
 
@@ -290,7 +333,10 @@ function readSavedLauncherPosition(): LauncherPosition {
       Number.isFinite(Number(parsed.left)) &&
       Number.isFinite(Number(parsed.top))
     ) {
-      return clampLauncherPosition({
+      // Snapped, not just clamped: positions saved before edge-snapping
+      // existed are sitting over the page content, and would stay there
+      // forever otherwise.
+      return snapLauncherToEdge({
         left: Number(parsed.left),
         top: Number(parsed.top),
       });
@@ -2404,6 +2450,11 @@ export default function AIChatAssistant() {
 
     if (start && !start.moved) {
       setOpen(true);
+      return;
+    }
+
+    if (start?.moved) {
+      setLauncherPos((current) => snapLauncherToEdge(current));
     }
   };
 
@@ -2444,8 +2495,8 @@ export default function AIChatAssistant() {
           position: "fixed",
           left: launcherPos.left,
           top: launcherPos.top,
-          width: LAUNCHER_SIZE,
-          height: LAUNCHER_SIZE,
+          width: launcherSize(),
+          height: launcherSize(),
           borderRadius: "50%",
           border: "none",
           background: "linear-gradient(135deg, #0F766E, #14B8A6)",

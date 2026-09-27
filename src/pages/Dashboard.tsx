@@ -445,7 +445,18 @@ export default function Dashboard() {
         </div>
       )}
 
-      <ShiftSummaryStrip dashboard={dashboard} />
+      {/*
+          The secondary strip that used to sit here has gone.
+
+          It restated the same four figures as the cards immediately below
+          it -- appointments today, waiting in queue, follow-ups due,
+          telemedicine -- in hard-coded English, while the cards are
+          translated. Worse, its telemedicine figure was pending_screening
+          and the card's was pending_telemedicine, so the page showed 7 in
+          one row and 9 in the next under near-identical labels. Two
+          numbers for one thing, visibly disagreeing, is the fastest way to
+          lose a reader's trust in every other number on the screen.
+      */}
 
       {/* Healthcare-dashboard IA (COVID-dashboard reference pattern, on top of
           the AMIA / Rabiei et al. grounding from the prior round): Overview =
@@ -532,9 +543,21 @@ export default function Dashboard() {
             }
           />
 
+          {/*
+              pending_screening, not pending_telemedicine.
+
+              A dashboard card should answer "how much work is waiting for
+              me?". pending_telemedicine counted every open request
+              including those already screened and scheduled, so it read
+              higher than the number anyone could act on.
+          */}
           <StatCard
             title={t("kpi_telemedicine_pending", lang)}
-            value={cards?.pending_telemedicine ?? 0}
+            value={
+              dashboard?.telemedicine_worklist?.pending_screening ??
+              cards?.pending_telemedicine ??
+              0
+            }
             icon={Video}
             color="#A855F7"
             bg="#F5F3FF"
@@ -1102,57 +1125,6 @@ function HeroCard({
 
       </div>
     </section>
-  );
-}
-
-function MiniOverviewStat({
-  label,
-  value,
-  icon: Icon,
-  color,
-}: {
-  label: string;
-  value: number;
-  icon: LucideIcon;
-  color: string;
-}) {
-  return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
-        borderRadius: 14,
-        padding: "12px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        minHeight: 64,
-      }}
-    >
-      <div
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 12,
-          background: `${color}1A`,
-          color,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Icon size={19} />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div className="ka-wrap" style={{ fontSize: 22, fontWeight: 950, color: COLORS.textDark, lineHeight: 1 }}>
-          {value}
-        </div>
-        <div className="ka-wrap" style={{ fontSize: 13, fontWeight: 800, color: COLORS.textMuted }}>
-          {label}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1860,30 +1832,6 @@ function Empty({ text = "No data yet." }: { text?: string }) {
 }
 
 // ── Shift summary + Priority Action Center ─────────────────────────────────────
-
-function ShiftSummaryStrip({ dashboard }: { dashboard: RealtimeDashboardData | null }) {
-  if (!dashboard) return null;
-
-  const c = dashboard.cards;
-  const q = dashboard.queue_snapshot;
-  const f = dashboard.follow_ups;
-  const w = dashboard.telemedicine_worklist;
-
-  return (
-    <section
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(min(190px, 100%), 1fr))",
-        gap: 12,
-      }}
-    >
-      <MiniOverviewStat label="Appointments today" value={numberValue(c.appointments_today)} icon={CalendarDays} color="#2563EB" />
-      <MiniOverviewStat label="Waiting in queue" value={numberValue(q.waiting)} icon={Clock} color={COLORS.warning} />
-      <MiniOverviewStat label="Follow-ups due / overdue" value={numberValue(f.due_today) + numberValue(f.overdue)} icon={Stethoscope} color={COLORS.primary} />
-      <MiniOverviewStat label="Telemedicine to screen" value={numberValue(w.pending_screening)} icon={Video} color="#7C3AED" />
-    </section>
-  );
-}
 
 function priorityActionIcon(type: string): LucideIcon {
   switch (type) {
