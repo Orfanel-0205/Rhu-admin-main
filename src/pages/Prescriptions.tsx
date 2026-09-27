@@ -91,6 +91,7 @@ import StatusBadge from "../components/ui/StatusBadge";
 import { getRecordLifecycleStatus } from "../lib/recordLifecycle";
 import type { LifecycleStatus } from "../lib/recordLifecycle";
 import { useToast } from "../contexts/ToastContext";
+import PageHero from "../components/ui/PageHero";
 
 type Lang = Parameters<typeof t>[1];
 
@@ -999,27 +1000,25 @@ export default function Prescriptions() {
 
   return (
     <div style={{ display: "grid", gap: 22 }}>
-      <section style={heroStyle}>
-        <div>
-          <h1 style={heroTitleStyle}>{t("rx_title", lang)}</h1>
-
-          <p style={heroSubtitleStyle}>{t("rx_subtitle", lang)}</p>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button onClick={() => load()} style={whiteButton}>
-            <RefreshCw size={16} />
-            {t("btn_refresh", lang)}
-          </button>
-
-          {canPrescribe ? (
-            <button onClick={openCreateModal} style={whiteButton}>
-              <Plus size={16} />
-              {t("rx_btn_new", lang)}
+      <PageHero
+        title={t("rx_title", lang)}
+        subtitle={t("rx_subtitle", lang)}
+        actions={
+          <>
+            <button onClick={() => load()} style={whiteButton}>
+              <RefreshCw size={16} />
+              {t("btn_refresh", lang)}
             </button>
-          ) : null}
-        </div>
-      </section>
+
+            {canPrescribe ? (
+              <button onClick={openCreateModal} style={whiteButton}>
+                <Plus size={16} />
+                {t("rx_btn_new", lang)}
+              </button>
+            ) : null}
+          </>
+        }
+      />
 
       {notice && (
         <div style={successStyle}>

@@ -48,6 +48,7 @@ import type {
   UpdateAnnouncementPayload,
   UpdateEventPayload,
 } from "../types/cms";
+import PageHero from "../components/ui/PageHero";
 
 type CmsTab = "announcements" | "events";
 type NoticeType = "success" | "error" | "warning" | "info";
@@ -333,18 +334,12 @@ export default function Announcements() {
 
   return (
     <div style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Ka-Agapay Content Management</div>
-          <h1 style={heroTitleStyle}>Content Management</h1>
-          <p style={heroSubtitleStyle}>
-            Create simple, readable, and timely public information for Ka-Agapay residents.
-            This page is designed for RHU personnel who need clear buttons, clear status,
-            and fewer confusing steps.
-          </p>
-        </div>
-
-        <div style={guideCardStyle}>
+      <PageHero
+        eyebrow="Ka-Agapay Content Management"
+        title="Content Management"
+        subtitle="Public information for Ka-Agapay residents: announcements, events and advisories."
+        actions={
+          <div style={guideCardStyle}>
           <div style={guideTitleStyle}>
             <Info size={18} />
             Real-life workflow
@@ -354,9 +349,10 @@ export default function Announcements() {
             <span>2. Preview resident view</span>
             <span>3. Publish only when final</span>
             <span>4. Archive old advisories</span>
+            </div>
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/*
         Segmented-pill standard via the shared ModuleTabs component. This page

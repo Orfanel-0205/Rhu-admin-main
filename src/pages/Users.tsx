@@ -51,6 +51,7 @@ import PasswordStrengthMeter from "../components/ui/PasswordStrengthMeter";
 import { checkPasswordStrength } from "../utils/passwordPolicy";
 import { useRhuStore } from "../store/rhuStore";
 import { useRhuOptions } from "../hooks/useRhuOptions";
+import PageHero from "../components/ui/PageHero";
 
 const roleTabs = [
   { value: "all", label: "Lahat" },
@@ -655,17 +656,21 @@ export default function Users() {
 
   return (
     <div style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Ka-Agapay RHU Access Control</div>
-          <h1 style={heroTitleStyle}>Pamamahala ng User</h1>
-          <p style={heroSubtitleStyle}>
-            I-review, aprubahan, i-edit, i-disable, o i-delete ang accounts nang
-            ligtas. Super Admin can now update user roles instantly.
-          </p>
-        </div>
+      {/*
+          English, like every other page.
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          The title and description here were Tagalog while the language
+          switch read EN and the table headers beside them were English.
+          Half-translating one screen is worse than not translating it:
+          a reader cannot tell whether the app is broken or they picked
+          the wrong language.
+      */}
+      <PageHero
+        eyebrow="Ka-Agapay RHU Access Control"
+        title="User Management"
+        subtitle="Review, approve, edit, disable or delete accounts. Super Admin can change user roles directly."
+        actions={
+          <>
           {/* Sir Ayco — invitation-only staff registration. Super Admin only,
               mirroring the backend role gate on /admin/registration-invites. */}
           {canManageRhuAssignment ? (
@@ -679,12 +684,13 @@ export default function Users() {
             </button>
           ) : null}
 
-          <button type="button" onClick={() => openCreate()} style={heroButtonStyle}>
-            <UserPlus size={18} />
-            Magdagdag ng User
-          </button>
-        </div>
-      </section>
+            <button type="button" onClick={() => openCreate()} style={heroButtonStyle}>
+              <UserPlus size={18} />
+              Add User
+            </button>
+          </>
+        }
+      />
 
       <RegistrationInviteModal
         open={inviteModalOpen}

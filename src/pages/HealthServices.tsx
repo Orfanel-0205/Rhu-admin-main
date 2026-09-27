@@ -36,6 +36,7 @@ import {
   updateQueueService,
   type QueueServiceRow,
 } from "../services/queueServices";
+import PageHero from "../components/ui/PageHero";
 
 interface DraftState {
   name: string;
@@ -179,22 +180,17 @@ export default function HealthServices() {
 
   return (
     <div style={pageStyle}>
-      <header style={heroStyle}>
-        <div>
-          <p style={eyebrowStyle}>KA-AGAPAY ADMINISTRATION</p>
-          <h1 style={titleStyle}>Health Services</h1>
-          <p style={leadStyle}>
-            What the RHU queues patients for. Adding a service here makes it
-            selectable in Queue Management straight away, with its own ticket
-            numbers and its own line in the reports.
-          </p>
-        </div>
-
-        <button type="button" onClick={load} disabled={loading} style={refreshStyle}>
-          <RefreshCw size={17} />
-          {loading ? "Loading..." : "Refresh"}
-        </button>
-      </header>
+      <PageHero
+        eyebrow="Ka-Agapay Administration"
+        title="Health Services"
+        subtitle="What the RHU queues patients for. A service added here becomes selectable in Queue Management at once, with its own ticket numbers and its own line in reports."
+        actions={
+          <button type="button" onClick={load} disabled={loading} style={refreshStyle}>
+            <RefreshCw size={17} />
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+        }
+      />
 
       {!managed && !loading ? (
         <section style={warningStyle}>

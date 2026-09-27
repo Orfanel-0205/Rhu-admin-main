@@ -28,6 +28,7 @@ import {
   type BarangayChoice,
   type RhuFacility,
 } from "../services/rhus";
+import PageHero from "../components/ui/PageHero";
 
 const emptyForm = {
   code: "",
@@ -198,15 +199,11 @@ export default function RhuFacilities() {
 
   return (
     <div style={pageStyle}>
-      <header style={heroStyle}>
-        <p style={eyebrowStyle}>Ka-Agapay · Administration</p>
-        <h1 style={titleStyle}>RHU Facilities</h1>
-        <p style={heroTextStyle}>
-          The Rural Health Units this system serves. Add one when the municipality opens a new
-          facility, then choose the barangays it serves — that assignment is what sends residents,
-          queues and appointments to the right RHU.
-        </p>
-      </header>
+      <PageHero
+        eyebrow="Ka-Agapay · Administration"
+        title="RHU Facilities"
+        subtitle="The Rural Health Units this system serves. Choosing the barangays a facility covers is what routes residents, queues and appointments to it."
+      />
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <button type="button" style={primaryButton} onClick={() => setShowForm((open) => !open)}>

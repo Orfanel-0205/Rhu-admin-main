@@ -34,6 +34,7 @@ import {
 } from "../services/registrations";
 import { useAuthStore } from "../store/authStore";
 import ModuleTabs from "../components/ui/ModuleTabs";
+import PageHero from "../components/ui/PageHero";
 
 function normalizeRoleKey(role?: string | null): string {
   return String(role ?? "").toLowerCase().replace(/[\s-]+/g, "_");
@@ -361,32 +362,21 @@ export default function RegistrationApprovals() {
 
   return (
     <div className="no-page-overflow" style={pageStyle}>
-      <section style={heroStyle}>
-        <div style={{ minWidth: 0, display: "flex", gap: 14, alignItems: "center" }}>
-          <div style={heroIconStyle}>
-            <ShieldCheck size={26} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={eyebrowStyle}>
-              {isSuperAdmin ? "RHU Admin (Super Admin)" : isMho ? "MHO (Doctor)" : "Reviewer"}
-            </div>
-            <h1 style={heroTitleStyle}>Registration Approvals</h1>
-            <p style={heroSubtitleStyle}>
-              Review pending registrants — residents and staff. Open View OCR to
-              verify the submitted ID (staff submit an Employee ID), then approve
-              or reject. Approval needs a submitted document.
-              {isMho
-                ? " As MHO you decide clinical-staff registrations; administrative accounts stay with the Super Admin."
-                : ""}
-            </p>
-          </div>
-        </div>
-
-        <button type="button" onClick={load} disabled={loading} style={refreshButtonStyle}>
-          <RefreshCw size={18} />
-          {loading ? "Loading..." : "Refresh"}
-        </button>
-      </section>
+      <PageHero
+        eyebrow={isSuperAdmin ? "RHU Admin (Super Admin)" : isMho ? "MHO (Doctor)" : "Reviewer"}
+        title="Registration Approvals"
+        subtitle={
+          isMho
+            ? "Review pending registrants, verify the submitted ID, then approve or reject. As MHO you decide clinical-staff registrations; administrative accounts stay with the Super Admin."
+            : "Review pending registrants — residents and staff. Verify the submitted ID, then approve or reject."
+        }
+        actions={
+          <button type="button" onClick={load} disabled={loading} style={refreshButtonStyle}>
+            <RefreshCw size={18} />
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+        }
+      />
 
       {message ? (
         <div style={successBannerStyle}>

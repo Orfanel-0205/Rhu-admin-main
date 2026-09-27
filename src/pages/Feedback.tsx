@@ -40,6 +40,7 @@ import {
   type FollowUpReminder,
   type FollowUpStatus,
 } from "../services/followups";
+import PageHero from "../components/ui/PageHero";
 
 function formatDateTime(value?: string | null): string {
   if (!value) return "—";
@@ -270,34 +271,28 @@ export default function Feedback() {
 
   return (
     <div style={pageStyle}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Ka-Agapay RHU</div>
-          <h1 style={heroTitleStyle}>Service Feedback</h1>
-          <p style={heroSubtitleStyle}>
-            Patient service feedback and condition updates submitted from the
-            mobile app. Scoped to your assigned RHU (super admin / MHO see all).
-            For clinical follow-up reminders, use Health Follow-up.
-          </p>
-
-          <div style={heroMetaStyle}>
-            <span>{visibleItems.length} feedback item(s)</span>
-            <span>Needs attention: {needsFollowupCount}</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={tab === "patient" ? load : loadReminders}
-          disabled={tab === "patient" ? loading : remindersLoading}
-          style={refreshButtonStyle}
-        >
-          <RefreshCw size={18} />
-          {(tab === "patient" ? loading : remindersLoading)
-            ? "Refreshing..."
-            : "Refresh"}
-        </button>
-      </section>
+      <PageHero
+        eyebrow="Ka-Agapay RHU"
+        title="Service Feedback"
+        subtitle="Patient feedback and condition updates sent from the mobile app. Clinical follow-up reminders live in Health Follow-up."
+        meta={[
+          `${visibleItems.length} feedback item(s)`,
+          `Needs attention: ${needsFollowupCount}`,
+        ]}
+        actions={
+          <button
+            type="button"
+            onClick={tab === "patient" ? load : loadReminders}
+            disabled={tab === "patient" ? loading : remindersLoading}
+            style={refreshButtonStyle}
+          >
+            <RefreshCw size={18} />
+            {(tab === "patient" ? loading : remindersLoading)
+              ? "Refreshing..."
+              : "Refresh"}
+          </button>
+        }
+      />
 
       <section style={tabBarStyle}>
         <button

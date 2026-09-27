@@ -51,6 +51,7 @@ import {
   type EligiblePersonnel,
 } from "../services/inventory";
 import { useToast } from "../contexts/ToastContext";
+import PageHero from "../components/ui/PageHero";
 
 type ItemFormState = {
   name: string;
@@ -693,42 +694,11 @@ export default function Inventory() {
 
   return (
     <div style={{ display: "grid", gap: 22 }}>
-      <section style={heroStyle}>
-        <div>
-          <div style={eyebrowStyle}>Ka-Agapay RHU Inventory</div>
-
-          <h1 style={heroTitleStyle}>Pamamahala ng Imbentaryo</h1>
-
-          <p style={heroTextStyle}>
-            Real-time na pagbabantay ng gamot, bakuna, supplies, at equipment.
-            Designed para madaling makita kung ano ang kailangang i-restock,
-            bawal gamitin, malapit mag-expire, o ligtas gamitin.
-          </p>
-
-          <div style={heroHintStyle}>
-            <ShieldAlert size={17} />
-            Real-life rule: FEFO — first expiry, first out. Expired items should
-            not be dispensed.
-          </div>
-        </div>
-
-        <div style={heroActionsStyle}>
-          <button
-            type="button"
-            onClick={() => loadInventory()}
-            disabled={loading}
-            style={heroButtonStyle}
-          >
-            <RefreshCw size={17} />
-            {loading ? "Loading..." : "I-refresh"}
-          </button>
-
-          <button type="button" onClick={openAddModal} style={heroButtonStyle}>
-            <Plus size={17} />
-            Magdagdag ng Item
-          </button>
-        </div>
-      </section>
+        <PageHeroInventory
+          loading={loading}
+          onRefresh={() => loadInventory()}
+          onAdd={openAddModal}
+        />
 
       {success && (
         <div style={successStyle}>
@@ -2160,3 +2130,45 @@ const historyCardStyle: CSSProperties = {
   borderRadius: 16,
   padding: 14,
 };
+/**
+ * Inventory's band.
+ *
+ * The title and description here were Tagalog while the language switch
+ * read EN and the tab labels beside them were English. Half-translating a
+ * screen is worse than leaving it alone: a reader cannot tell whether the
+ * app is broken or they chose the wrong language.
+ *
+ * The FEFO rule moved into the subtitle. It is the one thing on this page
+ * somebody could get wrong in a way that harms a patient, so it belongs in
+ * the sentence that says what the page is for, not in a banner below it.
+ */
+function PageHeroInventory({
+  loading,
+  onRefresh,
+  onAdd,
+}: {
+  loading: boolean;
+  onRefresh: () => void;
+  onAdd: () => void;
+}) {
+  return (
+    <PageHero
+      eyebrow="Ka-Agapay RHU Inventory"
+      title="Inventory Management"
+      subtitle="Medicines, vaccines, supplies and equipment. Dispense first-expiry-first-out; expired items must never be dispensed."
+      actions={
+        <>
+          <button type="button" onClick={onRefresh} disabled={loading} style={heroButtonStyle}>
+            <RefreshCw size={17} />
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+
+          <button type="button" onClick={onAdd} style={heroButtonStyle}>
+            <Plus size={17} />
+            Add Item
+          </button>
+        </>
+      }
+    />
+  );
+}
