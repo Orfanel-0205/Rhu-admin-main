@@ -39,6 +39,7 @@ import { buildDashboardInsights } from "../lib/aiInsights";
 import { useToast } from "../contexts/ToastContext";
 import { openAssistant } from "../lib/tutorialBus";
 import DuckLeap from "../components/DuckLeap";
+import ChromaDuck from "../components/ChromaDuck";
 import { getConsultationMapping } from "../services/consultations";
 import { getFollowUps, type FollowUpReminder } from "../services/followups";
 import {
@@ -1057,7 +1058,7 @@ function HeroCard({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
-  const duckIconRef = useRef<HTMLVideoElement>(null);
+  const duckIconRef = useRef<HTMLCanvasElement>(null);
 
   /** Set while a duck is in flight; holds where it took off from. */
   const [leapFrom, setLeapFrom] = useState<DOMRect | null>(null);
@@ -1131,17 +1132,15 @@ function HeroCard({
               placeItems: "center",
             }}
           >
-            <video
-              ref={duckIconRef}
+            {/*
+                Keyed in the browser, because MP4 carries no transparency
+                and the clip arrived with its backdrop flattened green.
+            */}
+            <ChromaDuck
+              canvasRef={duckIconRef}
               src={DASHBOARD_CLIP}
               poster={DASHBOARD_ICON}
-              autoPlay
-              loop
-              muted
-              playsInline
-              // Not a control: it carries no sound and no timeline, and the
-              // button around it is what a reader presses.
-              aria-label={t("dash_mascot_alt", lang)}
+              alt={t("dash_mascot_alt", lang)}
               style={{
                 width: "120%",
                 height: "120%",
