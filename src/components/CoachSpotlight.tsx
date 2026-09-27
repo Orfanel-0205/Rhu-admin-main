@@ -60,6 +60,14 @@ export default function CoachSpotlight({
 }) {
   const [rect, setRect] = useState<Rect | null>(null);
 
+  /**
+   * True when the lit area is the page itself rather than a menu entry.
+   *
+   * Changes what the duck should say and where it should stand, so it is
+   * tracked rather than re-derived in three places.
+   */
+  const [onPage, setOnPage] = useState(false);
+
   useEffect(() => {
     if (!route) {
       setRect(null);
@@ -69,10 +77,22 @@ export default function CoachSpotlight({
     let frame = 0;
 
     const measure = () => {
-      // The sidebar may be collapsed, on another breakpoint, or still
-      // mounting. Re-measuring on a frame handles all three without needing
-      // to know which one it is.
-      const target = document.querySelector<HTMLElement>(`a[href="${route}"]`);
+      /*
+       * What to light depends on where the reader already is.
+       *
+       * Standing somewhere else, the useful thing is the menu entry: go
+       * here. Standing on the page the step describes, the menu entry is
+       * the least interesting thing on screen -- the page is what the step
+       * is about, and dimming it to point at its own link was telling
+       * somebody about a room while turning the lights off in it.
+       */
+      const here = window.location.pathname === route;
+
+      const target = here
+        ? document.querySelector<HTMLElement>("main.dashboard-main")
+        : document.querySelector<HTMLElement>(`a[href="${route}"]`);
+
+      setOnPage(here);
 
       if (!target) {
         setRect(null);
@@ -117,10 +137,25 @@ export default function CoachSpotlight({
   // The duck stands to the right of the entry, or to its left if there is no
   // room, so it never runs off the edge of a narrow window.
   const duckSize = 64;
-  const roomRight = window.innerWidth - (rect.left + rect.width) > duckSize + 20;
-  const duckLeft = roomRight
-    ? rect.left + rect.width + 10
-    : Math.max(8, rect.left - duckSize - 10);
+
+  /*
+   * Beside a menu entry, above a whole page.
+   *
+   * Centring vertically on a lit region that is most of the window would
+   * park the duck in the middle of the content it just revealed.
+   */
+  const roomRight =
+    !onPage && window.innerWidth - (rect.left + rect.width) > duckSize + 20;
+
+  const duckLeft = onPage
+    ? rect.left + 16
+    : roomRight
+      ? rect.left + rect.width + 10
+      : Math.max(8, rect.left - duckSize - 10);
+
+  const duckTop = onPage
+    ? rect.top + 12
+    : rect.top + rect.height / 2 - duckSize / 2;
 
   return (
     <>
@@ -160,6 +195,7 @@ export default function CoachSpotlight({
           the coach to move on, so pressing what is highlighted always does
           something.
       */}
+      {!onPage ? (
       <button
         type="button"
         onClick={() => {
@@ -180,8 +216,10 @@ export default function CoachSpotlight({
           zIndex: 1203,
         }}
       />
+      ) : null}
 
       {/* Says what pressing it will do, because a glow does not. */}
+      {!onPage ? (
       <div
         aria-hidden="true"
         style={{
@@ -201,6 +239,7 @@ export default function CoachSpotlight({
       >
         Click to open
       </div>
+      ) : null}
 
       {/*
           What the duck is saying.
@@ -213,8 +252,11 @@ export default function CoachSpotlight({
         <div
           style={{
             position: "fixed",
-            top: rect.top + rect.height / 2 + duckSize / 2 + 4,
-            left: Math.max(8, Math.min(duckLeft - 40, window.innerWidth - 268)),
+            top: duckTop + duckSize + 4,
+            left: Math.max(
+              8,
+              Math.min(onPage ? duckLeft : duckLeft - 40, window.innerWidth - 268)
+            ),
             width: 252,
             padding: "10px 13px",
             borderRadius: 14,
@@ -239,7 +281,7 @@ export default function CoachSpotlight({
         draggable={false}
         style={{
           position: "fixed",
-          top: rect.top + rect.height / 2 - duckSize / 2,
+          top: duckTop,
           left: duckLeft,
           width: duckSize,
           height: duckSize,
