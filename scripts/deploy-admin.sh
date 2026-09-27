@@ -66,11 +66,22 @@ BUNDLE="$(grep -oE 'index-[A-Za-z0-9_-]+\.js' dist/index.html | head -1)"
 
 # --- is this deploy even needed? ------------------------------------------
 # Vite names the entry script after a hash of its contents, so an identical
-# hash means the droplet already serves this exact build.
+# hash means the droplet already serves this exact application code.
+#
+# NOT sufficient on its own. The hash covers the JavaScript and nothing
+# else, so a change to public/ -- a logo, a mascot, a favicon, a PDF -- does
+# not move it. This script used to stop here on that comparison alone, and
+# asset-only deploys silently did nothing: 7MB of unused images stayed live
+# through a deploy that reported success. SKIP_IF_SAME=0 forces the upload,
+# and the file count is compared too, which catches assets added or removed.
 LIVE="$(curl -fsS "$ADMIN_URL/" | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1 || true)"
 
-if [ "$LIVE" = "$BUNDLE" ]; then
-    echo "==> $ADMIN_URL already serves $BUNDLE — nothing to do."
+LOCAL_FILES="$(find dist -type f | wc -l | tr -d ' ')"
+REMOTE_FILES="$(ssh "$DROPLET" "find '$DOCROOT/dist' -type f 2>/dev/null | wc -l" | tr -d ' ' || echo 0)"
+
+if [ "${SKIP_IF_SAME:-1}" = "1" ] && [ "$LIVE" = "$BUNDLE" ] && [ "$LOCAL_FILES" = "$REMOTE_FILES" ]; then
+    echo "==> $ADMIN_URL already serves $BUNDLE with $LOCAL_FILES files — nothing to do."
+    echo "    (SKIP_IF_SAME=0 forces a deploy when only assets changed.)"
     exit 0
 fi
 

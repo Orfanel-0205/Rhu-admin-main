@@ -59,10 +59,15 @@ import {
   type RealtimeDashboardData,
 } from "../services/dashboard";
 
-// The animated Ka-Agapay mascot. Replaces DASHBOARDLOGO.gif, which was
-// 1.93 MB for an icon roughly 90px across -- about seven times the weight of
-// this one, downloaded on every visit to the busiest screen in the system.
-const DASHBOARD_ICON = "/kaagapay_hello_animated.gif";
+// The dashboard duck sits still.
+//
+// It replaced DASHBOARDLOGO.gif, which was 1.93 MB for an icon about 90px
+// across, downloaded on every visit to the busiest screen in the system. A
+// mascot looping forever also competes with the figures beside it for a
+// reader's attention, which is the opposite of what a dashboard is for.
+//
+// It moves once, when pressed, and after that it is the assistant's job.
+const DASHBOARD_ICON = "/kaagapay_duck_dashboard_default.png";
 
 // ---- Brand palette (matches the RHU healthcare design system) ----
 const COLORS = {
