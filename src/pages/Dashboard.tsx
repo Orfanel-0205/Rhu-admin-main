@@ -583,7 +583,15 @@ export default function Dashboard() {
         <div style={miniMetricRowStyle}>
           <span style={miniMetricPillStyle}>
             <Users size={14} color={COLORS.success} />
-            {t("kpi_total_patients", lang)}: <strong>{cards?.patients ?? 0}</strong>
+            {/*
+                active_patients, not patients.
+
+                cards.patients is every row in the users table -- staff,
+                deleted accounts and all -- which read 49 here while Patient
+                Registry showed 2. This chip is labelled Total Patients, so
+                it shows patients.
+            */}
+            {t("kpi_total_patients", lang)}: <strong>{cards?.active_patients ?? 0}</strong>
           </span>
           <span style={miniMetricPillStyle}>
             <Stethoscope size={14} color={COLORS.primary} />
