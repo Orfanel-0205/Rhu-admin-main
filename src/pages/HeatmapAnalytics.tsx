@@ -60,7 +60,6 @@ import {
   type FacilityHeatmapFacility,
   type PressureLevel,
 } from "../services/facilityHeatmap";
-import AnalyticsBriefing from "../components/AnalyticsBriefing";
 import CardInsight from "../components/CardInsight";
 import {
   fetchHeatmapAnalytics,
@@ -673,15 +672,6 @@ export default function HeatmapAnalytics() {
 
         <RhuFilterChips value={focusRhu} onChange={setFocusRhu} counts={rhuCounts} />
 
-        {/* Labels spell out the unit (barangays vs case signals vs patients)
-            so barangay-level counts can never be misread as case totals. */}
-        <AnalyticsBriefing
-          tabLabel={activeWorkspace === "queue" ? "Queue" : "Barangay"}
-          scope={heatmapScope}
-          figures={heatmapFigures}
-          notes={heatmapNotes}
-        />
-
         <div style={heroMetricsRowStyle}>
           {activeWorkspace === "queue" ? (
             <>
@@ -1031,11 +1021,20 @@ type="button"
         </div>
 
         {/*
-            The map card's own answer.
+            The one briefing on this page.
 
-            The briefing at the top of the page covers the screen; this asks
-            about what is on the map -- which facility is under pressure, or
-            which barangays the signals are coming from.
+            There were two. A page-level one above the metric cards and this
+            one under the map, both handed the same scope, the same figures
+            and the same notes -- so the model was asked the same question
+            twice and, correctly, gave the same answer twice. The reader saw
+            one paragraph duplicated on a single screen.
+
+            This is the one that stayed: it sits beside the map it describes,
+            and it is collapsed until somebody asks, so it costs nothing on a
+            screen already dense with numbers.
+
+            The figure labels spell out their unit -- barangays, case signals,
+            patients -- so barangay-level counts cannot be read as case totals.
         */}
         <CardInsight
           cardTitle={
