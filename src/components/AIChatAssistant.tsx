@@ -1455,12 +1455,34 @@ function GuidedTutorialPanel({
 
   const atEnd = isLast && spotIndex >= spots.length;
 
+  /*
+   * Moving to another module opens it.
+   *
+   * Next used to change the label and nothing else, so the tour narrated
+   * Feedback and Health Follow-up while Heatmap Analytics sat on screen
+   * -- no highlight, no duck, because neither module's target was
+   * anywhere on the page being shown.
+   *
+   * Walking between controls inside a module does not navigate: the
+   * reader is already where those controls are.
+   */
+  const goToStep = (next: number) => {
+    const clamped = Math.max(0, Math.min(TUTORIAL_WORKFLOW.length - 1, next));
+    const target = TUTORIAL_WORKFLOW[clamped];
+
+    onStepChange(clamped);
+
+    if (target?.route && window.location.pathname !== target.route) {
+      onOpenRoute(target.route);
+    }
+  };
+
   const goNext = () => {
     if (spotIndex < spots.length) {
       setSpotIndex(spotIndex + 1);
       return;
     }
-    onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1));
+    goToStep(stepIndex + 1);
   };
 
   const goBack = () => {
@@ -1468,7 +1490,7 @@ function GuidedTutorialPanel({
       setSpotIndex(spotIndex - 1);
       return;
     }
-    onStepChange(Math.max(0, stepIndex - 1));
+    goToStep(stepIndex - 1);
   };
 
   /*
@@ -1512,6 +1534,27 @@ function GuidedTutorialPanel({
             justifyContent: "center",
           }}
         >
+          {/*
+              Says which language the duck is speaking.
+
+              The lines are Taglish by choice -- it is how staff here talk to
+              each other -- but the language switch can read EN, and an
+              unexplained mismatch looks like a bug rather than a decision.
+          */}
+          <span
+            style={{
+              padding: "2px 7px",
+              borderRadius: 999,
+              background: "rgba(94,234,212,.16)",
+              color: "#5EEAD4",
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: ".04em",
+            }}
+          >
+            TAGLISH
+          </span>
+
           <span style={{ color: "#5EEAD4", fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>
             {step.module} · {stepIndex + 1}/{TUTORIAL_WORKFLOW.length}
             {spots.length > 0 ? ` · ${spotIndex + 1}/${spots.length + 1}` : ""}
@@ -1725,13 +1768,7 @@ function GuidedTutorialPanel({
         >
           <button
             type="button"
-            onClick={() => {
-              if (spotIndex > 0) {
-                setSpotIndex(spotIndex - 1);
-                return;
-              }
-              onStepChange(Math.max(0, stepIndex - 1));
-            }}
+            onClick={goBack}
             disabled={isFirst}
             title="Previous tutorial step"
             style={{
@@ -1779,13 +1816,7 @@ function GuidedTutorialPanel({
 
           <button
             type="button"
-            onClick={() => {
-              if (spotIndex < spots.length) {
-                setSpotIndex(spotIndex + 1);
-                return;
-              }
-              onStepChange(Math.min(TUTORIAL_WORKFLOW.length - 1, stepIndex + 1));
-            }}
+            onClick={goNext}
             disabled={isLast}
             title="Next tutorial step"
             style={{

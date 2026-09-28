@@ -179,7 +179,56 @@ export default function CoachSpotlight({
     return () => window.cancelAnimationFrame(frame);
   }, [route, spotText]);
 
-  if (!rect) return null;
+  /*
+   * Nothing to point at.
+   *
+   * Rendering null left the reader with a step counter, no duck and no
+   * highlight, which looks like the tour has crashed. It can happen
+   * legitimately -- a page still rendering, a control behind a role
+   * check, a module with no sidebar entry -- so it says so instead.
+   */
+  if (!rect) {
+    if (!says) return null;
+
+    return (
+      <div
+        style={{
+          position: "fixed",
+          left: 20,
+          bottom: 84,
+          maxWidth: 288,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          zIndex: 1202,
+          pointerEvents: "none",
+        }}
+      >
+        <img
+          src={mascot}
+          alt=""
+          draggable={false}
+          style={{ width: 52, height: 52, objectFit: "contain", flex: "0 0 auto" }}
+        />
+
+        <div
+          style={{
+            padding: "10px 13px",
+            borderRadius: 14,
+            background: "#FFFFFF",
+            border: "1px solid #5EEAD4",
+            boxShadow: "0 10px 26px rgba(8,24,22,.28)",
+            fontSize: 12.5,
+            lineHeight: 1.5,
+            fontWeight: 600,
+            color: "#0F172A",
+          }}
+        >
+          {says}
+        </div>
+      </div>
+    );
+  }
 
   const dim: CSSProperties = {
     position: "fixed",
