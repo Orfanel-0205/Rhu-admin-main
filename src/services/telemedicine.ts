@@ -172,6 +172,8 @@ export interface TelemedicineStats {
 }
 
 export interface SaveTelemedicineNotesPayload {
+  /** Dictated or typed conversation. Stored in its own column. */
+  transcript?: string | null;
   subjective?: string | null;
   objective?: string | null;
   assessment?: string | null;
@@ -515,6 +517,8 @@ export async function endTelemedicineSession(
 }
 
 export interface EndTelemedicineSoap {
+  /** Dictated or typed conversation. Stored in its own column. */
+  transcript?: string;
   subjective?: string;
   objective?: string;
   assessment?: string;

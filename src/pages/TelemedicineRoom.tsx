@@ -30,6 +30,7 @@ import {
   type TelemedicineSession,
 } from "../services/telemedicine";
 import { useWebSpeechRecognition } from "../hooks/useWebSpeechRecognition";
+import JitsiRoom, { type JitsiRoomHandle } from "../components/JitsiRoom";
 
 type SoapFields = {
   subjective: string;
@@ -40,6 +41,25 @@ type SoapFields = {
   treatment: string;
   additionalNotes: string;
 };
+
+/*
+ * Dictation languages offered to the clinician.
+ *
+ * This was hard-wired to en-US, which is why dictation came back as the
+ * wrong words: a consultation in Malasiqui is Taglish, and an American
+ * English recogniser transcribes Tagalog as whatever English it sounds
+ * nearest to. The recogniser cannot be told to expect a mix, so the
+ * clinician picks whichever language the consultation is mostly in.
+ *
+ * A build that does not offer a tag answers language-not-supported, and
+ * the hook falls back to en-US and says so rather than failing silently.
+ */
+const DICTATION_LANGUAGES = [
+  { value: "en-US", label: "English (US)" },
+  { value: "en-PH", label: "English (PH)" },
+  { value: "fil-PH", label: "Filipino" },
+  { value: "tl-PH", label: "Tagalog" },
+] as const;
 
 const emptySoap: SoapFields = {
   subjective: "",
@@ -184,6 +204,17 @@ export default function TelemedicineRoom() {
   const [transcript, setTranscript] = useState("");
   const [soap, setSoap] = useState<SoapFields>(emptySoap);
   const [rhuStaffName, setRhuStaffName] = useState("");
+  const [dictationLang, setDictationLang] = useState<string>("en-US");
+
+  /*
+   * The last phrase dictation appended, so a misheard one can be swapped
+   * for one of the recogniser's other readings without the clinician
+   * hunting for it in the transcript.
+   */
+  const lastChunkRef = useRef("");
+
+  /** The live conference, so End Session can close it for both sides. */
+  const jitsiRef = useRef<JitsiRoomHandle | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -196,16 +227,22 @@ export default function TelemedicineRoom() {
   const [error, setError] = useState("");
 
   // Browser-native speech-to-text (Web Speech API). Appends each finalized
-  // chunk into the Transcript field. en-US is used because Chrome rejects
-  // many regional tags (e.g. fil-PH) with language-not-supported.
+  // chunk into the Transcript field.
+  //
+  // maxAlternatives asks the recogniser for its runners-up as well as its
+  // best guess, which is what makes the correction chips below possible.
   const stt = useWebSpeechRecognition({
-    lang: "en-US",
+    lang: dictationLang,
     interimResults: true,
     continuous: true,
-    onResult: (finalText) =>
+    maxAlternatives: 3,
+    onResult: (finalText) => {
+      lastChunkRef.current = finalText;
+
       setTranscript((current) =>
         [current, finalText].filter(Boolean).join(" ")
-      ),
+      );
+    },
   });
   const listening = stt.isListening;
 
@@ -222,6 +259,27 @@ export default function TelemedicineRoom() {
 
   const isSessionFinished = useMemo(() => {
     return ["ended", "cancelled", "no_show"].includes(
+      String(session?.status || "")
+    );
+  }, [session]);
+
+  /*
+   * Whether SOAP notes can still be written.
+   *
+   * This is NOT the opposite of isSessionFinished, and treating it as one
+   * was the bug behind 'Save SOAP does nothing'. Every control in the
+   * documentation panel was disabled the moment the session reached
+   * 'ended' -- which every session reaches, because ending it is how a
+   * consultation finishes. The page even told the clinician to 'continue
+   * documenting from the panel' directly above a Save button it had
+   * greyed out.
+   *
+   * The backend has always allowed notes for active, paused and ended
+   * sessions and refuses only cancelled and no_show ones. This now matches
+   * it, so the call being over stops the call and nothing else.
+   */
+  const canDocument = useMemo(() => {
+    return ["active", "paused", "ended"].includes(
       String(session?.status || "")
     );
   }, [session]);
@@ -290,6 +348,26 @@ export default function TelemedicineRoom() {
       setError(stt.error);
     }
   }, [stt.error]);
+
+  /*
+   * Replace the last dictated phrase with one of the recogniser's other
+   * readings. Only the tail is touched, so anything typed by hand or
+   * dictated earlier is left exactly as it is.
+   */
+  function useAlternative(choice: string) {
+    const previous = lastChunkRef.current;
+
+    setTranscript((current) => {
+      if (!previous || !current.endsWith(previous)) {
+        return [current, choice].filter(Boolean).join(" ");
+      }
+
+      return current.slice(0, current.length - previous.length) + choice;
+    });
+
+    lastChunkRef.current = choice;
+    stt.clearAlternatives();
+  }
 
   // Show the live (interim) words while the staff is still speaking.
   useEffect(() => {
@@ -512,6 +590,10 @@ export default function TelemedicineRoom() {
         finalize,
         additional_notes: prepared.finalAdditionalNotes,
         rhu_staff_name: rhuStaffName,
+        // telemedicine_session_notes has had a transcript column all along
+        // and nothing ever wrote to it. The dictated conversation was
+        // folded into a notes blob instead, where nothing can search it.
+        transcript,
       } as any);
 
       const refreshed = await getTelemedicineSession(session.id);
@@ -570,7 +652,21 @@ export default function TelemedicineRoom() {
         diagnosis: prepared.diagnosis,
         treatment: prepared.treatment,
         notes: prepared.finalAdditionalNotes,
+        transcript,
       });
+
+      /*
+       * Close the room for the patient BEFORE the status change unmounts
+       * this component's conference.
+       *
+       * The patient joined from the mobile app, which hands the meeting to
+       * their browser and stops being involved. Tearing down our own embed
+       * only removes the clinician; the patient sat in an empty room until
+       * they worked out the consultation was over. endConference closes it
+       * on the bridge, for everyone, which is the only thing that reaches
+       * a participant we no longer control.
+       */
+      await jitsiRef.current?.endForEveryone();
 
       if (result.telemedicine_session) {
         setSession(result.telemedicine_session);
@@ -710,10 +806,13 @@ export default function TelemedicineRoom() {
             </p>
           </div>
         ) : (
-          <iframe
-            title="Ka-Agapay Telemedicine Video"
-            src={jitsiUrl}
-            allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+          <JitsiRoom
+            ref={jitsiRef}
+            domain={videoConfig?.domain || ""}
+            roomName={videoConfig?.roomName || ""}
+            jwt={videoConfig?.jwt}
+            fallbackUrl={jitsiUrl}
+            onEnded={load}
             style={iframeStyle}
           />
         )}
@@ -784,7 +883,28 @@ export default function TelemedicineRoom() {
             </section>
 
             <label style={labelStyle}>
-              <span>Transcript / Speech-to-text</span>
+              <span style={transcriptHeadingStyle}>
+                Transcript / Speech-to-text
+
+                <select
+                  value={dictationLang}
+                  onChange={(event) => setDictationLang(event.target.value)}
+                  disabled={listening}
+                  title={
+                    listening
+                      ? "Stop dictation before changing the language"
+                      : "Language the consultation is mostly spoken in"
+                  }
+                  style={langSelectStyle}
+                >
+                  {DICTATION_LANGUAGES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </span>
+
               <textarea
                 value={transcript}
                 onChange={(event) => setTranscript(event.target.value)}
@@ -793,11 +913,32 @@ export default function TelemedicineRoom() {
               />
             </label>
 
+            {/* The recogniser's runners-up. A name it mishears the same way
+                every time is usually right in one of these, and a tap is
+                faster than retyping the phrase. */}
+            {stt.alternatives.length > 0 ? (
+              <div style={alternativesRowStyle}>
+                <span style={alternativesLabelStyle}>Also heard:</span>
+
+                {stt.alternatives.map((choice) => (
+                  <button
+                    key={choice}
+                    type="button"
+                    onClick={() => useAlternative(choice)}
+                    title="Use this reading instead"
+                    style={alternativeChipStyle}
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
             <div style={buttonRowStyle}>
               <button
                 type="button"
                 onClick={listening ? stopStt : startStt}
-                disabled={isSessionFinished}
+                disabled={!canDocument}
                 title={
                   listening
                     ? "Listening... (click to stop voice input)"
@@ -812,7 +953,7 @@ export default function TelemedicineRoom() {
               <button
                 type="button"
                 onClick={runAiSummarize}
-                disabled={summarizing || isSessionFinished}
+                disabled={summarizing || !canDocument}
                 style={primaryButtonStyle}
               >
                 <Bot size={16} />
@@ -869,7 +1010,7 @@ export default function TelemedicineRoom() {
               <button
                 type="button"
                 onClick={() => saveSoap(false)}
-                disabled={saving || isSessionFinished}
+                disabled={saving || !canDocument}
                 style={primaryButtonStyle}
               >
                 <Save size={16} />
@@ -879,7 +1020,7 @@ export default function TelemedicineRoom() {
               <button
                 type="button"
                 onClick={() => saveSoap(true)}
-                disabled={saving || isSessionFinished}
+                disabled={saving || !canDocument}
                 style={secondaryButtonStyle}
               >
                 <ClipboardList size={16} />
@@ -1164,6 +1305,52 @@ const labelStyle: CSSProperties = {
   fontWeight: 900,
   textTransform: "uppercase",
   letterSpacing: ".06em",
+};
+
+const transcriptHeadingStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+};
+
+const langSelectStyle: CSSProperties = {
+  padding: "3px 6px",
+  borderRadius: 8,
+  border: "1px solid #CBD5E1",
+  background: "#FFFFFF",
+  color: "#0F172A",
+  fontSize: 11,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+
+const alternativesRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: 6,
+  marginTop: -4,
+  marginBottom: 4,
+};
+
+const alternativesLabelStyle: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#64748B",
+  textTransform: "uppercase",
+  letterSpacing: 0.4,
+};
+
+const alternativeChipStyle: CSSProperties = {
+  padding: "3px 9px",
+  borderRadius: 999,
+  border: "1px solid #5EEAD4",
+  background: "#F0FDFA",
+  color: "#0F172A",
+  fontSize: 11.5,
+  fontWeight: 700,
+  cursor: "pointer",
 };
 
 const transcriptStyle: CSSProperties = {
