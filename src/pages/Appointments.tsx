@@ -1213,7 +1213,7 @@ export default function Appointments() {
 
                   return (
                     <tr key={appointment.id} style={trStyle}>
-                      <td style={tdStyle}>
+                      <td data-label="Patient" style={tdStyle}>
                         {appointment.user_id ? (
                           <button
                             type="button"
@@ -1233,11 +1233,11 @@ export default function Appointments() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="RHU" style={tdStyle}>
                         {appointment.rhu_id ? `RHU ${appointment.rhu_id}` : "—"}
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Type" style={tdStyle}>
                         <span
                           style={{
                             ...tableBadgeStyle,
@@ -1248,7 +1248,7 @@ export default function Appointments() {
                         </span>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Date / Time" style={tdStyle}>
                         <div style={cellPrimaryStyle}>
                           {formatAppointmentDate(appointment.appointment_date)}
                         </div>
@@ -1257,7 +1257,7 @@ export default function Appointments() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Reason" style={tdStyle}>
                         {reason && reason !== "—" ? (
                           <div>
                             <span title={reason}>{truncate(reason)}</span>
@@ -1274,7 +1274,7 @@ export default function Appointments() {
                         )}
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Symptoms" style={tdStyle}>
                         {symptoms && symptoms !== "—" ? (
                           <span title={symptoms}>{truncate(symptoms)}</span>
                         ) : (
@@ -1284,7 +1284,7 @@ export default function Appointments() {
                         )}
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Status" style={tdStyle}>
                         <span
                           style={{
                             ...tableBadgeStyle,
@@ -1340,7 +1340,7 @@ export default function Appointments() {
                         ) : null}
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Queue Status" style={tdStyle}>
                         <div style={queueCellStyle}>
                           <span
                             style={{
@@ -1378,7 +1378,7 @@ export default function Appointments() {
                         </div>
                       </td>
 
-                      <td style={tdRightStyle}>
+                      <td data-label="Actions" style={tdRightStyle}>
                         <div style={tableActionsStyle}>
                           {statusText === "pending" ? (
                             <>

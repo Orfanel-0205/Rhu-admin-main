@@ -910,7 +910,7 @@ export default function Inventory() {
 
                   return (
                     <tr key={item.id}>
-                      <td style={tdStyle}>
+                      <td data-label="Item" style={tdStyle}>
                         <div style={{ fontWeight: 950, color: "#0F172A" }}>
                           {item.name}
                         </div>
@@ -924,7 +924,7 @@ export default function Inventory() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Uri" style={tdStyle}>
                         <div style={{ fontWeight: 900 }}>
                           {categoryLabel(item.category)}
                         </div>
@@ -935,7 +935,7 @@ export default function Inventory() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Stock" style={tdStyle}>
                         <div
                           style={{
                             fontSize: 24,
@@ -952,7 +952,7 @@ export default function Inventory() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Expiry" style={tdStyle}>
                         <div style={{ fontWeight: 850 }}>
                           {formatDate(item.expiration_date)}
                         </div>
@@ -966,7 +966,7 @@ export default function Inventory() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Status" style={tdStyle}>
                         <div style={{ display: "grid", gap: 6, justifyItems: "start" }}>
                           {badges.map((badge) => (
                             <span
@@ -993,7 +993,7 @@ export default function Inventory() {
                         )}
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Recommended Action" style={tdStyle}>
                         <div style={{ maxWidth: 260 }}>
                           <strong>{item.safety_message}</strong>
 
@@ -1003,7 +1003,7 @@ export default function Inventory() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Mga Aksyon" style={tdStyle}>
                         <div style={actionButtonWrapStyle}>
                           <button
                             type="button"

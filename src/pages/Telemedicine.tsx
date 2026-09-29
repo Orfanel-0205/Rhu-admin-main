@@ -1213,7 +1213,7 @@ export default function Telemedicine() {
 
                   return (
                     <tr key={item.id} style={trStyle}>
-                      <td style={tdStyle}>
+                      <td data-label="Patient" style={tdStyle}>
                         <div style={cellPrimaryStyle}>
                           {safePatientName(item)}
                         </div>
@@ -1228,7 +1228,7 @@ export default function Telemedicine() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Chief Complaint" style={tdStyle}>
                         <div
                           style={clampTwoStyle}
                           title={complaint}
@@ -1245,7 +1245,7 @@ export default function Telemedicine() {
                         </button>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Urgency" style={tdStyle}>
                         <StatusPill
                           label={urgencyBadge.label}
                           tone={urgencyBadge.tone}
@@ -1253,7 +1253,7 @@ export default function Telemedicine() {
                       </td>
 
                       {/* Combined Status: request status + session status */}
-                      <td style={tdStyle}>
+                      <td data-label="Status" style={tdStyle}>
                         <div style={pillStackStyle}>
                           <StatusPill
                             label={requestBadge.label}
@@ -1267,7 +1267,7 @@ export default function Telemedicine() {
                       </td>
 
                       {/* Combined Progress / Next Step: SOAP status + next action */}
-                      <td style={tdStyle}>
+                      <td data-label="Progress / Next Step" style={tdStyle}>
                         <StatusPill
                           label={soapBadge.label}
                           tone={soapBadge.tone}
@@ -1280,7 +1280,7 @@ export default function Telemedicine() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Schedule" style={tdStyle}>
                         <div style={cellPrimaryStyle}>
                           {formatTelemedicineDate(item.created_at)}
                         </div>
@@ -1289,7 +1289,7 @@ export default function Telemedicine() {
                         </div>
                       </td>
 
-                      <td style={tdStickyRightStyle}>
+                      <td data-label="Actions" style={tdStickyRightStyle}>
                         <ActionButtons
                           item={item}
                           busy={actionLoadingId === item.id}

@@ -497,7 +497,7 @@ export default function Consultations() {
 
                   return (
                     <tr key={item.id} style={trStyle}>
-                      <td style={tdStyle}>
+                      <td data-label="Patient" style={tdStyle}>
                         {item.user_id ? (
                           <Link
                             to={`/patients/${item.user_id}`}
@@ -523,7 +523,7 @@ export default function Consultations() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Visit" style={tdStyle}>
                         <div style={cellPrimaryStyle}>
                           {formatConsultationDate(getConsultationDate(item))}
                         </div>
@@ -554,7 +554,7 @@ export default function Consultations() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Clinical" style={tdStyle}>
                         <div style={cellMutedStyle}>Chief complaint</div>
                         <div style={cellPrimaryStyle} title={complaint}>
                           {truncate(complaint, 64)}
@@ -573,7 +573,7 @@ export default function Consultations() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Progress" style={tdStyle}>
                         <div style={badgeWrapStyle}>
                           <StatusBadge
                             label={mapping.stage.label}
@@ -593,14 +593,14 @@ export default function Consultations() {
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Next Step" style={tdStyle}>
                         <div style={nextStepCellStyle}>{nextStep}</div>
                         <div style={{ ...cellMutedStyle, marginTop: 6 }}>
                           Follow-up: {getFollowupStatus(item)}
                         </div>
                       </td>
 
-                      <td style={tdRightStyle}>
+                      <td data-label="Actions" style={tdRightStyle}>
                         <Link
                           to={`/consultations/${item.id}`}
                           style={tableActionStyle}

@@ -451,15 +451,15 @@ export default function RegistrationApprovals() {
 
                   return (
                     <tr key={user.user_id} style={trStyle}>
-                      <td style={tdStyle}>
+                      <td data-label="Registrant" style={tdStyle}>
                         <div style={cellPrimaryStyle}>{user.name || `Registrant #${user.user_id}`}</div>
                         <div style={cellMutedStyle}>#{user.user_id}</div>
                       </td>
-                      <td style={tdStyle}>
+                      <td data-label="Role" style={tdStyle}>
                         <span style={{ ...pillStyle, ...rolePill }}>{formatRole(user.role)}</span>
                       </td>
-                      <td style={tdStyle}>{safe(user.rhu_label) || "—"}</td>
-                      <td style={tdStyle}>
+                      <td data-label="RHU" style={tdStyle}>{safe(user.rhu_label) || "—"}</td>
+                      <td data-label="Document" style={tdStyle}>
                         <span style={{ ...pillStyle, ...(user.is_staff || user.document_category === "employee_id" ? docEmployeePill : docResidentPill) }}>
                           {formatDocType(user)}
                         </span>
@@ -467,24 +467,24 @@ export default function RegistrationApprovals() {
                           <div style={cellMutedStyle}>{user.designation}</div>
                         ) : null}
                       </td>
-                      <td style={tdStyle}>
+                      <td data-label="Email / Mobile" style={tdStyle}>
                         <div>{safe(user.email) || "—"}</div>
                         <div style={cellMutedStyle}>{safe(user.mobile_number) || "—"}</div>
                       </td>
-                      <td style={tdStyle}>{safe(user.barangay) || "—"}</td>
-                      <td style={tdStyle}>
+                      <td data-label="Barangay" style={tdStyle}>{safe(user.barangay) || "—"}</td>
+                      <td data-label="Terms" style={tdStyle}>
                         {user.terms_accepted ? (
                           <span style={{ ...pillStyle, ...okPill }}>Accepted</span>
                         ) : (
                           <span style={{ ...pillStyle, ...warnPill }}>Not accepted</span>
                         )}
                       </td>
-                      <td style={tdStyle}>
+                      <td data-label="OCR / ID" style={tdStyle}>
                         <span style={{ ...pillStyle, background: oMeta.bg, color: oMeta.color, borderColor: oMeta.border }}>
                           {oMeta.label}
                         </span>
                       </td>
-                      <td style={tdStyle}>
+                      <td data-label="Status" style={tdStyle}>
                         <span style={{ ...pillStyle, background: sMeta.bg, color: sMeta.color, borderColor: sMeta.border }}>
                           {sMeta.label}
                         </span>
@@ -497,8 +497,8 @@ export default function RegistrationApprovals() {
                           </div>
                         ) : null}
                       </td>
-                      <td style={tdStyle}>{formatDate(user.submitted_at)}</td>
-                      <td style={tdRightStyle}>
+                      <td data-label="Submitted" style={tdStyle}>{formatDate(user.submitted_at)}</td>
+                      <td data-label="Actions" style={tdRightStyle}>
                         <div className="responsive-actions" style={actionsStyle}>
                           <button
                             type="button"

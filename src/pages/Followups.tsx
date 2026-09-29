@@ -381,27 +381,27 @@ export default function Followups() {
 
                   return (
                     <tr key={item.id} style={trStyle}>
-                      <td style={tdStyle}>
+                      <td data-label="Patient" style={tdStyle}>
                         <div style={cellPrimaryStyle}>{patientName(item)}</div>
                         <div style={cellMutedStyle}>#{item.id}</div>
                       </td>
 
-                      <td style={tdStyle}>{safe(item.mobile_number) || "—"}</td>
+                      <td data-label="Mobile" style={tdStyle}>{safe(item.mobile_number) || "—"}</td>
 
-                      <td style={tdStyle}>{barangayLabel(item)}</td>
+                      <td data-label="Barangay / RHU" style={tdStyle}>{barangayLabel(item)}</td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Follow-up" style={tdStyle}>
                         <div style={cellPrimaryStyle}>{followUpDateTime(item)}</div>
                         {item.urgency ? (
                           <div style={cellMutedStyle}>{safe(item.urgency)}</div>
                         ) : null}
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Reason / Diagnosis" style={tdStyle}>
                         <span title={reason}>{truncate(reason)}</span>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Consultation" style={tdStyle}>
                         {item.consultation_id ? (
                           <button
                             type="button"
@@ -415,7 +415,7 @@ export default function Followups() {
                         )}
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Status" style={tdStyle}>
                         <span
                           style={{
                             ...badgeStyle,
@@ -428,11 +428,11 @@ export default function Followups() {
                         </span>
                       </td>
 
-                      <td style={tdStyle}>{staffLabel(item)}</td>
+                      <td data-label="Staff" style={tdStyle}>{staffLabel(item)}</td>
 
-                      <td style={tdStyle}>{getFollowUpSmsLabel(item)}</td>
+                      <td data-label="SMS" style={tdStyle}>{getFollowUpSmsLabel(item)}</td>
 
-                      <td style={tdRightStyle}>
+                      <td data-label="Actions" style={tdRightStyle}>
                         <div className="responsive-actions" style={actionsStyle}>
                           {item.consultation_id ? (
                             <button
