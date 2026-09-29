@@ -74,6 +74,44 @@ const DICTATION_LANGUAGES = [
 const NO_DICTATION_NOTE =
   "Pangasinense is not available for dictation in any browser — type those consultations, or dictate in Filipino or English.";
 
+const DICTATION_LANGUAGE_KEY = "ka_telemedicine_dictation_lang";
+
+/*
+ * Filipino, not English.
+ *
+ * The picker defaulted to en-US, so dictation started every consultation
+ * expecting American English. Malasiqui consultations are not in American
+ * English, and an en-US recogniser does not fail on Tagalog -- it returns
+ * confident nonsense. One consultation came back as "Gustavo Como estoppo
+ * Annapolis", which is what the recogniser heard when Tagalog was the only
+ * thing it could not consider.
+ *
+ * The choice is also remembered per browser, because a default nobody
+ * changes is the one that matters and a clinician should not have to
+ * reset it at the top of every call.
+ *
+ * Accuracy on genuinely mixed Taglish stays limited whichever tag is
+ * chosen: the API accepts one language per session and has no mode for
+ * code-switching. Filipino is the better wrong answer of the two.
+ */
+function initialDictationLang(): string {
+  const fallback = "fil-PH";
+
+  if (typeof window === "undefined") return fallback;
+
+  try {
+    const saved = window.localStorage.getItem(DICTATION_LANGUAGE_KEY);
+
+    if (saved && DICTATION_LANGUAGES.some((item) => item.value === saved)) {
+      return saved;
+    }
+  } catch {
+    // Private browsing or blocked storage — the default is still correct.
+  }
+
+  return fallback;
+}
+
 const emptySoap: SoapFields = {
   subjective: "",
   objective: "",
@@ -217,7 +255,9 @@ export default function TelemedicineRoom() {
   const [transcript, setTranscript] = useState("");
   const [soap, setSoap] = useState<SoapFields>(emptySoap);
   const [rhuStaffName, setRhuStaffName] = useState("");
-  const [dictationLang, setDictationLang] = useState<string>("en-US");
+  const [dictationLang, setDictationLang] = useState<string>(
+    initialDictationLang
+  );
 
   /*
    * The last phrase dictation appended, so a misheard one can be swapped
@@ -901,7 +941,17 @@ export default function TelemedicineRoom() {
 
                 <select
                   value={dictationLang}
-                  onChange={(event) => setDictationLang(event.target.value)}
+                  onChange={(event) => {
+                    const next = event.target.value;
+
+                    setDictationLang(next);
+
+                    try {
+                      window.localStorage.setItem(DICTATION_LANGUAGE_KEY, next);
+                    } catch {
+                      // Not being able to remember it is not worth an error.
+                    }
+                  }}
                   disabled={listening}
                   title={
                     listening

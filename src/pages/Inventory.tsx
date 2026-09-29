@@ -887,7 +887,7 @@ export default function Inventory() {
             new item.
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className="responsive-table" style={{ overflowX: "auto" }}>
             <table style={tableStyle}>
               <thead>
                 <tr>

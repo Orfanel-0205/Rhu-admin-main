@@ -447,6 +447,61 @@ body {
   border-radius: 16px;
 }
 
+/*
+ * Keep the Actions column on screen.
+ *
+ * Every board in this admin declares a min-width between 980 and 1220px
+ * so its columns stay readable, and every one of them puts Actions last.
+ * On a laptop with the sidebar open the table is wider than the space it
+ * has, so the first thing to scroll out of sight is the column holding
+ * the buttons that do the work. Staff had to drag the table sideways
+ * before they could approve anything.
+ *
+ * Pinning the last cell to the right edge of the scroll container keeps
+ * those buttons reachable at any width, while the descriptive columns
+ * scroll underneath as they always did.
+ *
+ * The left edge is drawn with an inset shadow rather than a border:
+ * these tables use border-collapse, which does not reliably paint a
+ * border on a sticky cell.
+ */
+.responsive-table table th:last-child,
+.responsive-table table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: #ffffff;
+  box-shadow: inset 1px 0 0 #e2e8f0;
+}
+
+/* The header cell sits above the body cells as they scroll past it. */
+.responsive-table table th:last-child {
+  z-index: 2;
+}
+
+/*
+ * Pin the first column too.
+ *
+ * Scrolling right to reach the buttons pushes the patient name off the
+ * left edge, so staff arrive at a row of actions with nothing on screen
+ * saying whose record they are about to act on. On Health Follow-up the
+ * name had already scrolled away by the time Actions came into view.
+ *
+ * Both edges stay put and only the descriptive middle moves.
+ */
+.responsive-table table th:first-child,
+.responsive-table table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #ffffff;
+  box-shadow: inset -1px 0 0 #e2e8f0;
+}
+
+.responsive-table table th:first-child {
+  z-index: 2;
+}
+
 /* Action button groups wrap cleanly instead of overflowing the row. */
 .responsive-actions {
   display: flex;

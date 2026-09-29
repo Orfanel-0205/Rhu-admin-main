@@ -465,7 +465,7 @@ export default function Consultations() {
             )}
           </div>
         ) : (
-          <div style={tableWrapStyle}>
+          <div className="responsive-table" style={tableWrapStyle}>
             <table style={tableStyle}>
               <thead>
                 <tr>
