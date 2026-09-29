@@ -1932,7 +1932,7 @@ function ExportHistoryTab({
           No reports generated yet — open Pre-built Reports and press Generate.
         </p>
       ) : (
-        <div style={{ overflowX: "auto", marginTop: 12 }}>
+        <div className="responsive-table" style={{ marginTop: 12 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
             <thead>
               <tr>
@@ -1945,10 +1945,10 @@ function ExportHistoryTab({
             <tbody>
               {entries.map((entry) => (
                 <tr key={entry.id}>
-                  <td style={tdStyle}>{entry.name}</td>
-                  <td style={tdStyle}>{new Date(entry.generated_at).toLocaleString()}</td>
-                  <td style={tdStyle}>{entry.format}</td>
-                  <td style={tdStyle}>
+                  <td data-label="Report" style={tdStyle}>{entry.name}</td>
+                  <td data-label="Generated" style={tdStyle}>{new Date(entry.generated_at).toLocaleString()}</td>
+                  <td data-label="Format" style={tdStyle}>{entry.format}</td>
+                  <td data-label="Action" style={tdStyle}>
                     <button
                       type="button"
                       style={{ ...smallExportButtonStyle, color: "#B91C1C", borderColor: "#FECACA", background: "#FEF2F2" }}
@@ -2192,7 +2192,7 @@ function BarangayWatchlist({ rows }: { rows: BarangayWatchRow[] }) {
   }
 
   return (
-    <div style={tableWrapStyle}>
+    <div className="responsive-table" style={tableWrapStyle}>
       <table style={compactTableStyle}>
         <thead>
           <tr>
@@ -2209,11 +2209,11 @@ function BarangayWatchlist({ rows }: { rows: BarangayWatchRow[] }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.barangay}>
-              <td style={compactTdStyle}>
+              <td data-label="Barangay" style={compactTdStyle}>
                 <strong>{row.barangay}</strong>
               </td>
-              <td style={compactTdStyle}>{compactNumber(row.cases)}</td>
-              <td style={compactTdStyle}>
+              <td data-label="Cases" style={compactTdStyle}>{compactNumber(row.cases)}</td>
+              <td data-label="Risk" style={compactTdStyle}>
                 <Badge
                   label={`${row.riskLevel} · ${Math.round(row.riskScore)}`}
                   tone={
@@ -2225,10 +2225,10 @@ function BarangayWatchlist({ rows }: { rows: BarangayWatchRow[] }) {
                   }
                 />
               </td>
-              <td style={compactTdStyle}>{compactNumber(row.queueDensity)}</td>
-              <td style={compactTdStyle}>{compactNumber(row.followUps)}</td>
-              <td style={compactTdStyle}>{shortText(row.topDiagnosis, 50)}</td>
-              <td style={compactTdStyle}>{shortText(row.suggestedAction, 70)}</td>
+              <td data-label="Queue" style={compactTdStyle}>{compactNumber(row.queueDensity)}</td>
+              <td data-label="Follow-ups" style={compactTdStyle}>{compactNumber(row.followUps)}</td>
+              <td data-label="Top Diagnosis" style={compactTdStyle}>{shortText(row.topDiagnosis, 50)}</td>
+              <td data-label="Suggested Action" style={compactTdStyle}>{shortText(row.suggestedAction, 70)}</td>
             </tr>
           ))}
         </tbody>
@@ -2250,7 +2250,7 @@ function StaffWorkloadTable({ rows }: { rows: StaffWorkloadRow[] }) {
   }
 
   return (
-    <div style={tableWrapStyle}>
+    <div className="responsive-table" style={tableWrapStyle}>
       <table style={compactTableStyle}>
         <thead>
           <tr>
@@ -2264,12 +2264,12 @@ function StaffWorkloadTable({ rows }: { rows: StaffWorkloadRow[] }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.staff}>
-              <td style={compactTdStyle}>
+              <td data-label="Staff" style={compactTdStyle}>
                 <strong>{row.staff}</strong>
               </td>
-              <td style={compactTdStyle}>{compactNumber(row.completed)}</td>
-              <td style={compactTdStyle}>{compactNumber(row.diagnosed)}</td>
-              <td style={compactTdStyle}>{compactNumber(row.followUps)}</td>
+              <td data-label="Completed" style={compactTdStyle}>{compactNumber(row.completed)}</td>
+              <td data-label="Diagnosed" style={compactTdStyle}>{compactNumber(row.diagnosed)}</td>
+              <td data-label="Follow-ups" style={compactTdStyle}>{compactNumber(row.followUps)}</td>
             </tr>
           ))}
         </tbody>
@@ -2491,7 +2491,7 @@ function DiagnosisItrTable({ rows }: { rows: DiagnosisItrRow[] }) {
 
       {open ? (
         <>
-          <div style={tableWrapStyle}>
+          <div className="responsive-table" style={tableWrapStyle}>
         <table style={mainTableStyle}>
           {/* Part 3b — inline row slimmed to the scan-at-a-glance essentials;
               Age/Sex, Barangay, Treatment, RHU, Attending Staff and the full
@@ -2510,14 +2510,14 @@ function DiagnosisItrTable({ rows }: { rows: DiagnosisItrRow[] }) {
           <tbody>
             {sorted.map((row) => (
               <tr key={row.consultation_id}>
-                <td style={tdStyle}>
+                <td data-label="Patient" style={tdStyle}>
                   <strong>{patientName(row)}</strong>
                   <div style={cellSubStyle}>#{row.consultation_id}</div>
                 </td>
-                <td style={tdStyle}>{visitDate(row)}</td>
-                <td style={tdStyle}>{shortText(diagnosisLabel(row), 72)}</td>
-                <td style={tdStyle}>{followUpLabel(row)}</td>
-                <td style={tdStyle}>
+                <td data-label="Visit Date" style={tdStyle}>{visitDate(row)}</td>
+                <td data-label="Diagnosis" style={tdStyle}>{shortText(diagnosisLabel(row), 72)}</td>
+                <td data-label="Follow-up" style={tdStyle}>{followUpLabel(row)}</td>
+                <td data-label="Data Status" style={tdStyle}>
                   <div style={badgeWrapStyle}>
                     {dataStatusBadges(row).map((badge) => (
                       <Badge
@@ -2528,7 +2528,7 @@ function DiagnosisItrTable({ rows }: { rows: DiagnosisItrRow[] }) {
                     ))}
                   </div>
                 </td>
-                <td style={tdStyle}>
+                <td data-label="Details" style={tdStyle}>
                   <button
                     type="button"
                     style={viewDetailsButtonStyle}

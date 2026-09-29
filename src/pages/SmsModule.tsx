@@ -1131,7 +1131,7 @@ export default function SmsModule() {
             <span>Send your first SMS or adjust filters.</span>
           </div>
         ) : (
-          <div style={S.tableWrap}>
+          <div className="responsive-table" style={S.tableWrap}>
             <table style={S.table}>
               <thead>
                 <tr>
@@ -1147,23 +1147,23 @@ export default function SmsModule() {
               <tbody>
                 {pg.pageRows.map((log) => (
                   <tr key={log.id ?? `${log.mobile_number}-${log.created_at}`}>
-                    <td style={S.td}>
+                    <td data-label="Recipient" style={S.td}>
                       <strong>{log.recipient_name || log.recipient || "Recipient"}</strong>
                     </td>
-                    <td style={S.td}>{normalizeMobileDisplay(log.mobile_number)}</td>
-                    <td style={{ ...S.td, maxWidth: 360 }}>
+                    <td data-label="Mobile" style={S.td}>{normalizeMobileDisplay(log.mobile_number)}</td>
+                    <td data-label="Message" style={{ ...S.td, maxWidth: 360 }}>
                       <div style={S.messageText}>{log.message}</div>
                       {log.error_message ? (
                         <div style={S.errorText}>{log.error_message}</div>
                       ) : null}
                     </td>
-                    <td style={S.td}>{log.mode || "single"}</td>
-                    <td style={S.td}>
+                    <td data-label="Mode" style={S.td}>{log.mode || "single"}</td>
+                    <td data-label="Status" style={S.td}>
                       <span style={{ ...S.statusPill, ...statusTone(String(log.status)) }}>
                         {String(log.status || "queued").toUpperCase()}
                       </span>
                     </td>
-                    <td style={S.td}>{formatDate(log.sent_at || log.created_at)}</td>
+                    <td data-label="Date" style={S.td}>{formatDate(log.sent_at || log.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

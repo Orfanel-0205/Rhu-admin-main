@@ -1093,7 +1093,7 @@ type="button"
               </button>
             </div>
 
-            <div style={diagnosisTableWrapStyle}>
+            <div className="responsive-table" style={diagnosisTableWrapStyle}>
               <table className="ka-signal-table" style={{ ...tableStyle, tableLayout: "fixed", minWidth: 980 }}>
                 <colgroup>
                   <col style={{ width: 150 }} />
@@ -1122,7 +1122,7 @@ type="button"
                       key={`${item.consultation_id}-${item.diagnosis_or_signal}`}
                       style={index % 2 === 0 ? tableRowStyle : tableRowAltStyle}
                     >
-                      <td style={tdStyle}>
+                      <td data-label="Barangay" style={tdStyle}>
                         <strong style={signalBarangayStyle} title={item.barangay || "Unspecified"}>
                           {item.barangay || "Unspecified"}
                         </strong>
@@ -1131,7 +1131,7 @@ type="button"
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Risk" style={tdStyle}>
                         <span
                           style={{
                             ...badgePillStyle,
@@ -1143,17 +1143,17 @@ type="button"
                         </span>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Diagnosis / Top Signal" style={tdStyle}>
                         <div style={clampTwoStyle} title={item.diagnosis_or_signal || "No signal"}>
                           {item.diagnosis_or_signal || "No signal"}
                         </div>
                       </td>
 
-                      <td style={tdStyle}>{item.case_count}</td>
+                      <td data-label="Cases" style={tdStyle}>{item.case_count}</td>
 
-                      <td style={tdStyle}>{formatTime(item.fresh_until || undefined)}</td>
+                      <td data-label="Fresh until" style={tdStyle}>{formatTime(item.fresh_until || undefined)}</td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Patient Age/Sex Summary" style={tdStyle}>
                         <div style={signalPatientStyle} title={item.patient_name || "Patient"}>
                           {item.patient_name || "Patient"}
                         </div>
@@ -1162,7 +1162,7 @@ type="button"
                         </div>
                       </td>
 
-                      <td style={tdStyle}>
+                      <td data-label="Status" style={tdStyle}>
                         <span style={{ ...badgePillStyle, ...signalStatusStyle(item.is_fresh_signal) }}>
                           {item.is_fresh_signal ? "Fresh" : "Expired"}
                         </span>

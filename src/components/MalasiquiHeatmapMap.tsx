@@ -666,7 +666,7 @@ function DiagnosisItrSignalsTable({
       ) : null}
 
       {signals.length > 0 ? (
-        <div style={{ overflowX: "auto" }}>
+        <div className="responsive-table">
           <table style={signalsTableStyle}>
             <thead>
               <tr>
@@ -685,14 +685,14 @@ function DiagnosisItrSignalsTable({
             <tbody>
               {signals.map((signal) => (
                 <tr key={`${signal.consultation_id}-${signal.barangay}`}>
-                  <td style={tdStyle}>
+                  <td data-label="Barangay" style={tdStyle}>
                     <strong>{signal.barangay || "Unspecified"}</strong>
                     <div style={subCellStyle}>
                       {signal.rhu_id ? `RHU ${signal.rhu_id}` : "RHU —"}
                     </div>
                   </td>
 
-                  <td style={tdStyle}>
+                  <td data-label="Risk" style={tdStyle}>
                     <span
                       style={{
                         ...pillBaseStyle,
@@ -703,28 +703,28 @@ function DiagnosisItrSignalsTable({
                     </span>
                   </td>
 
-                  <td style={tdStyle}>
+                  <td data-label="Diagnosis / Top Signal" style={tdStyle}>
                     {shortText(signal.diagnosis_or_signal, 120)}
                   </td>
 
-                  <td style={tdStyle}>
+                  <td data-label="Cases" style={tdStyle}>
                     <strong>{signal.case_count ?? 1}</strong>
                   </td>
 
-                  <td style={tdStyle}>
+                  <td data-label="Patient" style={tdStyle}>
                     <strong>{signal.patient_name || "Patient"}</strong>
                     <div style={subCellStyle}>#{signal.consultation_id}</div>
                   </td>
 
-                  <td style={tdStyle}>{ageSex(signal)}</td>
+                  <td data-label="Age/Sex" style={tdStyle}>{ageSex(signal)}</td>
 
-                  <td style={tdStyle}>
+                  <td data-label="Consultation Date" style={tdStyle}>
                     {formatDateTime(signal.consultation_date || signal.completed_at)}
                   </td>
 
-                  <td style={tdStyle}>{formatDateTime(signal.fresh_until)}</td>
+                  <td data-label="Fresh Until" style={tdStyle}>{formatDateTime(signal.fresh_until)}</td>
 
-                  <td style={tdStyle}>
+                  <td data-label="Status" style={tdStyle}>
                     <span
                       style={{
                         ...pillBaseStyle,
