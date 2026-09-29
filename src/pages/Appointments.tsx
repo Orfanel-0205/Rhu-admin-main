@@ -38,6 +38,7 @@ import {
   formatAppointmentTime,
   getAppointmentReason,
   getAppointmentSymptoms,
+  symptomsCameFromConsultation,
   getAppointmentType,
   getAppointments,
   getConsultationId,
@@ -1202,6 +1203,7 @@ export default function Appointments() {
                   const reason = getAppointmentReason(appointment);
                   const complaint = summariseComplaint(reason);
                   const symptoms = getAppointmentSymptoms(appointment);
+                  const fromClinician = symptomsCameFromConsultation(appointment);
                   const isActionLoading = actionLoadingId === appointment.id;
                   const statusText = String(
                     appointment.status || ""
@@ -1298,9 +1300,23 @@ export default function Appointments() {
                         )}
                       </td>
 
+                      {/*
+                          "Not yet assessed" was shown on every completed
+                          consultation in the system, because this read only
+                          the appointment's own symptoms field and the
+                          clinician writes theirs on the consultation. It now
+                          says which record it came from, since a resident
+                          typing their symptoms and a doctor recording them
+                          after an examination are not the same evidence.
+                      */}
                       <td data-label="Symptoms" style={tdStyle}>
                         {symptoms && symptoms !== "—" ? (
-                          <span title={symptoms}>{truncate(symptoms)}</span>
+                          <span title={symptoms}>
+                            {truncate(symptoms)}
+                            {fromClinician ? (
+                              <span style={clinicianNoteStyle}>from consultation</span>
+                            ) : null}
+                          </span>
                         ) : (
                           <span style={{ ...cellMutedStyle, fontStyle: "italic" }}>
                             Not yet assessed
@@ -2306,6 +2322,15 @@ const complaintNotifiableStyle: CSSProperties = {
   background: "#FEF2F2",
   border: "1px solid #FECACA",
   color: "#991B1B",
+};
+
+/* Where a symptom came from, said quietly beside it. */
+const clinicianNoteStyle: CSSProperties = {
+  display: "block",
+  marginTop: 2,
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: "#0F766E",
 };
 
 const cellPrimaryStyle: CSSProperties = {

@@ -584,6 +584,25 @@ export function getAppointmentReason(appointment: Appointment): string {
   return purpose.trim() || "—";
 }
 
+/**
+ * What the patient reported, from whichever record has it.
+ *
+ * The appointment's own symptoms field is filled by the resident when they
+ * book, and only sometimes: 13 of 101 appointments carry one. Everything
+ * else showed "Not yet assessed" forever, including consultations that had
+ * been finished, documented and closed.
+ *
+ * That was never true. The clinician records what the patient reported as
+ * the Subjective half of the SOAP note on the consultation, and nothing
+ * copies it back to the appointment -- so the board kept saying nobody had
+ * assessed a patient a doctor had already seen. Of the 29 completed
+ * appointments reading "Not yet assessed", all 29 had a subjective note
+ * sitting on the consultation the board was already loading.
+ *
+ * So the appointment is asked first, because the resident's own words
+ * outrank a clinician's paraphrase of them, and the consultation answers
+ * when the appointment cannot.
+ */
 export function getAppointmentSymptoms(appointment: Appointment): string {
   if (appointment.symptoms?.trim()) {
     return appointment.symptoms.trim();
@@ -599,7 +618,39 @@ export function getAppointmentSymptoms(appointment: Appointment): string {
     return symptomsLine.replace(/^symptoms:\s*/i, "").trim();
   }
 
+  const subjective = String(appointment.consultation?.subjective ?? "").trim();
+
+  if (subjective) {
+    // Stored as "Chief complaint: Ubo" about half the time. The heading is
+    // the column's own label repeated back at the reader.
+    return subjective.replace(/^chief complaint:\s*/i, "").trim();
+  }
+
   return "—";
+}
+
+/**
+ * Whether the symptoms shown came from the clinician rather than the
+ * patient's booking.
+ *
+ * The board says so, because "Nahihilo, nagsusuka" typed by a resident and
+ * the same words written by a doctor after examining them are not evidence
+ * of the same weight.
+ */
+export function symptomsCameFromConsultation(
+  appointment: Appointment
+): boolean {
+  if (appointment.symptoms?.trim()) return false;
+
+  const purpose = appointment.purpose || "";
+
+  const hasLine = purpose
+    .split("\n")
+    .some((line) => line.toLowerCase().startsWith("symptoms:"));
+
+  if (hasLine) return false;
+
+  return Boolean(String(appointment.consultation?.subjective ?? "").trim());
 }
 
 export function getAppointmentScheduleLabel(appointment: Appointment): string {
