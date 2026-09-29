@@ -1228,7 +1228,7 @@ export default function Appointments() {
                             {getPatientName(appointment)}
                           </div>
                         )}
-                        <div style={cellMutedStyle}>
+                        <div className="ka-nowrap" style={cellMutedStyle}>
                           #{appointment.id} · {getPatientMobile(appointment)}
                         </div>
                       </td>

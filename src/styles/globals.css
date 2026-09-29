@@ -347,10 +347,41 @@ th {
   text-transform: uppercase;
 }
 
+/*
+ * Break long words only when a word genuinely cannot fit.
+ *
+ * This said `overflow-wrap: anywhere`, which does two things. It breaks
+ * words at any character, so buttons read "Consulta tion" and a mobile
+ * number split as "0968321461 5" -- a phone number that can be misread is
+ * worse than one that overflows.
+ *
+ * The second effect is the one that made the boards look crushed. A cell
+ * that may break anywhere reports a min-content width of a single
+ * character, so the browser is free to shrink every column below the width
+ * of its own words and distribute the space elsewhere. Names wrapped onto
+ * three lines beside columns with room to spare.
+ *
+ * `break-word` keeps the protection against a long unbroken string
+ * overflowing its cell, without letting a column collapse under its own
+ * content.
+ */
 td {
   vertical-align: top;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/*
+ * A control's label is never a wrapping opportunity. Splitting it is not
+ * a smaller button, it is an unreadable one.
+ */
+.responsive-table td button,
+.responsive-table td a {
+  white-space: nowrap;
+}
+
+/* Identifiers and phone numbers read as one run or not at all. */
+.ka-nowrap {
+  white-space: nowrap;
 }
 
 td,
@@ -503,13 +534,21 @@ body {
 }
 
 /*
- * Below 1100px a board stops being a table.
+ * Below 1400px a board stops being a table.
  *
  * Pinning the two edges kept the patient name and the buttons reachable,
  * but everything between them still had to be dragged past, and on the
  * Appointment Board the Queue Status column was clipped underneath the
  * pinned actions. Nine columns do not fit on a laptop with the sidebar
  * open, and no amount of tightening makes them.
+ *
+ * The threshold is arithmetic, not taste. The widest board asks for
+ * 1220px, the sidebar takes about 280px and the page padding another 48,
+ * so a table only has the room it wants somewhere near 1550px of viewport.
+ * The first attempt at 1100px left every laptop in the RHU -- 1366 wide,
+ * and 1440 -- showing a table in roughly 1080px of space, which is the
+ * crushed layout this was meant to prevent. 1400 covers those machines
+ * and leaves the table to desktops that can actually hold it.
  *
  * So each row becomes a card and each cell prints its own column heading
  * from data-label. Nothing is hidden and nothing scrolls sideways; the row
@@ -518,7 +557,7 @@ body {
  * !important is needed throughout because these cells carry inline styles,
  * which otherwise win.
  */
-@media (max-width: 1100px) {
+@media (max-width: 1400px) {
   .responsive-table {
     overflow-x: visible;
     border: 0;
@@ -592,6 +631,21 @@ body {
 
   .responsive-table td:not([data-label]) {
     display: block;
+  }
+}
+
+/*
+ * On a phone the label and its value stop sharing a line.
+ *
+ * The card puts the column heading beside the value, which reads well on a
+ * tablet but leaves a value about 200px wide on a 360px phone -- enough to
+ * wrap a patient name and a date onto several lines each. Below 560px the
+ * heading sits above its value and the value gets the full width.
+ */
+@media (max-width: 560px) {
+  .responsive-table td {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }
 
