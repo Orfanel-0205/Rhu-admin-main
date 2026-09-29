@@ -621,9 +621,9 @@ export function getAppointmentSymptoms(appointment: Appointment): string {
   const subjective = String(appointment.consultation?.subjective ?? "").trim();
 
   if (subjective) {
-    // Stored as "Chief complaint: Ubo" about half the time. The heading is
-    // the column's own label repeated back at the reader.
-    return subjective.replace(/^chief complaint:\s*/i, "").trim();
+    const cleaned = cleanSubjective(subjective);
+
+    if (cleaned) return cleaned;
   }
 
   return "—";
@@ -637,6 +637,36 @@ export function getAppointmentSymptoms(appointment: Appointment): string {
  * the same words written by a doctor after examining them are not evidence
  * of the same weight.
  */
+/**
+ * The clinical part of a Subjective note.
+ *
+ * Two kinds of noise get stored in this field. A leading "Chief
+ * complaint:" is the column's own label repeated back at the reader, and
+ * a "Transcript:" section is a speech recogniser's best guess at the
+ * conversation, which the telemedicine room used to paste in alongside
+ * the note.
+ *
+ * The transcript is the one that matters. When dictation mishears, the
+ * result is not merely wrong, it is not language -- and a board showing
+ * it under the heading SYMPTOMS presents a recognition failure as
+ * something a patient said. Three consultations are stored that way.
+ * The room no longer writes them, and these are not shown.
+ */
+function cleanSubjective(subjective: string): string {
+  const withoutTranscript = subjective
+    .split(/\n+/)
+    .filter((line) => !/^\s*transcript\s*:/i.test(line))
+    .join(" ")
+    .trim();
+
+  const text = withoutTranscript || subjective;
+
+  // A note that is only a transcript leaves nothing clinical behind.
+  if (/^\s*transcript\s*:/i.test(text)) return "";
+
+  return text.replace(/^chief complaint:\s*/i, "").trim();
+}
+
 export function symptomsCameFromConsultation(
   appointment: Appointment
 ): boolean {
@@ -650,7 +680,9 @@ export function symptomsCameFromConsultation(
 
   if (hasLine) return false;
 
-  return Boolean(String(appointment.consultation?.subjective ?? "").trim());
+  return Boolean(
+    cleanSubjective(String(appointment.consultation?.subjective ?? ""))
+  );
 }
 
 export function getAppointmentScheduleLabel(appointment: Appointment): string {

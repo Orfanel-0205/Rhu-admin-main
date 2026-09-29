@@ -481,12 +481,23 @@ export default function TelemedicineRoom() {
         summary = localSoapSummary(source);
       }
 
+      /*
+       * The transcript does not belong in Subjective.
+       *
+       * Subjective is what the patient reported. A speech recogniser's
+       * best guess is not that, and when it is wrong it is not even
+       * language: one consultation was filed as "Transcript: Gustavo Como
+       * estoppo Annapolis" and the Appointment Board, which reads
+       * Subjective when the appointment has no symptoms of its own, then
+       * showed that to staff as the patient's reported symptoms.
+       *
+       * It has had its own column since the session notes started storing
+       * one, and that is where it goes. Pasting it here as well made a
+       * clinical field unreadable and told nobody anything the transcript
+       * box was not already showing.
+       */
       const subjective =
-        summary?.subjective ||
-        `${buildDefaultSubjective(session)}\nTranscript: ${source.slice(
-          0,
-          800
-        )}`;
+        summary?.subjective || buildDefaultSubjective(session);
 
       const objective =
         summary?.objective ||
@@ -557,10 +568,8 @@ export default function TelemedicineRoom() {
       : "";
 
     return {
-      subjective: joinClean([
-        buildDefaultSubjective(session),
-        `Transcript: ${text}`,
-      ]),
+      // Same reasoning as above: the transcript is stored, not pasted.
+      subjective: buildDefaultSubjective(session),
       objective:
         "No objective vital signs or physical examination findings were directly measured in the online consultation.",
       assessment: hasBreathing
@@ -597,10 +606,15 @@ export default function TelemedicineRoom() {
 
     const treatment = soap.treatment.trim() || plan;
 
+    /*
+     * The transcript is sent on its own field and stored in its own
+     * column, so appending it here too wrote the same text into the
+     * consultation notes on every save -- growing the note each time
+     * somebody pressed Save SOAP.
+     */
     const finalAdditionalNotes = joinClean([
       soap.additionalNotes ? `Additional RHU notes: ${soap.additionalNotes}` : null,
       rhuStaffName ? `RHU staff/doctor: ${rhuStaffName}` : null,
-      transcript ? `Transcript: ${transcript}` : null,
     ]);
 
     return {

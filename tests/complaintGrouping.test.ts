@@ -181,3 +181,32 @@ describe("what a card shows", () => {
     expect(summariseComplaint("Follow-up check").label).toBe("Follow-up check");
   });
 });
+
+// A speech transcript is not a clinical finding, and the board must not
+// present one as the patient's reported symptoms. See cleanSubjective in
+// src/services/appointments.ts for why this is a health-record concern
+// rather than a formatting preference.
+describe("a transcript never reaches the symptoms column", () => {
+  it("keeps the clinical note and drops the transcription", async () => {
+    const { getAppointmentSymptoms } = await import("../src/services/appointments");
+
+    const appointment = {
+      consultation: {
+        subjective:
+          "Chief complaint: Ubo\nTranscript: Gustavo Como estoppo Annapolis",
+      },
+    } as never;
+
+    expect(getAppointmentSymptoms(appointment)).toBe("Ubo");
+  });
+
+  it("shows nothing rather than nonsense when that is all there was", async () => {
+    const { getAppointmentSymptoms } = await import("../src/services/appointments");
+
+    const appointment = {
+      consultation: { subjective: "Transcript: hello Jamie Albany I completely" },
+    } as never;
+
+    expect(getAppointmentSymptoms(appointment)).toBe("—");
+  });
+});

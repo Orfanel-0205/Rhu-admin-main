@@ -635,6 +635,23 @@ body {
   content: none;
 }
 
+/*
+ * Nothing in a cell may be wider than the cell.
+ *
+ * A card is half the width of a card, and a badge sized to its text does
+ * not know that. "Has follow-up · Sep 30, 2026" ran off the right edge of
+ * its card and was cut by the overflow that keeps the corners rounded, so
+ * the date -- the only part worth reading -- was the part removed.
+ */
+.responsive-table td > * {
+  max-width: 100%;
+}
+
+.responsive-table td span,
+.responsive-table td div {
+  min-width: 0;
+}
+
 /* Buttons sit on one line where they fit, and wrap where they do not. */
 .responsive-table td:last-child > div {
   display: flex;
