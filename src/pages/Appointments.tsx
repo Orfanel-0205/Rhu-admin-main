@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+
+import { summariseComplaint } from "../utils/complaintGrouping";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -1198,6 +1200,7 @@ export default function Appointments() {
                 {visibleAppointments.map((appointment) => {
                   const appointmentType = getAppointmentType(appointment);
                   const reason = getAppointmentReason(appointment);
+                  const complaint = summariseComplaint(reason);
                   const symptoms = getAppointmentSymptoms(appointment);
                   const isActionLoading = actionLoadingId === appointment.id;
                   const statusText = String(
@@ -1257,10 +1260,31 @@ export default function Appointments() {
                         </div>
                       </td>
 
+                      {/*
+                          A reason arrives as whatever was typed at the desk,
+                          so showing its first few words showed the least
+                          useful part: "I have been experiencing a..." tells
+                          the reader nothing. The complaint itself is named
+                          instead, using the same vocabulary the outbreak map
+                          counts by, with the sentence kept on the tooltip
+                          and behind View details.
+                      */}
                       <td data-label="Reason" style={tdStyle}>
                         {reason && reason !== "—" ? (
                           <div>
-                            <span title={reason}>{truncate(reason)}</span>
+                            <span
+                              title={complaint.full || reason}
+                              style={
+                                complaint.recognised
+                                  ? complaint.notifiable
+                                    ? complaintNotifiableStyle
+                                    : complaintChipStyle
+                                  : undefined
+                              }
+                            >
+                              {complaint.label}
+                            </span>
+
                             <button
                               type="button"
                               onClick={() => setDetailsAppointment(appointment)}
@@ -2254,6 +2278,34 @@ const tdStyle: CSSProperties = {
 const tdRightStyle: CSSProperties = {
   ...tdStyle,
   textAlign: "right",
+};
+
+/*
+ * A named complaint reads as a label, not as prose.
+ *
+ * The distinction matters: a chip is this system saying it recognised
+ * the complaint and grouped it, while plain text is the patient's own
+ * words shown as typed. A reader should be able to tell which they are
+ * looking at without being told.
+ */
+const complaintChipStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "3px 10px",
+  borderRadius: 999,
+  background: "#EEF2FF",
+  border: "1px solid #C7D2FE",
+  color: "#3730A3",
+  fontSize: 12.5,
+  fontWeight: 800,
+};
+
+/* Notifiable conditions are worth noticing before the third case. */
+const complaintNotifiableStyle: CSSProperties = {
+  ...complaintChipStyle,
+  background: "#FEF2F2",
+  border: "1px solid #FECACA",
+  color: "#991B1B",
 };
 
 const cellPrimaryStyle: CSSProperties = {

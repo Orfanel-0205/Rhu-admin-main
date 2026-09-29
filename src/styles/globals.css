@@ -551,9 +551,17 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   width: 100%;
-  border: 1px solid #e2e8f0;
+  /*
+   * A visible edge, not a suggestion of one.
+   *
+   * At #e2e8f0 on a white page the cards ran together and the grid read
+   * as one sheet of fields rather than as separate records. A card has
+   * to look like a thing you could pick up.
+   */
+  border: 1px solid #cbd5e1;
   border-radius: 16px;
   background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   overflow: hidden;
 }
 
