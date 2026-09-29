@@ -102,6 +102,54 @@ describe("telemedicine documentation stays available after the call", () => {
   });
 });
 
+describe("dictation only offers languages that exist", () => {
+  /*
+   * Chrome's speech recognition is Google's, and its published list offers
+   * exactly two tags for the Philippines: en-PH and fil-PH.
+   *
+   * A "tl-PH" was offered here briefly. Selecting it could only ever answer
+   * language-not-supported and fall back to English, which reads as Tagalog
+   * dictation being broken rather than being absent under another name.
+   *
+   * Pangasinense has no tag at all, in any browser or major cloud recogniser.
+   * Adding one would be inventing it.
+   */
+  const REAL_PH_TAGS = ["en-PH", "fil-PH"];
+
+  it("offers no Philippine tag the recogniser does not have", () => {
+    const source = roomSource();
+
+    const block = source.match(
+      /const DICTATION_LANGUAGES = \[([\s\S]*?)\] as const;/
+    );
+
+    expect(block, "DICTATION_LANGUAGES moved or was renamed.").not.toBeNull();
+
+    const offered = Array.from(block![1].matchAll(/value: "([a-z-]+)"/g)).map(
+      (m) => m[1]
+    );
+
+    const invented = offered.filter(
+      (tag) => tag.endsWith("-PH") && !REAL_PH_TAGS.includes(tag)
+    );
+
+    expect(
+      invented,
+      "A Philippine language tag is offered that Chrome does not support. " +
+        "It can only fail and fall back to English, which looks like a bug " +
+        "rather than an unsupported language."
+    ).toEqual([]);
+  });
+
+  it("says plainly that Pangasinense cannot be dictated", () => {
+    expect(
+      roomSource(),
+      "The note explaining that Pangasinense has no dictation support was " +
+        "removed. Without it, a clinician can only discover this by failing."
+    ).toContain("Pangasinense is not available for dictation");
+  });
+});
+
 describe("the frontend and backend agree on when notes are accepted", () => {
   const service = backendService();
 

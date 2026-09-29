@@ -10,23 +10,26 @@
 // unmounted, and the clinician left the room -- while the patient, who opened
 // the same meeting from the mobile app through Linking.openURL and is sitting
 // in their own browser or the Jitsi app, was never told anything. They stayed
-// in an empty room waiting for a doctor who had already finished and written
-// their notes.
+// in an empty room waiting for a doctor who had already finished.
 //
 // Nothing about that is fixable from the backend. The meeting lives on the
 // 8x8 bridge; ending it is a command sent from inside the conference, and only
 // a participant can send it. The External API is what makes the page a
 // participant instead of a spectator.
 //
-// endForEveryone() issues `endConference`, which closes the room for all
-// participants and requires moderator rights -- every Ka-Agapay token grants
-// them, so the clinician always has them. `hangup` follows as a fallback for
-// the case where the bridge refuses the first command, so the clinician leaves
-// even if the room somehow survives.
+// WHY ENDING KICKS BEFORE IT ENDS
 //
-// If external_api.js cannot be loaded at all (blocked, offline, 8x8 down) the
-// component falls back to the old iframe. A call that works and strands the
-// patient at the end is still better than no call.
+// The first attempt sent `endConference` alone. That is a real command in
+// 8x8's external_api.js -- it maps to "end-conference" -- and the bridge
+// accepted it without closing the patient's room, so they still had to shut
+// the tab by hand. The command depends on moderator rights being recognised
+// for this participant at that moment, and there is no way to confirm from
+// here whether they were.
+//
+// So we no longer rely on one command being honoured. Every remote
+// participant is removed by id first, which is the instruction the bridge
+// will act on per-person, and only then is the conference ended and this side
+// hung up. Each step is harmless if the one before it already worked.
 
 import {
   forwardRef,
@@ -37,10 +40,16 @@ import {
 } from "react";
 import type { CSSProperties } from "react";
 
+interface JitsiParticipant {
+  participantId?: string;
+  displayName?: string;
+}
+
 interface JitsiExternalApi {
   executeCommand: (command: string, ...args: unknown[]) => void;
-  addListener: (event: string, handler: (...args: unknown[]) => void) => void;
-  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+  addListener: (event: string, handler: (...args: never[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: never[]) => void) => void;
+  getParticipantsInfo?: () => JitsiParticipant[];
   dispose: () => void;
 }
 
@@ -63,6 +72,14 @@ export interface JitsiRoomHandle {
    * without doing anything rather than throwing into the caller's save path.
    */
   endForEveryone: () => Promise<void>;
+  /**
+   * Whether this embed can actually issue commands.
+   *
+   * False once we have fallen back to an iframe, where ending the session
+   * removes the clinician and leaves the patient sitting in the room. The
+   * caller shows that rather than implying an outcome it cannot deliver.
+   */
+  isControllable: () => boolean;
 }
 
 interface JitsiRoomProps {
@@ -74,7 +91,7 @@ interface JitsiRoomProps {
   jwt?: string | null;
   /** Used only if external_api.js cannot be loaded. */
   fallbackUrl?: string;
-  /** Fired when the conference closes, including when the far side ends it. */
+  /** Fired when the conference closes on its own, or the far side ends it. */
   onEnded?: () => void;
   style?: CSSProperties;
 }
@@ -101,11 +118,7 @@ function loadExternalApi(domain: string): Promise<void> {
       return;
     }
 
-    const previous = document.querySelector<HTMLScriptElement>(
-      `script[data-jitsi-external-api="${domain}"]`
-    );
-
-    const element = previous ?? document.createElement("script");
+    const element = document.createElement("script");
 
     element.src = src;
     element.async = true;
@@ -123,9 +136,7 @@ function loadExternalApi(domain: string): Promise<void> {
       reject(new Error(`Could not load ${src}`));
     });
 
-    if (!previous) {
-      document.head.appendChild(element);
-    }
+    document.head.appendChild(element);
   });
 
   pending.catch(() => scriptLoads.delete(src));
@@ -134,6 +145,9 @@ function loadExternalApi(domain: string): Promise<void> {
   return pending;
 }
 
+const wait = (ms: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, ms));
+
 const JitsiRoom = forwardRef<JitsiRoomHandle, JitsiRoomProps>(function JitsiRoom(
   { domain, roomName, jwt, fallbackUrl, onEnded, style },
   ref
@@ -141,6 +155,12 @@ const JitsiRoom = forwardRef<JitsiRoomHandle, JitsiRoomProps>(function JitsiRoom
   const holderRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef<JitsiExternalApi | null>(null);
   const [useFallback, setUseFallback] = useState(false);
+
+  /** This browser's participant id, so we kick everyone except ourselves. */
+  const myIdRef = useRef<string | null>(null);
+
+  /** Set while we are deliberately ending, to ignore our own leave events. */
+  const endingRef = useRef(false);
 
   // Kept in a ref so a changing callback never re-creates the conference.
   const onEndedRef = useRef(onEnded);
@@ -176,12 +196,28 @@ const JitsiRoom = forwardRef<JitsiRoomHandle, JitsiRoomProps>(function JitsiRoom
 
         apiRef.current = api;
 
-        // The far side ending the call, or this side leaving through Jitsi's
-        // own hangup button, both reach the page here.
-        const handleClosed = () => onEndedRef.current?.();
+        // This build of external_api.js has no getMyUserId, so the only way
+        // to know which participant is us is to note it on the way in.
+        api.addListener("videoConferenceJoined", ((event: { id?: string }) => {
+          myIdRef.current = event?.id ?? null;
+        }) as never);
 
-        api.addListener("readyToClose", handleClosed);
-        api.addListener("videoConferenceLeft", handleClosed);
+        /*
+         * The far side ending the call, or this side leaving through Jitsi's
+         * own hangup button, both reach the page here -- but so does our own
+         * teardown, and reloading the session mid-teardown races the save
+         * that started it.
+         */
+        const handleClosed = () => {
+          if (endingRef.current) {
+            return;
+          }
+
+          onEndedRef.current?.();
+        };
+
+        api.addListener("readyToClose", handleClosed as never);
+        api.addListener("videoConferenceLeft", handleClosed as never);
       })
       .catch((err) => {
         console.warn("[JitsiRoom] falling back to iframe", err);
@@ -201,12 +237,17 @@ const JitsiRoom = forwardRef<JitsiRoomHandle, JitsiRoomProps>(function JitsiRoom
       }
 
       apiRef.current = null;
+      myIdRef.current = null;
     };
   }, [domain, roomName, jwt]);
 
   useImperativeHandle(
     ref,
     () => ({
+      isControllable() {
+        return !useFallback && apiRef.current !== null;
+      },
+
       async endForEveryone() {
         const api = apiRef.current;
 
@@ -214,24 +255,49 @@ const JitsiRoom = forwardRef<JitsiRoomHandle, JitsiRoomProps>(function JitsiRoom
           return;
         }
 
+        endingRef.current = true;
+
+        /*
+         * Remove the others by id first.
+         *
+         * endConference on its own was accepted and changed nothing for the
+         * patient, who still had to close the room by hand. A kick names the
+         * participant, so the bridge has no room to decide the instruction
+         * does not apply.
+         */
+        try {
+          const everyone = api.getParticipantsInfo?.() ?? [];
+
+          for (const participant of everyone) {
+            const id = participant?.participantId;
+
+            if (id && id !== myIdRef.current) {
+              api.executeCommand("kickParticipant", id);
+            }
+          }
+        } catch (err) {
+          console.warn("[JitsiRoom] could not remove participants", err);
+        }
+
+        await wait(300);
+
+        // Then close the room itself, so a participant who joins late or
+        // reconnects does not find it still open.
         try {
           api.executeCommand("endConference");
         } catch (err) {
           console.warn("[JitsiRoom] endConference refused", err);
         }
 
-        // Let the command reach the bridge before we tear the embed down.
-        // Disposing first would close our own channel and the patient would
-        // stay exactly where the old iframe left them.
-        await new Promise((resolve) => window.setTimeout(resolve, 400));
+        await wait(400);
 
         try {
           api.executeCommand("hangup");
         } catch {
-          // ignore — endConference has usually already closed the room
+          // ignore — the room has usually already closed
         }
 
-        await new Promise((resolve) => window.setTimeout(resolve, 150));
+        await wait(150);
 
         try {
           api.dispose();
@@ -242,7 +308,7 @@ const JitsiRoom = forwardRef<JitsiRoomHandle, JitsiRoomProps>(function JitsiRoom
         apiRef.current = null;
       },
     }),
-    []
+    [useFallback]
   );
 
   if (useFallback) {

@@ -51,15 +51,28 @@ type SoapFields = {
  * nearest to. The recogniser cannot be told to expect a mix, so the
  * clinician picks whichever language the consultation is mostly in.
  *
- * A build that does not offer a tag answers language-not-supported, and
- * the hook falls back to en-US and says so rather than failing silently.
+ * THESE ARE THE ONLY PHILIPPINE OPTIONS THAT EXIST.
+ *
+ * Speech recognition in the browser is Google's, and its list offers
+ * exactly two tags for this country: "en-PH" and "fil-PH". A "tl-PH" was
+ * offered here briefly and is not a real tag -- selecting it could only
+ * ever fail and fall back to English, which looked like Tagalog dictation
+ * being broken rather than absent. Filipino is the Tagalog option; it is
+ * labelled so nobody goes looking for a separate one.
+ *
+ * Pangasinense is not in that list and is not offered by any browser or
+ * major cloud recogniser. There is no setting that will transcribe it and
+ * no fallback worth pretending about, so the panel says so plainly and
+ * the clinician types those consultations instead.
  */
 const DICTATION_LANGUAGES = [
   { value: "en-US", label: "English (US)" },
   { value: "en-PH", label: "English (PH)" },
-  { value: "fil-PH", label: "Filipino" },
-  { value: "tl-PH", label: "Tagalog" },
+  { value: "fil-PH", label: "Filipino / Tagalog" },
 ] as const;
+
+const NO_DICTATION_NOTE =
+  "Pangasinense is not available for dictation in any browser — type those consultations, or dictate in Filipino or English.";
 
 const emptySoap: SoapFields = {
   subjective: "",
@@ -913,6 +926,11 @@ export default function TelemedicineRoom() {
               />
             </label>
 
+            {/* Stated once, where the choice is made, rather than leaving
+                the clinician to work out from silence that a language they
+                use every day simply is not on the list. */}
+            <p style={dictationNoteStyle}>{NO_DICTATION_NOTE}</p>
+
             {/* The recogniser's runners-up. A name it mishears the same way
                 every time is usually right in one of these, and a tap is
                 faster than retyping the phrase. */}
@@ -1050,6 +1068,16 @@ export default function TelemedicineRoom() {
             <p style={endBodyStyle}>
               This will end the video call and save the current SOAP notes. You
               can continue editing SOAP before finalizing.
+            </p>
+
+            {/* When external_api.js could not load we are back to a bare
+                iframe, which can remove this side of the call and nothing
+                else. Better to say so than to let the clinician believe the
+                patient was dropped when they were not. */}
+            <p style={endBodyStyle}>
+              {jitsiRef.current?.isControllable() === false
+                ? "The video embed is running in limited mode, so the patient may stay in the room after you leave. Ask them to close it."
+                : "The patient is removed from the room when you end the session."}
             </p>
 
             <div style={endActionsStyle}>
@@ -1305,6 +1333,15 @@ const labelStyle: CSSProperties = {
   fontWeight: 900,
   textTransform: "uppercase",
   letterSpacing: ".06em",
+};
+
+const dictationNoteStyle: CSSProperties = {
+  margin: 0,
+  marginTop: -2,
+  fontSize: 11,
+  lineHeight: 1.5,
+  color: "#64748B",
+  fontWeight: 600,
 };
 
 const transcriptHeadingStyle: CSSProperties = {
