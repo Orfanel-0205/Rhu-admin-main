@@ -524,14 +524,32 @@ body {
  */
 .responsive-table tbody {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 14px;
   align-items: start;
   width: 100%;
 }
 
+/*
+ * The card is a small record, not a list of rows.
+ *
+ * The first version stacked one field per row with its heading in a left
+ * gutter, which is what a table becomes when you simply unfold it. Nine
+ * fields made a card nine rows tall, three of them filled a screen, and a
+ * third of every card's width was spent on headings. It was readable and it
+ * was not a design.
+ *
+ * The fields now pair up two to a line with the heading above its value, so
+ * a nine-field card is five lines instead of nine and no width is reserved
+ * for labels. The identity field and the actions keep the full width: the
+ * first because a patient name is what you are looking for, the last
+ * because buttons crowded into half a card are the problem this started
+ * with.
+ */
 .responsive-table tr {
-  display: block;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
   width: 100%;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -540,50 +558,76 @@ body {
 }
 
 .responsive-table td {
-  display: grid;
-  grid-template-columns: minmax(84px, 34%) 1fr;
-  gap: 12px;
-  align-items: start;
+  display: block;
   width: auto !important;
-  padding: 9px 14px !important;
+  min-width: 0;
+  padding: 8px 14px !important;
   text-align: left !important;
-  border-bottom: 1px solid #f1f5f9;
   vertical-align: baseline;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-/* The actions sit at the foot of the card, on their own. */
-.responsive-table td:last-child {
-  grid-template-columns: 1fr;
-  border-bottom: 0;
+/* The heading sits above its value, in the space a value would leave. */
+.responsive-table td::before {
+  content: attr(data-label);
+  display: block;
+  margin-bottom: 1px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+/*
+ * Who this record is about, across the top.
+ *
+ * Its heading is dropped: a name under the word PATIENT tells the reader
+ * something they already knew from the board they are looking at.
+ */
+.responsive-table td:first-child {
+  grid-column: 1 / -1;
+  padding: 12px 14px 10px !important;
   background: #f8fafc;
-  padding: 12px 14px !important;
+}
+
+.responsive-table td:first-child::before {
+  display: none;
+}
+
+/* The actions, across the foot, where a button has room to be a button. */
+.responsive-table td:last-child {
+  grid-column: 1 / -1;
+  border-bottom: 0;
+  border-top: 1px solid #eef2f7;
+  padding: 11px 14px !important;
 }
 
 .responsive-table td:last-child::before {
   display: none;
 }
 
-/* The column heading, printed beside its value. */
-.responsive-table td::before {
-  content: attr(data-label);
-  font-size: 10.5px;
-  font-weight: 800;
-  line-height: 1.6;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
+/*
+ * A field in the left column draws the divider between the pair; without
+ * this the two halves of a line would each draw their own and the seam
+ * would show wherever a pair is uneven in height.
+ */
+.responsive-table td:nth-child(odd) {
+  border-right: 1px solid #f1f5f9;
 }
 
-/* A cell we never labelled would otherwise leave a blank first column. */
-.responsive-table td:not([data-label]) {
-  display: block;
+.responsive-table td:first-child,
+.responsive-table td:last-child {
+  border-right: 0;
 }
 
+/* A cell we never labelled would otherwise print an empty heading. */
 .responsive-table td:not([data-label])::before {
   content: none;
 }
 
-/* Buttons fill the width of the card foot rather than crowding one line. */
+/* Buttons sit on one line where they fit, and wrap where they do not. */
 .responsive-table td:last-child > div {
   display: flex;
   flex-wrap: wrap;
@@ -592,11 +636,10 @@ body {
 }
 
 /*
- * On a phone the heading stops sharing a line with its value.
+ * On a phone the pairs unpair.
  *
- * A two-column card leaves the value about 200px wide on a 360px screen,
- * which is enough to wrap a patient name and a date onto several lines
- * each. Below 560px the heading sits above and the value gets the width.
+ * Half of a 360px screen is not enough for a date and a time, or for a
+ * status badge that says anything. One field per line, full width.
  */
 @media (max-width: 560px) {
   .responsive-table tbody {
@@ -604,9 +647,12 @@ body {
     gap: 12px;
   }
 
-  .responsive-table td {
+  .responsive-table tr {
     grid-template-columns: 1fr;
-    gap: 2px;
+  }
+
+  .responsive-table td:nth-child(odd) {
+    border-right: 0;
   }
 
   .responsive-table td:last-child > div {
