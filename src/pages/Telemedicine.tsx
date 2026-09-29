@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { getCurrentUserRhuId, isGlobalRhuRole } from "../services/queue";
+import HowToStrip from "../components/ui/HowToStrip";
 import {
   AlertTriangle,
   BellRing,
@@ -980,19 +981,23 @@ export default function Telemedicine() {
         </div>
       ) : null}
 
-      <section style={stepsGridStyle}>
-        <Step number="1" title="Screen" body="Check complaint and urgency." />
-        <Step
-          number="2"
-          title="Start Video"
-          body="Open only when staff is ready."
-        />
-        <Step
-          number="3"
-          title="Document"
-          body="Complete SOAP and consultation record."
-        />
-      </section>
+      <HowToStrip
+        pageKey="telemedicine"
+        steps={[
+          {
+            title: "Screen",
+            body: "Check complaint and urgency.",
+          },
+          {
+            title: "Start Video",
+            body: "Open only when staff is ready.",
+          },
+          {
+            title: "Document",
+            body: "Complete SOAP and consultation record.",
+          },
+        ]}
+      />
 
       <section style={statsGridStyle}>
         <Stat
@@ -1341,25 +1346,6 @@ export default function Telemedicine() {
   );
 }
 
-function Step({
-  number,
-  title,
-  body,
-}: {
-  number: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div style={stepCardStyle}>
-      <div style={stepNumberStyle}>{number}</div>
-      <div>
-        <strong>{title}</strong>
-        <p>{body}</p>
-      </div>
-    </div>
-  );
-}
 
 function Stat({
   icon,
@@ -1940,11 +1926,6 @@ const errorStyle: CSSProperties = {
   border: "1px solid #FECACA",
 };
 
-const stepsGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, minmax(180px, 1fr))",
-  gap: 14,
-};
 
 const stepCardStyle: CSSProperties = {
   borderRadius: 20,

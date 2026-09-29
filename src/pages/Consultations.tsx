@@ -38,6 +38,7 @@ import {
   type Consultation,
 } from "../services/consultations";
 import { getConsultations } from "../services/consultations";
+import HowToStrip from "../components/ui/HowToStrip";
 import DateRangeFilter, {
   EMPTY_RANGE,
   describeRange,
@@ -256,23 +257,23 @@ export default function Consultations() {
         }
       />
 
-      <section style={instructionGridStyle}>
-        <InstructionCard
-          number="1"
-          title="Open Record"
-          body="Choose a patient card and open SOAP."
-        />
-        <InstructionCard
-          number="2"
-          title="Document Properly"
-          body="Fill subjective, objective, assessment, and plan."
-        />
-        <InstructionCard
-          number="3"
-          title="Review Before Complete"
-          body="Complete only after assessment and treatment plan are ready."
-        />
-      </section>
+      <HowToStrip
+        pageKey="consultations"
+        steps={[
+          {
+            title: "Open Record",
+            body: "Choose a patient card and open SOAP.",
+          },
+          {
+            title: "Document Properly",
+            body: "Fill subjective, objective, assessment, and plan.",
+          },
+          {
+            title: "Review Before Complete",
+            body: "Complete only after assessment and treatment plan are ready.",
+          },
+        ]}
+      />
 
       <section style={statsGridStyle}>
         <StatCard
@@ -635,25 +636,6 @@ export default function Consultations() {
   );
 }
 
-function InstructionCard({
-  number,
-  title,
-  body,
-}: {
-  number: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div style={instructionCardStyle}>
-      <div style={instructionNumberStyle}>{number}</div>
-      <div>
-        <strong>{title}</strong>
-        <p>{body}</p>
-      </div>
-    </div>
-  );
-}
 
 function StatCard({
   icon,
@@ -785,34 +767,8 @@ const nextStepPillStyle: CSSProperties = {
   fontWeight: 800,
 };
 
-const instructionGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: 14,
-};
 
-const instructionCardStyle: CSSProperties = {
-  display: "flex",
-  gap: 14,
-  alignItems: "flex-start",
-  padding: 18,
-  borderRadius: 20,
-  background: "#FFFFFF",
-  border: "1px solid #E5E7EB",
-  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.05)",
-};
 
-const instructionNumberStyle: CSSProperties = {
-  width: 38,
-  height: 38,
-  flex: "0 0 auto",
-  display: "grid",
-  placeItems: "center",
-  borderRadius: 14,
-  background: "#047857",
-  color: "#FFFFFF",
-  fontWeight: 950,
-};
 
 const statsGridStyle: CSSProperties = {
   display: "grid",

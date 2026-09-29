@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { summariseComplaint } from "../utils/complaintGrouping";
+import HowToStrip from "../components/ui/HowToStrip";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -976,23 +977,23 @@ export default function Appointments() {
         }
       />
 
-      <section style={instructionGridStyle}>
-        <InstructionCard
-          number="1"
-          title="Review"
-          body="Check patient name, mobile number, reason, symptoms, date, and type."
-        />
-        <InstructionCard
-          number="2"
-          title="Approve or Reject"
-          body="Approve valid requests. Reject only with clear reason."
-        />
-        <InstructionCard
-          number="3"
-          title="Queue or Start"
-          body="Onsite appointments go to Queue. Online appointments open Telemedicine."
-        />
-      </section>
+      <HowToStrip
+        pageKey="appointments"
+        steps={[
+          {
+            title: "Review",
+            body: "Check patient name, mobile number, reason, symptoms, date, and type.",
+          },
+          {
+            title: "Approve or Reject",
+            body: "Approve valid requests. Reject only with clear reason.",
+          },
+          {
+            title: "Queue or Start",
+            body: "Onsite appointments go to Queue. Online appointments open Telemedicine.",
+          },
+        ]}
+      />
 
       <section style={statsGridStyle}>
         <StatCard
@@ -1808,25 +1809,6 @@ export default function Appointments() {
   );
 }
 
-function InstructionCard({
-  number,
-  title,
-  body,
-}: {
-  number: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <article style={instructionCardStyle}>
-      <span style={instructionNumberStyle}>{number}</span>
-      <div>
-        <h3 style={instructionTitleStyle}>{title}</h3>
-        <p style={instructionBodyStyle}>{body}</p>
-      </div>
-    </article>
-  );
-}
 
 function StatCard({
   icon,
@@ -2006,47 +1988,10 @@ const nextStepPillStyle: CSSProperties = {
   fontWeight: 800,
 };
 
-const instructionGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
-  gap: 16,
-};
 
-const instructionCardStyle: CSSProperties = {
-  display: "flex",
-  gap: 16,
-  alignItems: "flex-start",
-  padding: 22,
-  borderRadius: 20,
-  border: "1px solid #E2E8F0",
-  background: "#FFFFFF",
-  boxShadow: "0 10px 24px rgba(15, 23, 42, 0.04)",
-};
 
-const instructionNumberStyle: CSSProperties = {
-  display: "grid",
-  placeItems: "center",
-  minWidth: 34,
-  height: 34,
-  borderRadius: 12,
-  background: "#047857",
-  color: "#FFFFFF",
-  fontWeight: 900,
-};
 
-const instructionTitleStyle: CSSProperties = {
-  margin: "0 0 8px",
-  fontSize: 16,
-  fontWeight: 900,
-};
 
-const instructionBodyStyle: CSSProperties = {
-  margin: 0,
-  color: "#334155",
-  fontSize: 14,
-  lineHeight: 1.6,
-  fontWeight: 600,
-};
 
 const statsGridStyle: CSSProperties = {
   display: "grid",
