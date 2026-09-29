@@ -652,6 +652,21 @@ body {
   min-width: 0;
 }
 
+/*
+ * The odd one out takes the whole line.
+ *
+ * The fields pair two to a line, so a card with an odd number of them
+ * leaves the last one sitting in the left half with empty space beside
+ * it. That reads as a missing field rather than as a field that happens
+ * to be last.
+ *
+ * The first cell always spans, so the middle fields start in the left
+ * column and the lone one is always at an even position.
+ */
+.responsive-table td:nth-last-child(2):nth-child(even) {
+  grid-column: 1 / -1;
+}
+
 /* Buttons sit on one line where they fit, and wrap where they do not. */
 .responsive-table td:last-child > div {
   display: flex;

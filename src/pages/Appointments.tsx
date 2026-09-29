@@ -1187,8 +1187,6 @@ export default function Appointments() {
               <thead>
                 <tr>
                   <th style={thStyle}>Patient</th>
-                  <th style={thStyle}>RHU</th>
-                  <th style={thStyle}>Type</th>
                   <th style={thStyle}>Date / Time</th>
                   <th style={thStyle}>Reason</th>
                   <th style={thStyle}>Symptoms</th>
@@ -1237,21 +1235,30 @@ export default function Appointments() {
                         <div className="ka-nowrap" style={cellMutedStyle}>
                           #{appointment.id} · {getPatientMobile(appointment)}
                         </div>
-                      </td>
 
-                      <td data-label="RHU" style={tdStyle}>
-                        {appointment.rhu_id ? `RHU ${appointment.rhu_id}` : "—"}
-                      </td>
+                        {/*
+                            Which facility, and onsite or online.
 
-                      <td data-label="Type" style={tdStyle}>
-                        <span
-                          style={{
-                            ...tableBadgeStyle,
-                            ...typeTone(appointmentType),
-                          }}
-                        >
-                          {appointmentType === "online" ? "Online" : "Onsite"}
-                        </span>
+                            These had a labelled row each, which spent a
+                            whole line of the card on "RHU 1" and a second
+                            on one word. They describe the same thing the
+                            name and number above them describe -- which
+                            record this is -- so they belong with it.
+                        */}
+                        <div style={identityBadgesStyle}>
+                          <span style={facilityBadgeStyle}>
+                            {appointment.rhu_id ? `RHU ${appointment.rhu_id}` : "RHU —"}
+                          </span>
+
+                          <span
+                            style={{
+                              ...tableBadgeStyle,
+                              ...typeTone(appointmentType),
+                            }}
+                          >
+                            {appointmentType === "online" ? "Online" : "Onsite"}
+                          </span>
+                        </div>
                       </td>
 
                       <td data-label="Date / Time" style={tdStyle}>
@@ -1392,9 +1399,6 @@ export default function Appointments() {
                             {queueState.label}
                           </span>
 
-                          <span style={queueHintStyle}>
-                            {queueState.description}
-                          </span>
 
                           {queueState.showAddAction ? (
                             <button
@@ -2270,6 +2274,26 @@ const complaintNotifiableStyle: CSSProperties = {
 };
 
 /* Where a symptom came from, said quietly beside it. */
+const identityBadgesStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+  marginTop: 8,
+};
+
+/* Quieter than the type badge: which RHU is context, not a status. */
+const facilityBadgeStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "3px 9px",
+  borderRadius: 999,
+  background: "#F1F5F9",
+  border: "1px solid #E2E8F0",
+  color: "#475569",
+  fontSize: 11.5,
+  fontWeight: 800,
+};
+
 const clinicianNoteStyle: CSSProperties = {
   display: "block",
   marginTop: 2,
@@ -2314,12 +2338,6 @@ const queueCellStyle: CSSProperties = {
   maxWidth: 260,
 };
 
-const queueHintStyle: CSSProperties = {
-  color: "#334155",
-  fontSize: 12,
-  lineHeight: 1.45,
-  fontWeight: 700,
-};
 
 const tableActionsStyle: CSSProperties = {
   display: "flex",
