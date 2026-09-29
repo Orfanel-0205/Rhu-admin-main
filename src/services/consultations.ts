@@ -1,6 +1,7 @@
 // src/services/consultations.ts
 
 import apiClient from "../lib/apiClient";
+import { clinicalSubjective } from "../utils/clinicalText";
 import { getRecordLifecycleStatus, normalizeLifecycleValue } from "../lib/recordLifecycle";
 import type { LifecycleStatus } from "../lib/recordLifecycle";
 import type { Tone } from "../theme/tokens";
@@ -483,10 +484,20 @@ export function getConsultationDate(item: Consultation): string | null {
   );
 }
 
+/**
+ * The complaint to show on a board.
+ *
+ * Subjective is a fallback here, and it is the field the telemedicine
+ * room used to paste speech transcripts into -- which is how the
+ * Consultation Records board came to show a chief complaint of
+ * "Transcript: Gustavo Como estoppo Annapolis". It is cleaned before it
+ * is used, and a note that was only a transcript falls through to the
+ * appointment rather than being shown.
+ */
 export function getChiefComplaint(item: Consultation): string {
   return (
     safeString(item.chief_complaint) ||
-    safeString(item.subjective) ||
+    clinicalSubjective(item.subjective) ||
     safeString(item.appointment?.reason) ||
     safeString(item.appointment?.symptoms) ||
     "No chief complaint recorded"

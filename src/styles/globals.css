@@ -469,234 +469,274 @@ body {
 }
 
 /*
- * BOARDS ARE CARDS, AT EVERY WIDTH.
+ * ROWS WHERE THEY FIT, CARDS WHERE THEY DO NOT.
  *
  * These boards were tables with a declared min-width between 980 and
- * 1220px, inside a wrapper that scrolled. Three attempts to make that fit
- * failed for the same reason each time, and the reason is structural: a
- * table with a fixed minimum width is always too wide for some screen. You
- * can pin the edges, you can stop the words breaking, you can move the
- * breakpoint -- there is still a window size where nine columns do not fit
- * and the staff are dragging the table sideways to reach a button.
+ * 1220px inside a wrapper that scrolled, and no threshold made that fit:
+ * a table with a fixed minimum is always too wide for some screen. Cards
+ * fixed that and went too far the other way. A row is genuinely easier to
+ * scan down a column of thirty appointments, and a clinician at a desk has
+ * the width for one.
  *
- * So there is no table layout left to fall out of. Every row is a card and
- * every value carries its column heading, and the cards sit in a grid that
- * takes as many columns as the space allows: four on a wide monitor, two on
- * a tablet, one on a phone. Nothing is hidden at any size and nothing ever
- * scrolls sideways, which is the only promise that survives an unknown
- * screen.
+ * Both, then. The min-width is gone at every size, so the table is fluid
+ * and sizes to its own content rather than to a number somebody guessed;
+ * that alone is what stops it overflowing. Below 1280px, where seven
+ * columns stop being comfortable next to the sidebar, each row becomes a
+ * card instead.
  *
- * What this costs is scanning a single column down a page of rows. What it
- * buys is that the Actions column cannot hide, which is what staff were
- * actually blocked by.
- *
- * !important appears throughout because these cells carry inline styles
- * from the page components, which otherwise win.
+ * The cards are not a lesser fallback. Every cell carries its column
+ * heading in a data-label, so nothing is dropped on the way down.
  */
 .responsive-table {
   width: 100%;
   max-width: 100%;
-  /* Nothing inside is wider than the container any more, so there is
-     nothing to scroll. Left as a backstop for content we did not foresee. */
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  border: 0;
-  border-radius: 0;
+  border-radius: 16px;
 }
 
+/*
+ * The declared minimum is overridden rather than edited out of each page,
+ * because it is set inline in eight files and a stylesheet can say it once.
+ * Without this the table still demands 1220px on a 1000px screen and the
+ * wrapper goes back to scrolling sideways.
+ */
 .responsive-table table {
-  display: block;
   width: 100%;
   min-width: 0 !important;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: transparent !important;
 }
 
-/* The headings live in the cells now, so the header row has nothing to do. */
-.responsive-table thead {
-  display: none;
-}
-
-/*
- * auto-fill rather than auto-fit: a single appointment should stay a
- * card-sized card, not stretch across a 27-inch monitor.
- */
-.responsive-table tbody {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 14px;
-  align-items: start;
-  width: 100%;
-}
-
-/*
- * The card is a small record, not a list of rows.
- *
- * The first version stacked one field per row with its heading in a left
- * gutter, which is what a table becomes when you simply unfold it. Nine
- * fields made a card nine rows tall, three of them filled a screen, and a
- * third of every card's width was spent on headings. It was readable and it
- * was not a design.
- *
- * The fields now pair up two to a line with the heading above its value, so
- * a nine-field card is five lines instead of nine and no width is reserved
- * for labels. The identity field and the actions keep the full width: the
- * first because a patient name is what you are looking for, the last
- * because buttons crowded into half a card are the problem this started
- * with.
- */
-.responsive-table tr {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  width: 100%;
+@media (max-width: 1279px) {
   /*
-   * A visible edge, not a suggestion of one.
+   * BOARDS ARE CARDS, AT EVERY WIDTH.
    *
-   * At #e2e8f0 on a white page the cards ran together and the grid read
-   * as one sheet of fields rather than as separate records. A card has
-   * to look like a thing you could pick up.
+   * These boards were tables with a declared min-width between 980 and
+   * 1220px, inside a wrapper that scrolled. Three attempts to make that fit
+   * failed for the same reason each time, and the reason is structural: a
+   * table with a fixed minimum width is always too wide for some screen. You
+   * can pin the edges, you can stop the words breaking, you can move the
+   * breakpoint -- there is still a window size where nine columns do not fit
+   * and the staff are dragging the table sideways to reach a button.
+   *
+   * So there is no table layout left to fall out of. Every row is a card and
+   * every value carries its column heading, and the cards sit in a grid that
+   * takes as many columns as the space allows: four on a wide monitor, two on
+   * a tablet, one on a phone. Nothing is hidden at any size and nothing ever
+   * scrolls sideways, which is the only promise that survives an unknown
+   * screen.
+   *
+   * What this costs is scanning a single column down a page of rows. What it
+   * buys is that the Actions column cannot hide, which is what staff were
+   * actually blocked by.
+   *
+   * !important appears throughout because these cells carry inline styles
+   * from the page components, which otherwise win.
    */
-  border: 1px solid #cbd5e1;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-  overflow: hidden;
-}
+  .responsive-table {
+    width: 100%;
+    max-width: 100%;
+    /* Nothing inside is wider than the container any more, so there is
+       nothing to scroll. Left as a backstop for content we did not foresee. */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 0;
+    border-radius: 0;
+  }
 
-.responsive-table td {
-  display: block;
-  width: auto !important;
-  min-width: 0;
-  padding: 8px 14px !important;
-  text-align: left !important;
-  vertical-align: baseline;
-  border-bottom: 1px solid #f1f5f9;
-}
+  .responsive-table table {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: transparent !important;
+  }
 
-/* The heading sits above its value, in the space a value would leave. */
-.responsive-table td::before {
-  content: attr(data-label);
-  display: block;
-  margin-bottom: 1px;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1.5;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #94a3b8;
-}
+  /* The headings live in the cells now, so the header row has nothing to do. */
+  .responsive-table thead {
+    display: none;
+  }
 
-/*
- * Who this record is about, across the top.
- *
- * Its heading is dropped: a name under the word PATIENT tells the reader
- * something they already knew from the board they are looking at.
- */
-.responsive-table td:first-child {
-  grid-column: 1 / -1;
-  padding: 12px 14px 10px !important;
-  background: #f8fafc;
-}
-
-.responsive-table td:first-child::before {
-  display: none;
-}
-
-/* The actions, across the foot, where a button has room to be a button. */
-.responsive-table td:last-child {
-  grid-column: 1 / -1;
-  border-bottom: 0;
-  border-top: 1px solid #eef2f7;
-  padding: 11px 14px !important;
-}
-
-.responsive-table td:last-child::before {
-  display: none;
-}
-
-/*
- * A field in the left column draws the divider between the pair; without
- * this the two halves of a line would each draw their own and the seam
- * would show wherever a pair is uneven in height.
- */
-.responsive-table td:nth-child(odd) {
-  border-right: 1px solid #f1f5f9;
-}
-
-.responsive-table td:first-child,
-.responsive-table td:last-child {
-  border-right: 0;
-}
-
-/* A cell we never labelled would otherwise print an empty heading. */
-.responsive-table td:not([data-label])::before {
-  content: none;
-}
-
-/*
- * Nothing in a cell may be wider than the cell.
- *
- * A card is half the width of a card, and a badge sized to its text does
- * not know that. "Has follow-up · Sep 30, 2026" ran off the right edge of
- * its card and was cut by the overflow that keeps the corners rounded, so
- * the date -- the only part worth reading -- was the part removed.
- */
-.responsive-table td > * {
-  max-width: 100%;
-}
-
-.responsive-table td span,
-.responsive-table td div {
-  min-width: 0;
-}
-
-/*
- * The odd one out takes the whole line.
- *
- * The fields pair two to a line, so a card with an odd number of them
- * leaves the last one sitting in the left half with empty space beside
- * it. That reads as a missing field rather than as a field that happens
- * to be last.
- *
- * The first cell always spans, so the middle fields start in the left
- * column and the lone one is always at an even position.
- */
-.responsive-table td:nth-last-child(2):nth-child(even) {
-  grid-column: 1 / -1;
-}
-
-/* Buttons sit on one line where they fit, and wrap where they do not. */
-.responsive-table td:last-child > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-start;
-}
-
-/*
- * On a phone the pairs unpair.
- *
- * Half of a 360px screen is not enough for a date and a time, or for a
- * status badge that says anything. One field per line, full width.
- */
-@media (max-width: 560px) {
+  /*
+   * auto-fill rather than auto-fit: a single appointment should stay a
+   * card-sized card, not stretch across a 27-inch monitor.
+   */
   .responsive-table tbody {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+    align-items: start;
+    width: 100%;
   }
 
+  /*
+   * The card is a small record, not a list of rows.
+   *
+   * The first version stacked one field per row with its heading in a left
+   * gutter, which is what a table becomes when you simply unfold it. Nine
+   * fields made a card nine rows tall, three of them filled a screen, and a
+   * third of every card's width was spent on headings. It was readable and it
+   * was not a design.
+   *
+   * The fields now pair up two to a line with the heading above its value, so
+   * a nine-field card is five lines instead of nine and no width is reserved
+   * for labels. The identity field and the actions keep the full width: the
+   * first because a patient name is what you are looking for, the last
+   * because buttons crowded into half a card are the problem this started
+   * with.
+   */
   .responsive-table tr {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    width: 100%;
+    /*
+     * A visible edge, not a suggestion of one.
+     *
+     * At #e2e8f0 on a white page the cards ran together and the grid read
+     * as one sheet of fields rather than as separate records. A card has
+     * to look like a thing you could pick up.
+     */
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
   }
 
+  .responsive-table td {
+    display: block;
+    width: auto !important;
+    min-width: 0;
+    padding: 8px 14px !important;
+    text-align: left !important;
+    vertical-align: baseline;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  /* The heading sits above its value, in the space a value would leave. */
+  .responsive-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 1px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+  }
+
+  /*
+   * Who this record is about, across the top.
+   *
+   * Its heading is dropped: a name under the word PATIENT tells the reader
+   * something they already knew from the board they are looking at.
+   */
+  .responsive-table td:first-child {
+    grid-column: 1 / -1;
+    padding: 12px 14px 10px !important;
+    background: #f8fafc;
+  }
+
+  .responsive-table td:first-child::before {
+    display: none;
+  }
+
+  /* The actions, across the foot, where a button has room to be a button. */
+  .responsive-table td:last-child {
+    grid-column: 1 / -1;
+    border-bottom: 0;
+    border-top: 1px solid #eef2f7;
+    padding: 11px 14px !important;
+  }
+
+  .responsive-table td:last-child::before {
+    display: none;
+  }
+
+  /*
+   * A field in the left column draws the divider between the pair; without
+   * this the two halves of a line would each draw their own and the seam
+   * would show wherever a pair is uneven in height.
+   */
   .responsive-table td:nth-child(odd) {
+    border-right: 1px solid #f1f5f9;
+  }
+
+  .responsive-table td:first-child,
+  .responsive-table td:last-child {
     border-right: 0;
   }
 
+  /* A cell we never labelled would otherwise print an empty heading. */
+  .responsive-table td:not([data-label])::before {
+    content: none;
+  }
+
+  /*
+   * Nothing in a cell may be wider than the cell.
+   *
+   * A card is half the width of a card, and a badge sized to its text does
+   * not know that. "Has follow-up · Sep 30, 2026" ran off the right edge of
+   * its card and was cut by the overflow that keeps the corners rounded, so
+   * the date -- the only part worth reading -- was the part removed.
+   */
+  .responsive-table td > * {
+    max-width: 100%;
+  }
+
+  .responsive-table td span,
+  .responsive-table td div {
+    min-width: 0;
+  }
+
+  /*
+   * The odd one out takes the whole line.
+   *
+   * The fields pair two to a line, so a card with an odd number of them
+   * leaves the last one sitting in the left half with empty space beside
+   * it. That reads as a missing field rather than as a field that happens
+   * to be last.
+   *
+   * The first cell always spans, so the middle fields start in the left
+   * column and the lone one is always at an even position.
+   */
+  .responsive-table td:nth-last-child(2):nth-child(even) {
+    grid-column: 1 / -1;
+  }
+
+  /* Buttons sit on one line where they fit, and wrap where they do not. */
   .responsive-table td:last-child > div {
-    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  /*
+   * On a phone the pairs unpair.
+   *
+   * Half of a 360px screen is not enough for a date and a time, or for a
+   * status badge that says anything. One field per line, full width.
+   */
+  @media (max-width: 560px) {
+    .responsive-table tbody {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .responsive-table tr {
+      grid-template-columns: 1fr;
+    }
+
+    .responsive-table td:nth-child(odd) {
+      border-right: 0;
+    }
+
+    .responsive-table td:last-child > div {
+      width: 100%;
+    }
   }
 }
 
