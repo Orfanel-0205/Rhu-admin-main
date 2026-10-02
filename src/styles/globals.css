@@ -740,6 +740,23 @@ body {
   }
 }
 
+/* A spinning icon for in-progress buttons (Loader2 and friends). */
+.spin {
+  animation: ka-spin 0.9s linear infinite;
+}
+
+@keyframes ka-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
 /* Action button groups wrap cleanly instead of overflowing the row. */
 .responsive-actions {
   display: flex;

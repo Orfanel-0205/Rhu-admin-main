@@ -22,6 +22,8 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useLangStore } from "../store/langStore";
+import { useAuthStore } from "../store/authStore";
+import IntegrationsPanel from "../components/settings/IntegrationsPanel";
 import backupsService, {
   formatBytes,
   formatRunTime,
@@ -360,6 +362,16 @@ function copyForLang(lang: string) {
 export default function Settings() {
   const lang = useLangStore((state) => state.lang);
   const c = copyForLang(lang);
+
+  // API keys decide which account the RHU's SMS credit, AI usage and video
+  // calls are billed to, so only a super admin sees that section. The
+  // backend refuses everyone else regardless; this only avoids showing a
+  // section that would fail to load.
+  const authUser = useAuthStore((state) => state.user) as any;
+  const roleName = String(authUser?.role_name ?? authUser?.role?.name ?? authUser?.role ?? "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  const isSuperAdmin = roleName === "super_admin" || roleName === "superadmin";
 
   const [settings, setSettings] = useState<SettingsForm>(emptyForm);
 
@@ -800,6 +812,16 @@ export default function Settings() {
             onRefresh={() => void loadBackupStatus()}
           />
         </SettingsSection>
+
+        {isSuperAdmin ? (
+          <SettingsSection
+            title="API keys"
+            helper="Replace the key for an outside service: the AI assistant, SMS, ID reading, or video calls. Super admin only."
+            icon={<KeyRound size={20} />}
+          >
+            <IntegrationsPanel />
+          </SettingsSection>
+        ) : null}
       </div>
     </div>
   );
