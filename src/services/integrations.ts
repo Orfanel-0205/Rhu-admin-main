@@ -146,6 +146,13 @@ export interface RevealOutcome {
   message?: string;
   attemptsLeft?: number;
   locked?: boolean;
+  /** The password was right; a code was texted and must be entered next. */
+  codeRequired?: boolean;
+  challenge?: string;
+  maskedMobile?: string;
+  resendAfter?: number;
+  /** The code step ended (expired, too many tries): start again. */
+  restart?: boolean;
 }
 
 /**
@@ -168,25 +175,89 @@ export async function revealIntegrationField(
       QUIET
     );
 
+    // The right password now yields a code step, never the key itself.
+    if (response.data?.code_required) {
+      return {
+        ok: false,
+        codeRequired: true,
+        challenge: String(response.data.challenge),
+        maskedMobile: String(response.data.masked_mobile ?? ""),
+        resendAfter: Number(response.data.resend_after ?? 60),
+        message: response.data.message,
+      };
+    }
+
     return {
       ok: true,
       value: String(response.data?.value ?? ""),
       visibleSeconds: Number(response.data?.visible_seconds ?? 30),
     };
   } catch (error: unknown) {
-    const response = (error as { response?: { status?: number; data?: any } })?.response;
-
-    if (response && [404, 422, 429].includes(response.status ?? 0)) {
-      return {
-        ok: false,
-        message: response.data?.message ?? "The key could not be shown.",
-        attemptsLeft: response.data?.attempts_left,
-        locked: response.status === 429 || response.data?.locked === true,
-      };
-    }
-
-    throw error;
+    return refusal(error);
   }
+}
+
+/** Second step: the code from the super admin's phone releases the key. */
+export async function confirmReveal(
+  id: IntegrationId,
+  challenge: string,
+  code: string
+): Promise<RevealOutcome> {
+  try {
+    const response = await apiClient.post(
+      `/admin/settings/integrations/${id}/reveal/confirm`,
+      { challenge, code },
+      QUIET
+    );
+
+    return {
+      ok: true,
+      value: String(response.data?.value ?? ""),
+      visibleSeconds: Number(response.data?.visible_seconds ?? 30),
+    };
+  } catch (error: unknown) {
+    return refusal(error);
+  }
+}
+
+export async function resendRevealCode(id: IntegrationId, challenge: string): Promise<RevealOutcome> {
+  try {
+    const response = await apiClient.post(
+      `/admin/settings/integrations/${id}/reveal/resend`,
+      { challenge },
+      QUIET
+    );
+
+    return {
+      ok: false,
+      message: response.data?.message,
+      resendAfter: Number(response.data?.resend_after ?? 60),
+    };
+  } catch (error: unknown) {
+    return refusal(error);
+  }
+}
+
+/**
+ * Expected refusals come back as outcomes for the dialog, not as thrown
+ * errors. The server answers a wrong password or code with 422 and an
+ * expired step with 410 -- never 401, which the client would treat as an
+ * expired session and sign the user out over.
+ */
+function refusal(error: unknown): RevealOutcome {
+  const response = (error as { response?: { status?: number; data?: any } })?.response;
+
+  if (response && [404, 410, 422, 423, 429, 503].includes(response.status ?? 0)) {
+    return {
+      ok: false,
+      message: response.data?.message ?? "The key could not be shown.",
+      attemptsLeft: response.data?.attempts_left,
+      locked: response.status === 429 && response.data?.locked === true,
+      restart: response.status === 410 || response.data?.restart === true,
+    };
+  }
+
+  throw error;
 }
 
 /** Blank means "keep the current value", so blanks are not sent at all. */

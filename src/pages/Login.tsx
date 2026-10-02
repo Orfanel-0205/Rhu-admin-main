@@ -1,12 +1,14 @@
 // src/pages/Login.tsx
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
   Eye,
+  KeyRound,
+  RotateCw,
   EyeOff,
   Lock,
   Phone,
@@ -14,7 +16,8 @@ import {
   UserPlus,
 } from "lucide-react";
 
-import { authService } from "../services/auth";
+import { authService, SignInCodeRequired } from "../services/auth";
+import type { SignInChallenge } from "../services/auth";
 import { useAuthStore } from "../store/authStore";
 
 export default function Login() {
@@ -27,6 +30,82 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  /*
+   * The second step, after a wrong password.
+   *
+   * When an account has had a wrong password since its last sign-in, the
+   * right password is not enough: the server texts a six-digit code to the
+   * account holder's phone and this screen asks for it. Someone who knows
+   * or guesses the password still needs the phone.
+   */
+  const [codeStep, setCodeStep] = useState<SignInChallenge | null>(null);
+  const [code, setCode] = useState("");
+  const [info, setInfo] = useState("");
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (!codeStep || resendIn <= 0) return;
+
+    const timer = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [codeStep, resendIn]);
+
+  /** Back to the password step, e.g. after the code expired. */
+  function restart(message = "") {
+    setCodeStep(null);
+    setCode("");
+    setInfo("");
+    setError(message);
+  }
+
+  async function verifyCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!codeStep || code.length !== 6) return;
+
+    setLoading(true);
+    setError("");
+    setInfo("");
+
+    try {
+      const response = await authService.verifyLoginCode(codeStep.challenge, code);
+
+      setAuth(response.user, response.token);
+      navigate("/dashboard", { replace: true });
+    } catch (error: any) {
+      const data = error?.response?.data;
+      const message = data?.message || "The code could not be checked. Try again.";
+
+      if (data?.restart) {
+        restart(message);
+      } else {
+        setError(message);
+        setCode("");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resendCode() {
+    if (!codeStep || resendIn > 0) return;
+
+    setError("");
+    setInfo("");
+
+    try {
+      const sent = await authService.resendLoginCode(codeStep.challenge);
+      setInfo(sent.message);
+      setResendIn(sent.resendAfter);
+      setCode("");
+    } catch (error: any) {
+      const data = error?.response?.data;
+      const message = data?.message || "A new code could not be sent.";
+
+      if (data?.restart) restart(message);
+      else setError(message);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,6 +122,15 @@ export default function Login() {
       setAuth(response.user, response.token);
       navigate("/dashboard", { replace: true });
     } catch (error: any) {
+      if (error instanceof SignInCodeRequired) {
+        // Not a refusal: the password was right and a code is on its way.
+        setCodeStep(error.challenge);
+        setResendIn(error.challenge.resendAfter);
+        setPassword("");
+        setCode("");
+        return;
+      }
+
       setError(
         error?.response?.data?.message ||
           error?.message ||
@@ -110,6 +198,72 @@ export default function Login() {
             </div>
           ) : null}
 
+          {info ? (
+            <div className="ka-info-box">
+              <CheckCircle2 size={18} />
+              <span>{info}</span>
+            </div>
+          ) : null}
+
+          {codeStep ? (
+            <form onSubmit={verifyCode} className="ka-form">
+              <div className="ka-code-intro">
+                <KeyRound size={20} />
+                <p>
+                  A wrong password was entered for this account since its last sign-in, so we
+                  sent a 6-digit code to the mobile number ending in{" "}
+                  <b>{codeStep.maskedMobile}</b>. Enter it to continue.
+                </p>
+              </div>
+
+              <label className="ka-label">
+                Code from your phone
+                <div className="ka-input-wrap">
+                  <Lock size={19} className="ka-input-icon" />
+                  <input
+                    value={code}
+                    onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6-digit code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    aria-label="6-digit code from your phone"
+                    autoFocus
+                    required
+                  />
+                </div>
+              </label>
+
+              <button
+                type="submit"
+                disabled={loading || code.length !== 6}
+                className="ka-primary-button"
+              >
+                {loading ? "Checking..." : "Verify and sign in"}
+                <ArrowRight size={19} />
+              </button>
+
+              <div className="ka-code-actions">
+                <button
+                  type="button"
+                  className="ka-text-button"
+                  onClick={() => void resendCode()}
+                  disabled={resendIn > 0}
+                >
+                  <RotateCw size={15} />
+                  {resendIn > 0 ? `Send a new code in ${resendIn}s` : "Send a new code"}
+                </button>
+
+                <button type="button" className="ka-text-button" onClick={() => restart()}>
+                  Use a different account
+                </button>
+              </div>
+
+              <p className="ka-code-help">
+                Lost your phone, or the number is wrong? Ask RHU staff to set a new password for
+                you; that also clears this step.
+              </p>
+            </form>
+          ) : (
           <form onSubmit={submit} className="ka-form">
             <label className="ka-label">
               Mobile Number
@@ -159,6 +313,7 @@ export default function Login() {
               <ArrowRight size={19} />
             </button>
           </form>
+          )}
 
           <div className="ka-divider" />
 
@@ -391,6 +546,76 @@ export default function Login() {
           font-weight: 800;
           line-height: 1.5;
           margin-bottom: 18px;
+        }
+
+        .ka-info-box {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 14px 16px;
+          border-radius: 17px;
+          background: #f0fdf4;
+          color: #166534;
+          border: 1px solid #bbf7d0;
+          font-weight: 800;
+          line-height: 1.5;
+          margin-bottom: 18px;
+        }
+
+        .ka-code-intro {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          padding: 14px 16px;
+          border-radius: 17px;
+          background: #f0fdfa;
+          border: 1px solid #99f6e4;
+          color: #134e4a;
+          font-weight: 700;
+          line-height: 1.55;
+        }
+
+        .ka-code-intro p {
+          margin: 0;
+        }
+
+        .ka-code-intro svg {
+          flex-shrink: 0;
+          margin-top: 2px;
+          color: #047857;
+        }
+
+        .ka-code-actions {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .ka-text-button {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border: none;
+          background: transparent;
+          color: #047857;
+          font-weight: 900;
+          font-size: 14px;
+          cursor: pointer;
+          padding: 6px 2px;
+        }
+
+        .ka-text-button:disabled {
+          color: #94a3b8;
+          cursor: default;
+        }
+
+        .ka-code-help {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.55;
+          color: #64748b;
+          font-weight: 600;
         }
 
         .ka-error-box svg {

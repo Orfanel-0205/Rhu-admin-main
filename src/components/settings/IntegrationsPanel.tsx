@@ -25,11 +25,15 @@ import {
   Lock,
   RotateCcw,
   Save,
+  Smartphone,
   XCircle,
+  ArrowRight as ArrowRightIcon,
 } from "lucide-react";
 
 import {
+  confirmReveal,
   getIntegrations,
+  resendRevealCode,
   resetIntegration,
   revealIntegrationField,
   saveIntegration,
@@ -41,6 +45,7 @@ import type {
   IntegrationStatus,
   IntegrationTestResult,
   IntegrationValues,
+  RevealOutcome,
 } from "../../services/integrations";
 
 /** Where to get each key, in the words of each provider's own console. */
@@ -170,7 +175,26 @@ function IntegrationCard({
     };
   }, [revealed]);
 
-  /** Returns the outcome so the dialog can show a refusal in place. */
+  /** Shows a released key; returns the outcome so the dialog can explain a refusal. */
+  function show(field: string, outcome: RevealOutcome) {
+    if (outcome.ok && outcome.value) {
+      setRevealed({
+        field,
+        value: outcome.value,
+        hidesAt: Date.now() + (outcome.visibleSeconds ?? 30) * 1000,
+      });
+      setAskingFor(null);
+    }
+
+    return outcome;
+  }
+
+  /** Step two: the code from the phone. */
+  async function confirm(field: string, challenge: string, code: string) {
+    return show(field, await confirmReveal(id, challenge, code));
+  }
+
+  /** Step one: the password. A right password answers with a code step. */
   async function reveal(field: string, password: string) {
     const outcome = await revealIntegrationField(id, field, password);
 
@@ -378,6 +402,8 @@ function IntegrationCard({
         <PasswordPrompt
           title={`View ${status.label} — ${status.fields[askingFor]?.label ?? askingFor}`}
           onSubmit={(password) => reveal(askingFor, password)}
+          onCode={(challenge, code) => confirm(askingFor, challenge, code)}
+          onResend={(challenge) => resendRevealCode(id, challenge)}
           onCancel={() => setAskingFor(null)}
         />
       ) : null}
@@ -435,26 +461,39 @@ function RevealedValue({
 }
 
 /**
- * Asks for the super admin's own password before a key is shown.
+ * Two steps before a key is shown: the super admin's own password, then the
+ * code texted to their own phone.
  *
- * The password is held only while the dialog is open and is cleared after
- * every attempt, right or wrong. It protects against a stolen session, not
- * against someone sitting at an unlocked computer whose browser has saved
- * the password -- which is why super admin passwords should not be saved in
- * the browser on a shared RHU machine.
+ * The password stops a stolen session. The code stops the one thing the
+ * password cannot: someone at an unlocked computer whose browser has saved
+ * and filled in that password. They have the computer; they do not have the
+ * phone.
+ *
+ * Both inputs are cleared after every attempt, right or wrong, and neither is
+ * kept anywhere but this dialog's state.
  */
 function PasswordPrompt({
   title,
   onSubmit,
+  onCode,
+  onResend,
   onCancel,
 }: {
   title: string;
-  onSubmit: (password: string) => Promise<{ ok: boolean; message?: string; locked?: boolean }>;
+  onSubmit: (password: string) => Promise<RevealOutcome>;
+  onCode: (challenge: string, code: string) => Promise<RevealOutcome>;
+  onResend: (challenge: string) => Promise<RevealOutcome>;
   onCancel: () => void;
 }) {
+  const [step, setStep] = useState<"password" | "code">("password");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [challenge, setChallenge] = useState("");
+  const [maskedMobile, setMaskedMobile] = useState("");
+  const [resendIn, setResendIn] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
@@ -466,16 +505,38 @@ function PasswordPrompt({
     return () => document.removeEventListener("keydown", onKey);
   }, [busy, onCancel]);
 
-  async function submit() {
+  useEffect(() => {
+    if (step !== "code" || resendIn <= 0) return;
+
+    const timer = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [step, resendIn]);
+
+  /** A refusal that ends the code step sends the dialog back to the start. */
+  function backToPassword(message: string) {
+    setStep("password");
+    setChallenge("");
+    setCode("");
+    setInfo("");
+    setError(message);
+  }
+
+  async function submitPassword() {
     if (!password || busy || locked) return;
 
     setBusy(true);
     setError("");
+    setInfo("");
 
     try {
       const outcome = await onSubmit(password);
 
-      if (!outcome.ok) {
+      if (outcome.codeRequired && outcome.challenge) {
+        setChallenge(outcome.challenge);
+        setMaskedMobile(outcome.maskedMobile ?? "");
+        setResendIn(outcome.resendAfter ?? 60);
+        setStep("code");
+      } else if (!outcome.ok) {
         setError(outcome.message ?? "The key could not be shown.");
         setLocked(Boolean(outcome.locked));
       }
@@ -488,12 +549,56 @@ function PasswordPrompt({
     }
   }
 
+  async function submitCode() {
+    if (code.length !== 6 || busy) return;
+
+    setBusy(true);
+    setError("");
+    setInfo("");
+
+    try {
+      const outcome = await onCode(challenge, code);
+
+      if (!outcome.ok) {
+        if (outcome.restart) backToPassword(outcome.message ?? "That code has expired. Start again.");
+        else setError(outcome.message ?? "Incorrect code.");
+      }
+    } catch {
+      setError("The server could not be reached. Nothing was shown.");
+    } finally {
+      setCode("");
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    if (resendIn > 0 || busy) return;
+
+    setError("");
+    setInfo("");
+
+    try {
+      const outcome = await onResend(challenge);
+
+      if (outcome.restart) {
+        backToPassword(outcome.message ?? "Start again to get a new code.");
+      } else if (outcome.resendAfter) {
+        setInfo(outcome.message ?? "A new code was sent.");
+        setResendIn(outcome.resendAfter);
+      } else {
+        setError(outcome.message ?? "A new code could not be sent.");
+      }
+    } catch {
+      setError("The server could not be reached.");
+    }
+  }
+
   return (
     <div style={overlayStyle} onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}>
       <div role="dialog" aria-modal="true" aria-labelledby="reveal-title" style={dialogStyle}>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <span style={dialogIconStyle}>
-            <Lock size={18} />
+            {step === "password" ? <Lock size={18} /> : <Smartphone size={18} />}
           </span>
           <h3 id="reveal-title" style={{ margin: 0, fontSize: 16, fontWeight: 900, color: "#0F172A" }}>
             {title}
@@ -501,28 +606,59 @@ function PasswordPrompt({
         </div>
 
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#475569" }}>
-          Enter your own password to continue. The key is shown for 30 seconds and hides when you
-          leave this tab. Every view, and every wrong password, is recorded in the audit log.
+          {step === "password" ? (
+            <>
+              Step 1 of 2: enter your own password. Next we text a code to your phone. The key is
+              shown for 30 seconds and hides when you leave this tab. Every view, and every wrong
+              attempt, is recorded in the audit log.
+            </>
+          ) : (
+            <>
+              Step 2 of 2: enter the 6-digit code we sent to your mobile number ending in{" "}
+              <b>{maskedMobile || "—"}</b>. It expires in 5 minutes.
+            </>
+          )}
         </p>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void submit();
+            void (step === "password" ? submitPassword() : submitCode());
           }}
           style={{ display: "grid", gap: 10 }}
         >
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoFocus
-            autoComplete="current-password"
-            placeholder="Your password"
-            aria-label="Your password"
-            disabled={locked}
-            style={inputStyle}
-          />
+          {step === "password" ? (
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+              autoComplete="current-password"
+              placeholder="Your password"
+              aria-label="Your password"
+              disabled={locked}
+              style={inputStyle}
+            />
+          ) : (
+            <input
+              key="code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              autoFocus
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="6-digit code"
+              aria-label="6-digit code from your phone"
+              style={{ ...inputStyle, letterSpacing: "0.3em", fontWeight: 800 }}
+            />
+          )}
+
+          {info ? (
+            <div style={{ display: "flex", gap: 8, color: "#166534", fontSize: 13, fontWeight: 700 }}>
+              <CheckCircle2 size={16} style={{ flex: "0 0 auto" }} />
+              <span>{info}</span>
+            </div>
+          ) : null}
 
           {error ? (
             <div style={{ display: "flex", gap: 8, color: "#B91C1C", fontSize: 13, fontWeight: 700 }}>
@@ -531,18 +667,45 @@ function PasswordPrompt({
             </div>
           ) : null}
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" onClick={onCancel} disabled={busy} style={ghostButtonStyle}>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!password || busy || locked}
-              style={{ ...primaryButtonStyle, opacity: !password || busy || locked ? 0.55 : 1 }}
-            >
-              {busy ? <Loader2 size={15} className="spin" /> : <Eye size={15} />}
-              View key
-            </button>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {step === "code" ? (
+              <button
+                type="button"
+                onClick={() => void resend()}
+                disabled={resendIn > 0 || busy}
+                style={{ ...ghostButtonStyle, opacity: resendIn > 0 ? 0.6 : 1 }}
+              >
+                <RotateCcw size={14} />
+                {resendIn > 0 ? `New code in ${resendIn}s` : "Send a new code"}
+              </button>
+            ) : (
+              <span />
+            )}
+
+            <span style={{ display: "inline-flex", gap: 8 }}>
+              <button type="button" onClick={onCancel} disabled={busy} style={ghostButtonStyle}>
+                Cancel
+              </button>
+              {step === "password" ? (
+                <button
+                  type="submit"
+                  disabled={!password || busy || locked}
+                  style={{ ...primaryButtonStyle, opacity: !password || busy || locked ? 0.55 : 1 }}
+                >
+                  {busy ? <Loader2 size={15} className="spin" /> : <ArrowRightIcon size={15} />}
+                  Continue
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={code.length !== 6 || busy}
+                  style={{ ...primaryButtonStyle, opacity: code.length !== 6 || busy ? 0.55 : 1 }}
+                >
+                  {busy ? <Loader2 size={15} className="spin" /> : <Eye size={15} />}
+                  View key
+                </button>
+              )}
+            </span>
           </div>
         </form>
       </div>

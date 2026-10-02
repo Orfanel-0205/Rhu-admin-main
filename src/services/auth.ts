@@ -14,6 +14,40 @@ export interface LoginResponse {
   token: string;
 }
 
+/** What the second sign-in step needs, after a wrong password. */
+export interface SignInChallenge {
+  challenge: string;
+  /** The last three digits of the number the code went to. */
+  maskedMobile: string;
+  expiresIn: number;
+  resendAfter: number;
+}
+
+/**
+ * The password was right, but the account has had a wrong one since its last
+ * sign-in, so a code was texted to the account holder's phone.
+ *
+ * Thrown rather than returned so the single caller keeps its ordinary
+ * success path; it is an expected outcome, not a failure.
+ */
+export class SignInCodeRequired extends Error {
+  constructor(public readonly challenge: SignInChallenge, message: string) {
+    super(message);
+    this.name = "SignInCodeRequired";
+  }
+}
+
+/** The login page shows every outcome inline, so no extra toast. */
+const QUIET = { suppressErrorToast: true } as any;
+
+function toLoginResponse(data: any): LoginResponse {
+  return {
+    message: data?.message,
+    user: normalizeUser(data?.user),
+    token: data?.token,
+  };
+}
+
 export interface StaffRegisterPayload {
   first_name: string;
   middle_name?: string;
@@ -97,12 +131,46 @@ function normalizeUser(raw: any): AdminUser {
 
 export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
-    const response = await apiClient.post("/admin/login", payload);
+    try {
+      const response = await apiClient.post("/admin/login", payload, QUIET);
+      return toLoginResponse(response.data);
+    } catch (error: any) {
+      const data = error?.response?.data;
 
+      // 403 with code_required is the second step, not a refusal.
+      if (error?.response?.status === 403 && data?.code_required) {
+        throw new SignInCodeRequired(
+          {
+            challenge: String(data.challenge),
+            maskedMobile: String(data.masked_mobile ?? ""),
+            expiresIn: Number(data.expires_in ?? 300),
+            resendAfter: Number(data.resend_after ?? 60),
+          },
+          String(data.message ?? "Enter the code sent to your phone.")
+        );
+      }
+
+      throw error;
+    }
+  },
+
+  /**
+   * Finish a sign-in with the code from the phone.
+   *
+   * A wrong code is 422 and an expired one 410, both with a message and
+   * `restart` -- the server never answers 401 here, which the client would
+   * treat as an expired session.
+   */
+  async verifyLoginCode(challenge: string, code: string): Promise<LoginResponse> {
+    const response = await apiClient.post("/admin/login/verify-code", { challenge, code }, QUIET);
+    return toLoginResponse(response.data);
+  },
+
+  async resendLoginCode(challenge: string): Promise<{ message: string; resendAfter: number }> {
+    const response = await apiClient.post("/admin/login/resend-code", { challenge }, QUIET);
     return {
-      message: response.data?.message,
-      user: normalizeUser(response.data?.user),
-      token: response.data?.token,
+      message: String(response.data?.message ?? "A new code was sent."),
+      resendAfter: Number(response.data?.resend_after ?? 60),
     };
   },
 
