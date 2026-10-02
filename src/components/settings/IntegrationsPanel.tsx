@@ -17,8 +17,12 @@ import type { CSSProperties } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  Copy,
+  Eye,
+  EyeOff,
   FlaskConical,
   Loader2,
+  Lock,
   RotateCcw,
   Save,
   XCircle,
@@ -27,6 +31,7 @@ import {
 import {
   getIntegrations,
   resetIntegration,
+  revealIntegrationField,
   saveIntegration,
   testIntegration,
 } from "../../services/integrations";
@@ -125,6 +130,62 @@ function IntegrationCard({
   const [result, setResult] = useState<IntegrationTestResult | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
+  /*
+   * A key shown in full: which field, its value, and when it hides again.
+   *
+   * Held in this component's state and nowhere else -- not storage, not the
+   * URL, not a parent -- so it is gone when the timer runs out, the tab is
+   * hidden, the card re-renders without it, or the page is left.
+   */
+  const [revealed, setRevealed] = useState<{ field: string; value: string; hidesAt: number } | null>(null);
+  const [askingFor, setAskingFor] = useState<string | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!revealed) return;
+
+    const tick = () => {
+      const left = Math.ceil((revealed.hidesAt - Date.now()) / 1000);
+
+      if (left <= 0) {
+        setRevealed(null);
+      } else {
+        setSecondsLeft(left);
+      }
+    };
+
+    // Walking away from the screen hides the key at once, rather than
+    // leaving it up for whoever looks at the monitor next.
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") setRevealed(null);
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [revealed]);
+
+  /** Returns the outcome so the dialog can show a refusal in place. */
+  async function reveal(field: string, password: string) {
+    const outcome = await revealIntegrationField(id, field, password);
+
+    if (outcome.ok && outcome.value) {
+      setRevealed({
+        field,
+        value: outcome.value,
+        hidesAt: Date.now() + (outcome.visibleSeconds ?? 30) * 1000,
+      });
+      setAskingFor(null);
+    }
+
+    return outcome;
+  }
+
   const anyFilled = Object.values(values).some((v) => String(v ?? "").trim() !== "");
 
   async function run(kind: "test" | "save" | "reset") {
@@ -203,15 +264,42 @@ function IntegrationCard({
                 <SourceChip source={meta.source} />
               </div>
 
-              <div style={currentStyle}>
-                {meta.display ? (
-                  <>
-                    Current: <strong style={{ wordBreak: "break-all" }}>{meta.display}</strong>
-                  </>
-                ) : (
-                  "Not set"
-                )}
+              <div style={currentRowStyle}>
+                <span style={currentStyle}>
+                  {meta.display ? (
+                    <>
+                      Current: <strong style={{ wordBreak: "break-all" }}>{meta.display}</strong>
+                    </>
+                  ) : (
+                    "Not set"
+                  )}
+                </span>
+
+                {meta.revealable ? (
+                  revealed?.field === field ? (
+                    <button type="button" onClick={() => setRevealed(null)} style={viewButtonStyle}>
+                      <EyeOff size={14} /> Hide
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAskingFor(field)}
+                      style={viewButtonStyle}
+                      title="Show this key in full. Requires your password."
+                    >
+                      <Eye size={14} /> View
+                    </button>
+                  )
+                ) : null}
               </div>
+
+              {revealed?.field === field ? (
+                <RevealedValue
+                  value={revealed.value}
+                  secondsLeft={secondsLeft}
+                  onHide={() => setRevealed(null)}
+                />
+              ) : null}
 
               {multiline ? (
                 <textarea
@@ -285,7 +373,180 @@ function IntegrationCard({
           </button>
         ) : null}
       </footer>
+
+      {askingFor ? (
+        <PasswordPrompt
+          title={`View ${status.label} — ${status.fields[askingFor]?.label ?? askingFor}`}
+          onSubmit={(password) => reveal(askingFor, password)}
+          onCancel={() => setAskingFor(null)}
+        />
+      ) : null}
     </article>
+  );
+}
+
+/**
+ * A revealed key, with a countdown and a copy button.
+ *
+ * Copying is offered because retyping a 39-character key is how typos get
+ * into the provider's console. The clipboard is the user's to manage; the
+ * note says so rather than pretending the page can clear it.
+ */
+function RevealedValue({
+  value,
+  secondsLeft,
+  onHide,
+}: {
+  value: string;
+  secondsLeft: number;
+  onHide: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div style={revealBoxStyle} role="status" aria-live="polite">
+      <code style={revealValueStyle}>{value}</code>
+
+      <div style={revealFooterStyle}>
+        <span style={{ color: "#92400E", fontWeight: 700 }}>
+          Hides in {secondsLeft}s{copied ? " · Copied. Paste it where it belongs, then copy something else over it." : ""}
+        </span>
+
+        <span style={{ display: "inline-flex", gap: 6 }}>
+          <button type="button" onClick={() => void copy()} style={viewButtonStyle}>
+            <Copy size={14} /> {copied ? "Copied" : "Copy"}
+          </button>
+          <button type="button" onClick={onHide} style={viewButtonStyle}>
+            <EyeOff size={14} /> Hide
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Asks for the super admin's own password before a key is shown.
+ *
+ * The password is held only while the dialog is open and is cleared after
+ * every attempt, right or wrong. It protects against a stolen session, not
+ * against someone sitting at an unlocked computer whose browser has saved
+ * the password -- which is why super admin passwords should not be saved in
+ * the browser on a shared RHU machine.
+ */
+function PasswordPrompt({
+  title,
+  onSubmit,
+  onCancel,
+}: {
+  title: string;
+  onSubmit: (password: string) => Promise<{ ok: boolean; message?: string; locked?: boolean }>;
+  onCancel: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [locked, setLocked] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onCancel();
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+
+  async function submit() {
+    if (!password || busy || locked) return;
+
+    setBusy(true);
+    setError("");
+
+    try {
+      const outcome = await onSubmit(password);
+
+      if (!outcome.ok) {
+        setError(outcome.message ?? "The key could not be shown.");
+        setLocked(Boolean(outcome.locked));
+      }
+    } catch {
+      setError("The server could not be reached. Nothing was shown.");
+    } finally {
+      // Never left sitting in the form, whatever the answer was.
+      setPassword("");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={overlayStyle} onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="reveal-title" style={dialogStyle}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={dialogIconStyle}>
+            <Lock size={18} />
+          </span>
+          <h3 id="reveal-title" style={{ margin: 0, fontSize: 16, fontWeight: 900, color: "#0F172A" }}>
+            {title}
+          </h3>
+        </div>
+
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#475569" }}>
+          Enter your own password to continue. The key is shown for 30 seconds and hides when you
+          leave this tab. Every view, and every wrong password, is recorded in the audit log.
+        </p>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+          style={{ display: "grid", gap: 10 }}
+        >
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+            autoComplete="current-password"
+            placeholder="Your password"
+            aria-label="Your password"
+            disabled={locked}
+            style={inputStyle}
+          />
+
+          {error ? (
+            <div style={{ display: "flex", gap: 8, color: "#B91C1C", fontSize: 13, fontWeight: 700 }}>
+              <XCircle size={16} style={{ flex: "0 0 auto" }} />
+              <span>{error}</span>
+            </div>
+          ) : null}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" onClick={onCancel} disabled={busy} style={ghostButtonStyle}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!password || busy || locked}
+              style={{ ...primaryButtonStyle, opacity: !password || busy || locked ? 0.55 : 1 }}
+            >
+              {busy ? <Loader2 size={15} className="spin" /> : <Eye size={15} />}
+              View key
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -455,3 +716,82 @@ const buttonBase: CSSProperties = {
 const primaryButtonStyle: CSSProperties = { ...buttonBase, background: "#0F766E", color: "#FFFFFF", border: "1px solid #0F766E" };
 const secondaryButtonStyle: CSSProperties = { ...buttonBase, background: "#FFFFFF", color: "#0F766E", border: "1px solid #99F6E4" };
 const ghostButtonStyle: CSSProperties = { ...buttonBase, background: "transparent", color: "#64748B", border: "1px solid #E2E8F0" };
+
+const currentRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  minWidth: 0,
+};
+
+const viewButtonStyle: CSSProperties = {
+  ...buttonBase,
+  padding: "4px 9px",
+  fontSize: 12,
+  background: "#FFFFFF",
+  color: "#0F766E",
+  border: "1px solid #CCFBF1",
+};
+
+/* Amber, not green: a visible key is a state to end, not a success. */
+const revealBoxStyle: CSSProperties = {
+  display: "grid",
+  gap: 8,
+  padding: "10px 12px",
+  borderRadius: 12,
+  background: "#FFFBEB",
+  border: "1px solid #FDE68A",
+  minWidth: 0,
+};
+
+const revealValueStyle: CSSProperties = {
+  display: "block",
+  fontFamily: "ui-monospace, Consolas, monospace",
+  fontSize: 13,
+  color: "#0F172A",
+  wordBreak: "break-all",
+  userSelect: "all",
+};
+
+const revealFooterStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  fontSize: 12,
+};
+
+const overlayStyle: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 5000,
+  display: "grid",
+  placeItems: "center",
+  padding: 16,
+  background: "rgba(15, 23, 42, 0.55)",
+};
+
+const dialogStyle: CSSProperties = {
+  width: "min(100%, 440px)",
+  display: "grid",
+  gap: 14,
+  padding: 20,
+  borderRadius: 18,
+  background: "#FFFFFF",
+  boxShadow: "0 24px 60px rgba(15, 23, 42, 0.3)",
+};
+
+const dialogIconStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 34,
+  height: 34,
+  borderRadius: 10,
+  background: "#F0FDFA",
+  color: "#0F766E",
+  flex: "0 0 auto",
+};

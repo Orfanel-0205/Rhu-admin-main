@@ -70,6 +70,30 @@ describe("the API keys page matches what the backend can configure", () => {
   });
 });
 
+describe("viewing a key is guarded on the page as well as the server", () => {
+  const panel = () => fs.readFileSync(PANEL, "utf8");
+  const service = () => fs.readFileSync(SERVICE, "utf8");
+
+  it("sends the password by POST, never in a URL", () => {
+    expect(service()).toMatch(/apiClient\.post\(\s*`\/admin\/settings\/integrations\/\$\{id\}\/reveal`/);
+    expect(service()).not.toMatch(/apiClient\.get\([^)]*reveal/);
+  });
+
+  it("hides a revealed key on a timer and when the tab is hidden", () => {
+    const source = panel();
+
+    expect(source, "No timer ends the reveal.").toMatch(/setInterval\(tick, 1000\)/);
+    expect(source, "Leaving the tab does not hide the key.").toMatch(
+      /visibilitychange[\s\S]{0,200}|visibilityState === "hidden"\) setRevealed\(null\)/
+    );
+  });
+
+  it("clears the password after every attempt, right or wrong", () => {
+    // In a finally block, so a refusal or a network error clears it too.
+    expect(panel()).toMatch(/finally \{[\s\S]{0,120}setPassword\(""\)/);
+  });
+});
+
 describe("a key never outlives the page", () => {
   it("is not written to browser storage", () => {
     for (const file of [PANEL, SERVICE]) {

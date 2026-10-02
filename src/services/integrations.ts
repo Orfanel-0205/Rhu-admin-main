@@ -24,6 +24,8 @@ export type FieldSource = "saved" | "server" | "none" | "unreadable";
 export interface IntegrationField {
   label: string;
   secret: boolean;
+  /** Whether the page offers "View". The server checks again, with the password. */
+  revealable: boolean;
   source: FieldSource;
   /** For identifiers the value; for secrets only a hint such as "Ends in 4f2a". */
   display: string | null;
@@ -133,6 +135,58 @@ export async function resetIntegration(id: IntegrationId): Promise<SaveOutcome> 
     message: response.data?.message ?? "Reset.",
     integrations: response.data?.integrations,
   };
+}
+
+export interface RevealOutcome {
+  ok: boolean;
+  /** The key, only when ok. Held in component state and nowhere else. */
+  value?: string;
+  /** How long the page may show it before hiding it again. */
+  visibleSeconds?: number;
+  message?: string;
+  attemptsLeft?: number;
+  locked?: boolean;
+}
+
+/**
+ * Show one key in full. The super admin's own password is required every time.
+ *
+ * A wrong password (422) and a lockout (429) are expected answers here, so
+ * they come back as outcomes for the dialog to show, not as thrown errors.
+ * The server answers 422 rather than 401 for a wrong password on purpose:
+ * the client treats any 401 as an expired session and signs the user out.
+ */
+export async function revealIntegrationField(
+  id: IntegrationId,
+  field: string,
+  password: string
+): Promise<RevealOutcome> {
+  try {
+    const response = await apiClient.post(
+      `/admin/settings/integrations/${id}/reveal`,
+      { field, password },
+      QUIET
+    );
+
+    return {
+      ok: true,
+      value: String(response.data?.value ?? ""),
+      visibleSeconds: Number(response.data?.visible_seconds ?? 30),
+    };
+  } catch (error: unknown) {
+    const response = (error as { response?: { status?: number; data?: any } })?.response;
+
+    if (response && [404, 422, 429].includes(response.status ?? 0)) {
+      return {
+        ok: false,
+        message: response.data?.message ?? "The key could not be shown.",
+        attemptsLeft: response.data?.attempts_left,
+        locked: response.status === 429 || response.data?.locked === true,
+      };
+    }
+
+    throw error;
+  }
 }
 
 /** Blank means "keep the current value", so blanks are not sent at all. */
