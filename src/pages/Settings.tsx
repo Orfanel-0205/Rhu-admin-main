@@ -704,9 +704,10 @@ export default function Settings() {
               from a hardcoded default of `true`, so an install with no key at
               all still reported that one was set.
 
-              The credential lives in the server environment, which is where a
-              production secret belongs. What is shown here is what the server
-              reports about it -- never the value. */}
+              What is shown here is what the server reports about it -- never
+              the value. It said the key "cannot be changed from this page"
+              until the API keys section existed; a super admin now replaces
+              it there, tested before it is saved. */}
           <div className="field">
             <label>{c.smsApiKey}</label>
 
@@ -716,9 +717,10 @@ export default function Settings() {
             </div>
 
             <small>
-              Set on the server as <code>SEMAPHORE_API_KEY</code>; it cannot be
-              viewed or changed from this page. Messages are sent under the
-              sender name <b>{meta?.sms_sender_name || "—"}</b>.
+              Never shown on screen. A super admin can replace it under{" "}
+              <b>API keys</b> on this page{isSuperAdmin ? " (below)" : ""}.
+              Messages are sent under the sender name{" "}
+              <b>{meta?.sms_sender_name || "—"}</b>.
             </small>
           </div>
 
