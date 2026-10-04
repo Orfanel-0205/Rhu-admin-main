@@ -310,6 +310,45 @@ export async function saveSoap(
   return normalizeOne(res.data);
 }
 
+/** What the server read off a photographed paper SOAP form. Suggestions only. */
+export interface SoapScanResult {
+  message: string;
+  fields: Partial<Record<"subjective" | "objective" | "assessment" | "plan" | "diagnosis" | "treatment", string>>;
+  vitals: Partial<
+    Record<"blood_pressure" | "temperature_celsius" | "heart_rate" | "spo2" | "weight" | "vital_signs", string>
+  >;
+  /** Catalogue values, ready for the lab request form. */
+  lab_tests: { laboratory: string[]; xray: string[]; ultrasound: string[] };
+  confidence: number;
+  text: string;
+}
+
+export async function scanPaperSoap(id: string | number, file: File): Promise<SoapScanResult> {
+  const form = new FormData();
+  form.append("soap_file", file);
+
+  const res = await apiClient.post(`/admin/consultations/${id}/scan-soap`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    // OCR can try two engines on a large photo.
+    timeout: 200_000,
+  });
+
+  const data = res.data ?? {};
+
+  return {
+    message: String(data.message ?? ""),
+    fields: data.fields ?? {},
+    vitals: data.vitals ?? {},
+    lab_tests: {
+      laboratory: data.lab_tests?.laboratory ?? [],
+      xray: data.lab_tests?.xray ?? [],
+      ultrasound: data.lab_tests?.ultrasound ?? [],
+    },
+    confidence: Number(data.confidence ?? 0),
+    text: String(data.text ?? ""),
+  };
+}
+
 export async function completeConsultation(
   id: string | number,
   payload?: SoapPayload

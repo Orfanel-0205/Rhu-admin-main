@@ -21,7 +21,7 @@
 
 import { Component } from "react";
 import type { CSSProperties, ErrorInfo, ReactNode } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -66,7 +66,15 @@ export default class ErrorBoundary extends Component<Props, State> {
     return (
       <div style={wrapStyle} role="alert">
         <div style={cardStyle}>
-          <AlertTriangle size={30} style={{ color: "#B45309" }} />
+          {/* Doctor Quack, frazzled: the same face as a server error. */}
+          <img
+            src="/ducks/duck-500.webp"
+            alt=""
+            aria-hidden="true"
+            width={160}
+            height={160}
+            style={{ width: 160, height: 160, objectFit: "contain", alignSelf: "center" }}
+          />
 
           <h1 style={titleStyle}>This screen stopped working</h1>
 

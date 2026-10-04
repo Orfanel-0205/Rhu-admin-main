@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock3,
   FileText,
+  ScanText,
   Send,
   Sparkles,
   UploadCloud,
@@ -26,7 +27,9 @@ import {
   getItrSnapshot,
   getPatientName,
   saveSoap,
+  scanPaperSoap,
   summarizeConsultation,
+  type SoapScanResult,
   type ConsultationIndicator,
   type Consultation,
   type ItrSnapshotView,
@@ -946,6 +949,15 @@ export default function ConsultationDetails() {
   }
 
   function goToEprescriptionRelease() {
+    openPrescriptionForm();
+  }
+
+  /**
+   * The e-prescription form, filled from this consultation. With lab tests it
+   * opens as a lab request with those tests ticked -- e.g. the tests read off
+   * a scanned paper SOAP.
+   */
+  function openPrescriptionForm(labTests?: SoapScanResult["lab_tests"]) {
     if (!consultation) {
       navigate("/prescriptions?new=1");
       return;
@@ -1000,11 +1012,99 @@ export default function ConsultationDetails() {
       plan ||
       getAiField(aiSummary, ["prescribed_drugs", "treatment"], "");
 
-    if (safeText(prescribedForRx)) {
+    if (labTests) {
+      params.set("form_type", "lab_request");
+      params.set("lab_laboratory", labTests.laboratory.join(","));
+      params.set("lab_xray", labTests.xray.join(","));
+      params.set("lab_ultrasound", labTests.ultrasound.join(","));
+    } else if (safeText(prescribedForRx)) {
       params.set("prescribed_drugs", prescribedForRx);
     }
 
     navigate(`/prescriptions?${params.toString()}`);
+  }
+
+  // ---------------------------------------------------------------------
+  // Scan a paper SOAP form
+  // ---------------------------------------------------------------------
+  //
+  // The photo is read on the server (OCR) into suggestions. Like Auto-fill
+  // from ITR, they go only into EMPTY fields; what staff already typed stays.
+  // Nothing is saved until staff save the SOAP.
+
+  const soapScanInputRef = useRef<HTMLInputElement>(null);
+  const [scanningSoap, setScanningSoap] = useState(false);
+  const [soapScan, setSoapScan] = useState<{
+    filled: string[];
+    kept: string[];
+    labTests: SoapScanResult["lab_tests"];
+  } | null>(null);
+
+  async function onSoapScanFile(file: File | undefined) {
+    if (!file || !id) return;
+
+    setScanningSoap(true);
+    setSoapScan(null);
+
+    try {
+      const result = await scanPaperSoap(id, file);
+      const filled: string[] = [];
+      const kept: string[] = [];
+
+      const soapFields: [keyof SoapScanResult["fields"], string, string, (value: string) => void][] = [
+        ["subjective", "Subjective", subjective, setSubjective],
+        ["objective", "Objective", objective, setObjective],
+        ["assessment", "Assessment", assessment, setAssessment],
+        ["plan", "Plan", plan, setPlan],
+        ["diagnosis", "Diagnosis", diagnosis, setDiagnosis],
+        ["treatment", "Treatment", treatment, setTreatment],
+      ];
+
+      for (const [key, label, current, set] of soapFields) {
+        const value = (result.fields[key] ?? "").trim();
+        if (!value) continue;
+
+        if (current.trim()) {
+          kept.push(label);
+        } else {
+          set(value);
+          filled.push(label);
+        }
+      }
+
+      const vitalFields: [keyof SoapScanResult["vitals"], string][] = [
+        ["blood_pressure", "BP"],
+        ["temperature_celsius", "Temp"],
+        ["heart_rate", "HR"],
+        ["spo2", "SpO2"],
+        ["weight", "Weight"],
+        ["vital_signs", "V/S"],
+      ];
+
+      for (const [key, label] of vitalFields) {
+        const value = (result.vitals[key] ?? "").trim();
+        if (!value) continue;
+
+        if (String(clinical[key] ?? "").trim()) {
+          kept.push(label);
+        } else {
+          setClinicalField(key, value);
+          filled.push(label);
+        }
+      }
+
+      setSoapScan({ filled, kept, labTests: result.lab_tests });
+
+      if (filled.length === 0 && kept.length === 0) {
+        toast.warning("The form was read, but no SOAP headings (S:, O:, A:, P:) or vital signs were found in it.");
+      }
+    } catch {
+      // The API client already showed why (bad file, unreadable photo, or no access).
+    } finally {
+      setScanningSoap(false);
+
+      if (soapScanInputRef.current) soapScanInputRef.current.value = "";
+    }
   }
 
   const aiChiefComplaint = getAiField(
@@ -1550,16 +1650,79 @@ export default function ConsultationDetails() {
           </div>
 
           {!isSoapReadOnly ? (
-            <button
-              type="button"
-              onClick={autoFillFromItr}
-              style={secondaryButton}
-            >
-              <Sparkles size={16} />
-              Auto-fill from ITR
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={autoFillFromItr}
+                style={secondaryButton}
+              >
+                <Sparkles size={16} />
+                Auto-fill from ITR
+              </button>
+
+              <button
+                type="button"
+                onClick={() => soapScanInputRef.current?.click()}
+                disabled={scanningSoap}
+                style={secondaryButton}
+                title="Photograph or upload a paper SOAP form; empty fields are filled from it"
+              >
+                <ScanText size={16} />
+                {scanningSoap ? "Reading the form..." : "Scan paper SOAP"}
+              </button>
+
+              <input
+                ref={soapScanInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={(event) => void onSoapScanFile(event.target.files?.[0])}
+              />
+            </div>
           ) : null}
         </div>
+
+        {soapScan ? (
+          <div style={soapScanNoticeStyle} role="status">
+            <div>
+              <strong>Read from the paper form.</strong>{" "}
+              {soapScan.filled.length > 0
+                ? `Filled: ${soapScan.filled.join(", ")}.`
+                : "Nothing new to fill."}{" "}
+              {soapScan.kept.length > 0
+                ? `Kept what was already typed in: ${soapScan.kept.join(", ")}.`
+                : ""}{" "}
+              Check every field before saving — OCR can misread, especially handwriting.
+              A section missing? Scan again: the reader sometimes skips part of the page.
+            </div>
+
+            {(() => {
+              const tests = [
+                ...soapScan.labTests.laboratory,
+                ...soapScan.labTests.xray,
+                ...soapScan.labTests.ultrasound,
+              ];
+
+              if (tests.length === 0) return null;
+
+              return (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+                  <span>Lab tests requested on the form: {tests.join(", ")}.</span>
+                  {canPrescribe ? (
+                    <button
+                      type="button"
+                      style={secondaryButton}
+                      onClick={() => openPrescriptionForm(soapScan.labTests)}
+                    >
+                      Create lab request with these tests
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })()}
+          </div>
+        ) : null}
 
         <div style={soapGridStyle}>
           <Field
@@ -2408,6 +2571,18 @@ const titleStyle: CSSProperties = {
 const mutedTextStyle: CSSProperties = {
   margin: "4px 0 0",
   color: "#64748B",
+};
+
+// What a paper-SOAP scan filled in, above the SOAP fields.
+const soapScanNoticeStyle: CSSProperties = {
+  margin: "0 0 14px",
+  padding: "12px 14px",
+  borderRadius: 14,
+  background: "#F0FDFA",
+  border: "1px solid #99F6E4",
+  color: "#134E4A",
+  fontSize: 14,
+  lineHeight: 1.55,
 };
 
 const infoGridStyle: CSSProperties = {

@@ -1,6 +1,7 @@
 // src/lib/apiClient.ts
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { emitDuck } from "./duckBus";
 import { emitToast, toUserErrorMessage } from "./toastBus";
 
 function cleanUrl(url: string): string {
@@ -75,9 +76,30 @@ apiClient.interceptors.response.use(
     const method = String(config.method ?? "get").toLowerCase();
     const isMutation = ["post", "put", "patch", "delete"].includes(method);
     const canceled = axios.isCancel?.(error) || error.code === "ERR_CANCELED";
+    const status = error.response?.status ?? 0;
+    const data = error.response?.data ?? {};
+
+    // The whole system is down for an update: say so once, full-screen, for
+    // every request -- a page that only loads data would otherwise just sit
+    // there empty. See components/DuckStatus.tsx.
+    if (status === 503 && !canceled && emitDuck({ kind: "maintenance" })) {
+      return Promise.reject(error);
+    }
 
     if (!canceled && !config.suppressErrorToast && (isMutation || config.showErrorToast)) {
-      emitToast(toUserErrorMessage(error), "error");
+      // "Your role can't do this" and "the server broke" get a duck with the
+      // server's explanation; a sign-in code step is also a 403 but is not a
+      // refusal, and screens that handle their own errors opted out above.
+      const duck =
+        status === 403 && !data?.code_required
+          ? emitDuck({ kind: "forbidden", message: data?.message })
+          : status >= 500
+            ? emitDuck({ kind: "server_error" })
+            : false;
+
+      if (!duck) {
+        emitToast(toUserErrorMessage(error), "error");
+      }
     }
 
     return Promise.reject(error);

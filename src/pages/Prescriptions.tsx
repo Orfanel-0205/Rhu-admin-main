@@ -577,6 +577,38 @@ export default function Prescriptions() {
       }
     }
 
+    // A lab request with its tests already ticked, e.g. from tests found on
+    // a scanned paper SOAP (ConsultationDetails): ?form_type=lab_request
+    // &lab_laboratory=CBC,FBS&lab_xray=...&lab_ultrasound=...
+    const isLabRequest = searchParams.get("form_type") === "lab_request";
+    const listFromQuery = (key: string) =>
+      readQueryValue(searchParams, key)
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+    if (isLabRequest) {
+      setForm({
+        ...freshEmptyForm(),
+        form_type: "lab_request",
+        resident_profile_id: patient ? String(patient.resident_profile_id) : "",
+        consultation_id: consultationId ? String(consultationId) : "",
+        diagnosis: diagnosisFromQuery,
+        clinical_impression: diagnosisFromQuery,
+        diagnosis_code: diagnosisCodeFromQuery,
+        lab_tests: {
+          laboratory: listFromQuery("lab_laboratory"),
+          xray: listFromQuery("lab_xray"),
+          ultrasound: listFromQuery("lab_ultrasound"),
+          others: { laboratory: "", xray: "", ultrasound: "" },
+        },
+        additional_instructions:
+          "Created from a scanned SOAP form. Check the tests before releasing.",
+      });
+
+      return;
+    }
+
     setForm({
       ...freshEmptyForm(),
       form_type: "medicine",

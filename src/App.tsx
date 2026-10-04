@@ -31,6 +31,7 @@ import Feedback from "./pages/Feedback";
 import Reports from "./pages/Reports";
 import HealthServices from "./pages/HealthServices";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { DuckDialogHost, DuckPanel, MaintenanceScreen } from "./components/DuckStatus";
 import RhuFacilities from "./pages/RhuFacilities";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
@@ -118,7 +119,36 @@ function RequireRoles({
     return children;
   }
 
-  return <Navigate to="/dashboard" replace />;
+  // Say so, instead of silently bouncing to the dashboard: someone who
+  // followed a link here would otherwise think the page was broken.
+  return (
+    <DashboardShell>
+      <div style={{ padding: "48px 16px" }}>
+        <DuckPanel
+          kind="forbidden"
+          title="This page isn't for your role"
+          message={`Your role${role ? ` (${role.replace(/_/g, " ")})` : ""} can't open this page. Ask the Super Admin if your work needs it.`}
+        >
+          <a
+            href="/dashboard"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              height: 46,
+              padding: "0 22px",
+              borderRadius: 14,
+              background: "#047857",
+              color: "#ffffff",
+              fontWeight: 900,
+              textDecoration: "none",
+            }}
+          >
+            Go to Dashboard
+          </a>
+        </DuckPanel>
+      </div>
+    </DashboardShell>
+  );
 }
 
 function GuestOnly({ children }: { children: JSX.Element }) {
@@ -173,6 +203,9 @@ function ProtectedPage({
 export default function App() {
   return (
     <ToastProvider>
+      {/* Doctor Quack for 403 / server errors / maintenance. See DuckStatus. */}
+      <DuckDialogHost />
+      <MaintenanceScreen />
       <Router>
         <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
