@@ -599,7 +599,12 @@ export default function ConsultationDetails() {
       const completed = await completeConsultation(id);
 
       setConsultation(completed);
-      toast.success(t("cd_alert_completed", lang));
+      // Nurses and midwives cannot prescribe; the server has told the MHO.
+      toast.success(
+        canPrescribe
+          ? t("cd_alert_completed", lang)
+          : `${t("cd_alert_completed", lang)} The MHO has been notified to issue the e-prescription.`
+      );
     } catch (err: any) {
       toast.error(
         err?.response?.data?.message ||
@@ -1717,7 +1722,12 @@ export default function ConsultationDetails() {
                     >
                       Create lab request with these tests
                     </button>
-                  ) : null}
+                  ) : (
+                    <span>
+                      Keep them in the Plan: when you finish this SOAP, the MHO is notified to
+                      issue the lab request.
+                    </span>
+                  )}
                 </div>
               );
             })()}
