@@ -104,17 +104,20 @@ function followUpDateTime(item: FollowUpReminder): string {
   const date = new Date(
     item.follow_up_at
       ? raw
-      : `${raw}T${item.follow_up_time || "09:00"}`
+      : `${raw}T${item.follow_up_time || "09:00"}+08:00`
   );
 
   if (Number.isNaN(date.getTime())) return safe(raw);
 
+  // Philippine time on any computer: the server stores UTC, and the clinic
+  // means Manila time when it says 9:00 AM.
   return date.toLocaleString("en-PH", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Manila",
   });
 }
 
@@ -258,7 +261,7 @@ export default function Followups() {
       <PageHero
         eyebrow="Ka-Agapay RHU Follow-ups"
         title="Health Follow-up"
-        subtitle="Track overdue, due today, upcoming, and completed patient follow-ups."
+        subtitle="Track overdue, due today, upcoming, and completed patient follow-ups. Patients get a text and an app reminder 3 days before and the day before (8:00 AM), and an app reminder on the day."
         actions={
           <button type="button" onClick={load} disabled={loading} style={refreshButtonStyle}>
             <RefreshCw size={18} />
