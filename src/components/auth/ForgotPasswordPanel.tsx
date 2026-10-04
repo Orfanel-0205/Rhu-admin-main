@@ -204,6 +204,23 @@ export default function ForgotPasswordPanel({ initialLogin, onCancel, onDone }: 
         </form>
       ) : (
         <form onSubmit={reset} className="ka-form">
+          {/*
+              What was typed, shown back. The reply is the same whether or
+              not an account matched, so a mistyped or old number would
+              otherwise just mean a code that never comes, with no clue why.
+              Repeating the person's own input reveals nothing about accounts.
+          */}
+          <div className="ka-code-intro">
+            <KeyRound size={20} />
+            <p>
+              Code requested for <b>{login.trim()}</b>. It only arrives if that is the number or
+              email on your account.{" "}
+              <button type="button" className="ka-text-button ka-inline-button" onClick={() => startOver()}>
+                Change
+              </button>
+            </p>
+          </div>
+
           <label className="ka-label">
             Code from your phone or email
             <div className="ka-input-wrap">

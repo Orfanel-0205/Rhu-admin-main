@@ -647,6 +647,14 @@ export default function Login() {
           cursor: default;
         }
 
+        /* A text button inside a sentence. */
+        .ka-inline-button {
+          display: inline;
+          padding: 0;
+          font-size: inherit;
+          text-decoration: underline;
+        }
+
         /* Sits under the password field, at its right edge. */
         .ka-forgot-link {
           justify-self: end;
