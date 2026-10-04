@@ -8,7 +8,7 @@
 
 import apiClient from "../lib/apiClient";
 
-export type IntegrationId = "gemini" | "semaphore" | "ocr_space" | "jaas";
+export type IntegrationId = "gemini" | "semaphore" | "ocr_space" | "jaas" | "email";
 
 /**
  * Where a field's value comes from.

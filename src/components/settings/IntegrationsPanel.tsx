@@ -58,12 +58,14 @@ const GUIDANCE: Record<IntegrationId, string> = {
     "OCR.space emails the free API key when you register at ocr.space/ocrapi. It reads the ID photos uploaded at registration.",
   jaas:
     "From jaas.8x8.vc → API Keys. The App ID starts with vpaas-magic-cookie-. Upload the public key to 8x8 first, then paste the whole private key file here, including the BEGIN and END lines.",
+  email:
+    "Sends password reset codes by email, alongside the text message. Use a Gmail account the RHU owns. Turn on 2-Step Verification for it, then create an app password at myaccount.google.com → Security → App passwords and paste the 16 letters here. The test signs in to Gmail without sending anything. Until this is set, reset codes go by SMS only.",
 };
 
 /** Long values that are pasted rather than typed. */
 const MULTILINE_FIELDS = new Set(["jaas.private_key"]);
 
-const ORDER: IntegrationId[] = ["gemini", "semaphore", "ocr_space", "jaas"];
+const ORDER: IntegrationId[] = ["gemini", "semaphore", "ocr_space", "jaas", "email"];
 
 export default function IntegrationsPanel() {
   const [statuses, setStatuses] = useState<Partial<Record<IntegrationId, IntegrationStatus>>>({});

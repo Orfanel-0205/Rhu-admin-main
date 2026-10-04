@@ -174,6 +174,40 @@ export const authService = {
     };
   },
 
+  /*
+   * Forgot password.
+   *
+   * The server answers every request the same way, whether or not an
+   * account uses that number or email, so this always resolves with a
+   * challenge -- the screen must not read anything into it.
+   */
+  async forgotPassword(login: string): Promise<{ challenge: string; message: string; resendAfter: number }> {
+    const response = await apiClient.post("/admin/forgot-password", { login }, QUIET);
+    return {
+      challenge: String(response.data?.challenge ?? ""),
+      message: String(response.data?.message ?? "If an account matches, we sent it a code."),
+      resendAfter: Number(response.data?.resend_after ?? 60),
+    };
+  },
+
+  async resetPassword(payload: {
+    challenge: string;
+    code: string;
+    password: string;
+    password_confirmation: string;
+  }): Promise<string> {
+    const response = await apiClient.post("/admin/reset-password", payload, QUIET);
+    return String(response.data?.message ?? "Your password has been changed. Sign in with your new password.");
+  },
+
+  async resendResetCode(challenge: string): Promise<{ message: string; resendAfter: number }> {
+    const response = await apiClient.post("/admin/forgot-password/resend", { challenge }, QUIET);
+    return {
+      message: String(response.data?.message ?? "We sent a new code."),
+      resendAfter: Number(response.data?.resend_after ?? 60),
+    };
+  },
+
   async registerStaff(payload: StaffRegisterPayload) {
     // Multipart because the Employee Identification Card file is uploaded with
     // the registration request and linked to the new pending staff account.

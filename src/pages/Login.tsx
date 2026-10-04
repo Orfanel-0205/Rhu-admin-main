@@ -16,6 +16,7 @@ import {
   UserPlus,
 } from "lucide-react";
 
+import ForgotPasswordPanel from "../components/auth/ForgotPasswordPanel";
 import { authService, SignInCodeRequired } from "../services/auth";
 import type { SignInChallenge } from "../services/auth";
 import { useAuthStore } from "../store/authStore";
@@ -43,6 +44,23 @@ export default function Login() {
   const [code, setCode] = useState("");
   const [info, setInfo] = useState("");
   const [resendIn, setResendIn] = useState(0);
+
+  // "Forgot password?" replaces the form while it is open.
+  const [forgotOpen, setForgotOpen] = useState(false);
+
+  function openForgot() {
+    setError("");
+    setInfo("");
+    setCodeStep(null);
+    setForgotOpen(true);
+  }
+
+  function passwordWasReset(message: string) {
+    setForgotOpen(false);
+    setPassword("");
+    setError("");
+    setInfo(message);
+  }
 
   useEffect(() => {
     if (!codeStep || resendIn <= 0) return;
@@ -186,11 +204,23 @@ export default function Login() {
             </div>
 
             <div>
-              <h2>Sign in</h2>
-              <p>Use your approved RHU staff account.</p>
+              <h2>{forgotOpen ? "Reset password" : "Sign in"}</h2>
+              <p>
+                {forgotOpen
+                  ? "We will send a code to the phone and email on your account."
+                  : "Use your approved RHU staff account."}
+              </p>
             </div>
           </div>
 
+          {forgotOpen ? (
+            <ForgotPasswordPanel
+              initialLogin={mobileNumber}
+              onCancel={() => setForgotOpen(false)}
+              onDone={passwordWasReset}
+            />
+          ) : (
+          <>
           {error ? (
             <div className="ka-error-box">
               <AlertCircle size={18} />
@@ -260,7 +290,8 @@ export default function Login() {
 
               <p className="ka-code-help">
                 Lost your phone, or the number is wrong? Ask RHU staff to set a new password for
-                you; that also clears this step.
+                you, or use "Forgot password?" if your account has an email; either also clears
+                this step.
               </p>
             </form>
           ) : (
@@ -304,6 +335,10 @@ export default function Login() {
               </div>
             </label>
 
+            <button type="button" className="ka-text-button ka-forgot-link" onClick={openForgot}>
+              Forgot password?
+            </button>
+
             <button
               type="submit"
               disabled={loading}
@@ -313,6 +348,8 @@ export default function Login() {
               <ArrowRight size={19} />
             </button>
           </form>
+          )}
+          </>
           )}
 
           <div className="ka-divider" />
@@ -608,6 +645,13 @@ export default function Login() {
         .ka-text-button:disabled {
           color: #94a3b8;
           cursor: default;
+        }
+
+        /* Sits under the password field, at its right edge. */
+        .ka-forgot-link {
+          justify-self: end;
+          margin-top: -10px;
+          padding: 4px 2px;
         }
 
         .ka-code-help {
