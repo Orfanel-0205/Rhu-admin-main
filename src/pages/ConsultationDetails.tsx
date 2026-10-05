@@ -1077,17 +1077,23 @@ export default function ConsultationDetails() {
         }
       }
 
-      const vitalFields: [keyof SoapScanResult["vitals"], string][] = [
-        ["blood_pressure", "BP"],
-        ["temperature_celsius", "Temp"],
-        ["heart_rate", "HR"],
-        ["spo2", "SpO2"],
-        ["weight", "Weight"],
-        ["vital_signs", "V/S"],
+      // The vitals, and the doctor's "Prescribe Drug/s" from the ITR form,
+      // live in the clinical section of this page.
+      const clinicalFields: [keyof SoapScanResult["vitals"] | "prescribed_drugs", string, string][] = [
+        ["blood_pressure", "BP", result.vitals.blood_pressure ?? ""],
+        ["temperature_celsius", "Temp", result.vitals.temperature_celsius ?? ""],
+        ["heart_rate", "HR", result.vitals.heart_rate ?? ""],
+        ["spo2", "SpO2", result.vitals.spo2 ?? ""],
+        ["weight", "Weight", result.vitals.weight ?? ""],
+        ["bmi", "BMI", result.vitals.bmi ?? ""],
+        ["visual_acuity_left", "Visual acuity L", result.vitals.visual_acuity_left ?? ""],
+        ["visual_acuity_right", "Visual acuity R", result.vitals.visual_acuity_right ?? ""],
+        ["vital_signs", "V/S", result.vitals.vital_signs ?? ""],
+        ["prescribed_drugs", "Prescribed drugs", result.fields.prescribed_drugs ?? ""],
       ];
 
-      for (const [key, label] of vitalFields) {
-        const value = (result.vitals[key] ?? "").trim();
+      for (const [key, label, scanned] of clinicalFields) {
+        const value = scanned.trim();
         if (!value) continue;
 
         if (String(clinical[key] ?? "").trim()) {

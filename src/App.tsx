@@ -60,6 +60,13 @@ const STAFF_PAGE_ROLES = [
   "midwife",
 ];
 
+/**
+ * Who conducts a SOAP, as on the MHO's Individual Treatment Record: nurses,
+ * midwives and BHWs fill the vitals and S/O/A/P; the doctor (MHO) the
+ * diagnosis and drugs. Matches the server's SOAP route roles.
+ */
+const SOAP_PAGE_ROLES = [...STAFF_PAGE_ROLES, "bhw"];
+
 function LoadingScreen() {
   return (
     <div
@@ -327,10 +334,11 @@ export default function App() {
           }
         />
 
+        {/* BHWs too: they conduct SOAPs on the RHU's ITR form. */}
         <Route
           path="/consultations"
           element={
-            <ProtectedPage>
+            <ProtectedPage roles={SOAP_PAGE_ROLES}>
               <Consultations />
             </ProtectedPage>
           }
@@ -339,7 +347,7 @@ export default function App() {
         <Route
           path="/consultations/:id"
           element={
-            <ProtectedPage>
+            <ProtectedPage roles={SOAP_PAGE_ROLES}>
               <ConsultationDetails />
             </ProtectedPage>
           }

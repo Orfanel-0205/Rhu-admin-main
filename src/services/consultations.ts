@@ -313,9 +313,22 @@ export async function saveSoap(
 /** What the server read off a photographed paper SOAP form. Suggestions only. */
 export interface SoapScanResult {
   message: string;
-  fields: Partial<Record<"subjective" | "objective" | "assessment" | "plan" | "diagnosis" | "treatment", string>>;
+  fields: Partial<
+    Record<"subjective" | "objective" | "assessment" | "plan" | "diagnosis" | "treatment" | "prescribed_drugs", string>
+  >;
   vitals: Partial<
-    Record<"blood_pressure" | "temperature_celsius" | "heart_rate" | "spo2" | "weight" | "vital_signs", string>
+    Record<
+      | "blood_pressure"
+      | "temperature_celsius"
+      | "heart_rate"
+      | "spo2"
+      | "weight"
+      | "bmi"
+      | "visual_acuity_left"
+      | "visual_acuity_right"
+      | "vital_signs",
+      string
+    >
   >;
   /** Catalogue values, ready for the lab request form. */
   lab_tests: { laboratory: string[]; xray: string[]; ultrasound: string[] };
