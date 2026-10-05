@@ -507,6 +507,20 @@ body {
 }
 
 /*
+ * Whatever holds a table must be allowed to be narrower than the table.
+ * A grid or flex item will not shrink below its content by default, so a
+ * page section in a grid stretched to the table's full width instead --
+ * on a phone the Consultations section was 1677px wide inside a 390px
+ * screen, the table never looked too wide to switch to cards, and the page
+ * shell cut off four of its six columns with no way to scroll to them.
+ * This only changes grid and flex items; for anything else min-width is
+ * already 0. A minimum set inline on an element still wins.
+ */
+.dashboard-main :has(.responsive-table) {
+  min-width: 0;
+}
+
+/*
  * CARDS, WHEN A TABLE'S ROWS DO NOT FIT ITS OWN SPACE.
  *
  * Rows are easier to scan down a column, and a clinician at a desk usually
