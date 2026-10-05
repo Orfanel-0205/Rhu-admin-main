@@ -74,6 +74,7 @@ function canPrescribeFromConsultation(user: any): boolean {
 }
 import { t } from "../i18n/translations";
 import StatusBadge from "../components/ui/StatusBadge";
+import { shrinkImageForUpload } from "../utils/shrinkImage";
 import { useToast } from "../contexts/ToastContext";
 import { onFormDraft, takeStashedFormDraft } from "../utils/formDraftHandoff";
 
@@ -1110,7 +1111,8 @@ export default function ConsultationDetails() {
     setSoapScan(null);
 
     try {
-      const result = await scanPaperSoap(id, file);
+      // Phone photos run to 15-20 MB; OCR needs about 2,400 pixels.
+      const result = await scanPaperSoap(id, await shrinkImageForUpload(file));
       const filled: string[] = [];
       const kept: string[] = [];
       const leftForDoctor: string[] = [];
