@@ -15,8 +15,17 @@
 // than the space it has, it becomes cards and remembers how wide its rows
 // needed to be; in cards, it goes back to rows once that much space is
 // available, and checks again. The result is written to data-layout, which
-// the stylesheet reads (styles/globals.css). Started once from main.tsx; it
-// finds tables as pages render them.
+// the stylesheet reads (styles/globals.css). Started once from main.tsx.
+//
+// FINDING THE TABLES
+// Pages render a loading or empty message first and the table later, and
+// React often reuses that same <div> for the table -- it only adds the class
+// and replaces the children. So a wrapper can appear without any element
+// being added, and its table can arrive long after it. Every DOM change is
+// therefore traced back to the .responsive-table it happened in, and that
+// wrapper is (re)checked. Found by a real-browser check: Telemedicine on a
+// phone stayed in rows and scrolled sideways, and Consultations was never
+// measured at all, until this was done.
 
 const ATTRIBUTE = "data-layout";
 
@@ -26,15 +35,26 @@ const ATTRIBUTE = "data-layout";
  * alone changes the space by about 15px.
  */
 const SLACK = 24;
-const tracked = new WeakMap<HTMLElement, { need: number; observer: ResizeObserver }>();
+
+interface State {
+  need: number;
+  observer: ResizeObserver;
+  table: HTMLTableElement | null;
+}
+
+const tracked = new WeakMap<HTMLElement, State>();
 
 function measure(wrapper: HTMLElement): void {
-  const table = wrapper.querySelector("table");
   const state = tracked.get(wrapper);
+  const table = state?.table;
 
-  if (!table || !state) return;
+  if (!state || !table || !table.isConnected) return;
 
   const space = wrapper.clientWidth;
+
+  // Not laid out yet (hidden tab, still mounting): nothing to decide.
+  if (space === 0) return;
+
   const layout = wrapper.getAttribute(ATTRIBUTE);
 
   if (layout !== "cards") {
@@ -61,22 +81,34 @@ function measure(wrapper: HTMLElement): void {
   }
 }
 
-function track(wrapper: HTMLElement): void {
-  if (tracked.has(wrapper)) return;
+/** Start watching a wrapper if new, follow its current table, and decide. */
+function sync(wrapper: HTMLElement): void {
+  let state = tracked.get(wrapper);
 
-  const observer = new ResizeObserver(() => measure(wrapper));
-  tracked.set(wrapper, { need: Number.POSITIVE_INFINITY, observer });
-
-  observer.observe(wrapper);
+  if (!state) {
+    state = {
+      need: Number.POSITIVE_INFINITY,
+      observer: new ResizeObserver(() => measure(wrapper)),
+      table: null,
+    };
+    tracked.set(wrapper, state);
+    state.observer.observe(wrapper);
+  }
 
   const table = wrapper.querySelector("table");
-  if (table) observer.observe(table);
+
+  if (table !== state.table) {
+    if (state.table) state.observer.unobserve(state.table);
+    state.table = table;
+
+    // A different table (new data, another tab) needs measuring afresh.
+    state.need = Number.POSITIVE_INFINITY;
+    wrapper.removeAttribute(ATTRIBUTE);
+
+    if (table) state.observer.observe(table);
+  }
 
   measure(wrapper);
-}
-
-function scan(root: ParentNode): void {
-  root.querySelectorAll<HTMLElement>(".responsive-table").forEach(track);
 }
 
 let started = false;
@@ -85,26 +117,29 @@ export function startTableFit(): void {
   if (started || typeof window === "undefined" || typeof ResizeObserver === "undefined") return;
   started = true;
 
-  scan(document);
+  document.querySelectorAll<HTMLElement>(".responsive-table").forEach(sync);
 
-  // Pages render their tables after data loads; pick them up as they appear,
-  // and re-measure when rows are added or changed.
   new MutationObserver((mutations) => {
+    const touched = new Set<HTMLElement>();
+
     for (const mutation of mutations) {
+      const target = mutation.target instanceof HTMLElement ? mutation.target : mutation.target.parentElement;
+      const around = target?.closest<HTMLElement>(".responsive-table");
+      if (around) touched.add(around);
+
       mutation.addedNodes.forEach((node) => {
         if (!(node instanceof HTMLElement)) return;
-
-        if (node.matches(".responsive-table")) track(node);
-        scan(node);
-
-        const wrapper = node.closest<HTMLElement>(".responsive-table");
-        if (wrapper && tracked.has(wrapper)) {
-          // A new table inside a known wrapper (empty state -> list).
-          const table = wrapper.querySelector("table");
-          if (table) tracked.get(wrapper)!.observer.observe(table);
-          measure(wrapper);
-        }
+        if (node.matches(".responsive-table")) touched.add(node);
+        node.querySelectorAll<HTMLElement>(".responsive-table").forEach((w) => touched.add(w));
       });
     }
-  }).observe(document.body, { childList: true, subtree: true });
+
+    touched.forEach(sync);
+  }).observe(document.body, {
+    childList: true,
+    subtree: true,
+    // React adding the class to a reused <div> is an attribute change.
+    attributes: true,
+    attributeFilter: ["class"],
+  });
 }
