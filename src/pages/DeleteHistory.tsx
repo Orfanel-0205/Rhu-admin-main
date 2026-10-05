@@ -1128,6 +1128,8 @@ const pageStyles = `
   min-height: 100vh;
   padding: 24px;
   transition: margin-left .2s ease;
+  /* Lets the rules below measure the page's own width, sidebar excluded. */
+  container-type: inline-size;
 }
 
 .delete-history-main * {
@@ -1626,7 +1628,12 @@ const pageStyles = `
   font-size: 13px;
 }
 
-@media (max-width: 1350px) {
+/*
+ * By the page's width, not the screen's: the one-row filters need about
+ * 1,260px, and on a 1366px laptop the sidebar leaves the page about 1,010px,
+ * so a screen-width rule at 1350px kept Apply and Clear Filter off the edge.
+ */
+@container (max-width: 1300px) {
   .metric-grid {
     grid-template-columns: repeat(3, minmax(170px, 1fr));
   }
