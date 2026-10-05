@@ -28,6 +28,7 @@ import {
   getPatientName,
   saveSoap,
   scanPaperSoap,
+  sendSoapForReview,
   summarizeConsultation,
   type SoapScanResult,
   type ConsultationIndicator,
@@ -586,6 +587,62 @@ export default function ConsultationDetails() {
     }
   }
 
+  /*
+   * WHO WRITES WHICH PART -- the MHO's Individual Treatment Record.
+   * Nurses, midwives and BHWs fill the vitals and S/O/A/P and Send to MHO.
+   * The doctor (MHO, doctor, Super Admin -- the same people who can
+   * prescribe) writes Remarks & Diagnosis, Treatment and Prescribe Drug/s
+   * and completes the record. The server enforces this too.
+   */
+  const isDoctorSide = canPrescribe;
+
+  // "Send to MHO": when, and by whom (for the banner on the SOAP card).
+  const reviewSentAt: string | null = (consultation as any)?.sent_for_review_at ?? null;
+  const reviewSentBy: string = (() => {
+    const requester = (consultation as any)?.review_requester;
+    if (!requester) return "RHU staff";
+    return (
+      requester.full_name ||
+      [requester.first_name, requester.last_name].filter(Boolean).join(" ") ||
+      "RHU staff"
+    );
+  })();
+
+  async function onSendForReview() {
+    if (!id) return;
+
+    if (
+      !window.confirm(
+        "Send this SOAP to the MHO? The MHO adds the diagnosis and drugs and completes the record. You can still update your part until then."
+      )
+    ) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const result = await sendSoapForReview(id, {
+        subjective,
+        objective,
+        assessment,
+        plan,
+        diagnosis,
+        treatment,
+        treatment_plan: treatment,
+        notes,
+        ...clinical,
+      });
+
+      setConsultation(result.consultation);
+      toast.success(result.message);
+    } catch {
+      // The API client already showed why (missing S/A/P, another RHU, ...).
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function onComplete() {
     if (!id) return;
 
@@ -1042,6 +1099,7 @@ export default function ConsultationDetails() {
   const [soapScan, setSoapScan] = useState<{
     filled: string[];
     kept: string[];
+    leftForDoctor: string[];
     labTests: SoapScanResult["lab_tests"];
   } | null>(null);
 
@@ -1055,6 +1113,7 @@ export default function ConsultationDetails() {
       const result = await scanPaperSoap(id, file);
       const filled: string[] = [];
       const kept: string[] = [];
+      const leftForDoctor: string[] = [];
 
       const soapFields: [keyof SoapScanResult["fields"], string, string, (value: string) => void][] = [
         ["subjective", "Subjective", subjective, setSubjective],
@@ -1068,6 +1127,12 @@ export default function ConsultationDetails() {
       for (const [key, label, current, set] of soapFields) {
         const value = (result.fields[key] ?? "").trim();
         if (!value) continue;
+
+        // The doctor's sections of the ITR stay for the doctor (MHO).
+        if (!isDoctorSide && (key === "diagnosis" || key === "treatment")) {
+          leftForDoctor.push(label);
+          continue;
+        }
 
         if (current.trim()) {
           kept.push(label);
@@ -1096,6 +1161,11 @@ export default function ConsultationDetails() {
         const value = scanned.trim();
         if (!value) continue;
 
+        if (!isDoctorSide && key === "prescribed_drugs") {
+          leftForDoctor.push(label);
+          continue;
+        }
+
         if (String(clinical[key] ?? "").trim()) {
           kept.push(label);
         } else {
@@ -1104,7 +1174,7 @@ export default function ConsultationDetails() {
         }
       }
 
-      setSoapScan({ filled, kept, labTests: result.lab_tests });
+      setSoapScan({ filled, kept, leftForDoctor, labTests: result.lab_tests });
 
       if (filled.length === 0 && kept.length === 0) {
         toast.warning("The form was read, but no SOAP headings (S:, O:, A:, P:) or vital signs were found in it.");
@@ -1388,9 +1458,16 @@ export default function ConsultationDetails() {
                 {saving ? t("btn_saving_ellipsis", lang) : "Save Draft"}
               </button>
 
-              <button onClick={onComplete} disabled={saving} style={buttonStyle}>
-                Finalize Consultation
-              </button>
+              {isDoctorSide ? (
+                <button onClick={onComplete} disabled={saving} style={buttonStyle}>
+                  Finalize Consultation
+                </button>
+              ) : (
+                <button onClick={onSendForReview} disabled={saving} style={buttonStyle}>
+                  <Send size={16} />
+                  {reviewSentAt ? "Send to MHO again" : "Send to MHO"}
+                </button>
+              )}
 
               {isTelemedicineConsult && teleSessionActive && teleSessionId ? (
                 <button
@@ -1694,6 +1771,26 @@ export default function ConsultationDetails() {
           ) : null}
         </div>
 
+        {reviewSentAt && !isSoapReadOnly ? (
+          <div style={reviewNoticeStyle} role="status">
+            <Send size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>
+              {isDoctorSide ? (
+                <>
+                  <strong>{reviewSentBy}</strong> sent this SOAP for your review on{" "}
+                  {formatDateTime(reviewSentAt)}. Add the diagnosis, treatment and prescribed drugs,
+                  then complete the record and issue the e-prescription.
+                </>
+              ) : (
+                <>
+                  Sent to the MHO on {formatDateTime(reviewSentAt)}. The MHO adds the diagnosis and
+                  drugs and completes the record; you can still update your part until then.
+                </>
+              )}
+            </span>
+          </div>
+        ) : null}
+
         {soapScan ? (
           <div style={soapScanNoticeStyle} role="status">
             <div>
@@ -1703,6 +1800,9 @@ export default function ConsultationDetails() {
                 : "Nothing new to fill."}{" "}
               {soapScan.kept.length > 0
                 ? `Kept what was already typed in: ${soapScan.kept.join(", ")}.`
+                : ""}{" "}
+              {soapScan.leftForDoctor.length > 0
+                ? `Left for the doctor (MHO): ${soapScan.leftForDoctor.join(", ")}.`
                 : ""}{" "}
               Check every field before saving — OCR can misread, especially handwriting.
               A section missing? Scan again: the reader sometimes skips part of the page.
@@ -1765,17 +1865,18 @@ export default function ConsultationDetails() {
             setValue={setPlan}
             readOnly={isSoapReadOnly}
           />
+          {/* The doctor's sections of the ITR ("Remarks & Diagnosis"). */}
           <Field
-            label={t("con_th_diagnosis", lang)}
+            label={isDoctorSide ? t("con_th_diagnosis", lang) : `${t("con_th_diagnosis", lang)} — for the doctor (MHO)`}
             value={diagnosis}
             setValue={setDiagnosis}
-            readOnly={isSoapReadOnly}
+            readOnly={isSoapReadOnly || !isDoctorSide}
           />
           <Field
-            label={t("cd_field_treatment", lang)}
+            label={isDoctorSide ? t("cd_field_treatment", lang) : `${t("cd_field_treatment", lang)} — for the doctor (MHO)`}
             value={treatment}
             setValue={setTreatment}
-            readOnly={isSoapReadOnly}
+            readOnly={isSoapReadOnly || !isDoctorSide}
           />
         </div>
 
@@ -1872,10 +1973,10 @@ export default function ConsultationDetails() {
 
         <div style={{ marginTop: 16 }}>
           <Field
-            label="Prescribed Drug/s"
+            label={isDoctorSide ? "Prescribed Drug/s" : "Prescribed Drug/s — for the doctor (MHO)"}
             value={clinical.prescribed_drugs}
             setValue={(v) => setClinicalField("prescribed_drugs", v)}
-            readOnly={isSoapReadOnly}
+            readOnly={isSoapReadOnly || !isDoctorSide}
           />
         </div>
       </section>
@@ -2246,9 +2347,11 @@ export default function ConsultationDetails() {
       {!isSoapReadOnly ? (
         <div style={bottomBarStyle}>
           <span style={mutedTextStyle}>
-            {draftExpired
-              ? "Draft window expired — still editable. Save or complete when ready."
-              : "Save your progress as a draft, or complete the consultation."}
+            {!isDoctorSide
+              ? "Save your part as a draft, or send it to the MHO, who adds the diagnosis and drugs and completes the record."
+              : draftExpired
+                ? "Draft window expired — still editable. Save or complete when ready."
+                : "Save your progress as a draft, or complete the consultation."}
           </span>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -2256,9 +2359,16 @@ export default function ConsultationDetails() {
               {saving ? t("btn_saving_ellipsis", lang) : "Save Draft"}
             </button>
 
-            <button onClick={onComplete} disabled={saving} style={buttonStyle}>
-              {t("cd_btn_complete", lang)}
-            </button>
+            {isDoctorSide ? (
+              <button onClick={onComplete} disabled={saving} style={buttonStyle}>
+                {t("cd_btn_complete", lang)}
+              </button>
+            ) : (
+              <button onClick={onSendForReview} disabled={saving} style={buttonStyle}>
+                <Send size={16} />
+                {reviewSentAt ? "Send to MHO again" : "Send to MHO"}
+              </button>
+            )}
           </div>
         </div>
       ) : null}
@@ -2587,6 +2697,21 @@ const titleStyle: CSSProperties = {
 const mutedTextStyle: CSSProperties = {
   margin: "4px 0 0",
   color: "#64748B",
+};
+
+// "Sent to the MHO for review", above the SOAP fields.
+const reviewNoticeStyle: CSSProperties = {
+  display: "flex",
+  gap: 10,
+  alignItems: "flex-start",
+  margin: "0 0 14px",
+  padding: "12px 14px",
+  borderRadius: 14,
+  background: "#EFF6FF",
+  border: "1px solid #BFDBFE",
+  color: "#1E3A8A",
+  fontSize: 14,
+  lineHeight: 1.55,
 };
 
 // What a paper-SOAP scan filled in, above the SOAP fields.

@@ -310,6 +310,22 @@ export async function saveSoap(
   return normalizeOne(res.data);
 }
 
+/**
+ * A nurse, midwife or BHW's "Send to MHO": saves their part of the SOAP and
+ * notifies the MHO, who adds the diagnosis and drugs and completes the record.
+ */
+export async function sendSoapForReview(
+  id: string | number,
+  payload: SoapPayload
+): Promise<{ consultation: Consultation; message: string }> {
+  const res = await apiClient.post(`/admin/consultations/${id}/send-for-review`, payload);
+
+  return {
+    consultation: normalizeOne(res.data),
+    message: String(res.data?.message ?? "Sent to the MHO."),
+  };
+}
+
 /** What the server read off a photographed paper SOAP form. Suggestions only. */
 export interface SoapScanResult {
   message: string;
