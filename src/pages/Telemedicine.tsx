@@ -91,6 +91,13 @@ const CLINICAL_ROLES = new Set([
   "doctor", "mho", "super_admin",
 ]);
 
+// Who may cancel a request: nurses, midwives, the MHO and the super admin
+// (the RHU's rule). The server enforces it (TelemedicinePolicy::cancel); this
+// only hides Cancel from everyone else, who would be refused.
+const CANCEL_ROLES = new Set([
+  "nurse", "midwife", "mho", "super_admin",
+]);
+
 // Same RHU-selector pattern as Reports/Analytics: global staff (Super Admin/MHO)
 // may switch RHU 1 / RHU 2; facility-scoped staff stay locked to their own.
 // The facility list is served by the API (Administration -> RHU Facilities),
@@ -523,6 +530,7 @@ export default function Telemedicine() {
   const userRole = getUserRole(authUser);
   const isScreeningRole = SCREENING_ROLES.has(userRole);
   const isClinicalRole = CLINICAL_ROLES.has(userRole);
+  const canCancelRequests = CANCEL_ROLES.has(userRole);
   // Global staff can switch RHU; facility-scoped staff are locked to their own.
   const isGlobalRhu = isGlobalRhuRole();
   const [rhuFilter, setRhuFilter] = useState<string>(() => defaultRhuFilter());
@@ -1306,7 +1314,7 @@ export default function Telemedicine() {
                           onStart={() => startSession(item)}
                           onOpenSession={() => openExistingSession(item)}
                           onReject={() => rejectRequest(item)}
-                          onCancel={() => cancelRequest(item)}
+                          onCancel={canCancelRequests ? () => cancelRequest(item) : undefined}
                           onEnd={() => endSession(item)}
                           onHistory={() => openHistory(item)}
                           onNotify={() => notifyPatient(item)}
@@ -1332,7 +1340,7 @@ export default function Telemedicine() {
         onStart={selected ? () => startSession(selected) : undefined}
         onOpenSession={selected ? () => openExistingSession(selected) : undefined}
         onReject={selected ? () => rejectRequest(selected) : undefined}
-        onCancel={selected ? () => cancelRequest(selected) : undefined}
+        onCancel={selected && canCancelRequests ? () => cancelRequest(selected) : undefined}
         onEnd={selected ? () => endSession(selected) : undefined}
         onHistory={selected ? () => openHistory(selected) : undefined}
         onNotify={selected ? () => notifyPatient(selected) : undefined}
@@ -1413,7 +1421,7 @@ function ActionButtons({
   onStart: () => void;
   onOpenSession: () => void;
   onReject: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   onEnd: () => void;
   onHistory: () => void;
   onNotify: () => void;
@@ -1449,7 +1457,7 @@ function ActionButtons({
 
   const canReject =
     !closed && ["pending", "screening", "screened", "endorsed_to_doctor"].includes(requestStatus);
-  const canCancel = !closed;
+  const canCancel = !closed && Boolean(onCancel);
 
   // Single primary action by priority
   const primary = canOpenRoom
@@ -1513,7 +1521,7 @@ function ActionButtons({
     {
       label: "Cancel",
       icon: <X size={15} />,
-      onClick: onCancel,
+      onClick: () => onCancel?.(),
       danger: true,
       disabled: busy,
       hidden: !canCancel,
