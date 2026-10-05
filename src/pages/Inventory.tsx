@@ -752,7 +752,7 @@ export default function Inventory() {
         />
       </section>
 
-      <section style={actionCenterStyle}>
+      <section className="stack-when-narrow" style={actionCenterStyle}>
         <div>
           <h2 style={sectionTitleStyle}>Real-life Safety Guide</h2>
 

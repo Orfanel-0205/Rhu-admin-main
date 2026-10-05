@@ -610,6 +610,12 @@ body {
   overflow: hidden;
 }
 
+/* The older .data-table striping and hover would otherwise tint every other card. */
+.responsive-table[data-layout="cards"] table.data-table tbody tr,
+.responsive-table[data-layout="cards"] table.data-table tbody tr:hover {
+  background: #ffffff;
+}
+
 .responsive-table[data-layout="cards"] td {
   display: block;
   width: auto !important;
@@ -742,6 +748,19 @@ body {
 
   .responsive-table[data-layout="cards"] td:last-child > div {
     width: 100%;
+  }
+}
+
+/*
+ * Side-by-side panels that go one above the other on a phone. For grids
+ * whose columns have fixed minimums (a 260px search beside a 170px filter),
+ * which together are wider than a phone and pushed the whole page past the
+ * right edge. Their desktop layout is untouched. !important because the
+ * columns are set inline.
+ */
+@media (max-width: 560px) {
+  .stack-when-narrow {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }
 

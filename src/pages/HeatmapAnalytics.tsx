@@ -2047,7 +2047,7 @@ const mapsSplitStyle: React.CSSProperties = {
 // leaves dead space when the disease panel beside it is taller.
 const mapPanelStyle: React.CSSProperties = {
   flex: "1 1 460px",
-  minWidth: 320,
+  minWidth: "min(320px, 100%)",
   display: "flex",
   flexDirection: "column",
   gap: 10,
@@ -2056,7 +2056,7 @@ const mapPanelStyle: React.CSSProperties = {
 
 const queueMapFocusStyle: React.CSSProperties = {
   flex: "1 1 780px",
-  minWidth: 320,
+  minWidth: "min(320px, 100%)",
   display: "flex",
   flexDirection: "column",
   gap: 10,
@@ -2065,7 +2065,7 @@ const queueMapFocusStyle: React.CSSProperties = {
 
 const diseaseMapFocusStyle: React.CSSProperties = {
   flex: "1 1 100%",
-  minWidth: 320,
+  minWidth: "min(320px, 100%)",
   display: "flex",
   flexDirection: "column",
   gap: 10,

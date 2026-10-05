@@ -1262,7 +1262,7 @@ export default function Queue() {
         <p style={queueHelpStyle}>{t("q_help_text", lang)}</p>
       </section>
 
-      <section style={toolbarStyle}>
+      <section className="stack-when-narrow" style={toolbarStyle}>
         <div style={searchBoxStyle}>
           <Search size={18} />
           <input

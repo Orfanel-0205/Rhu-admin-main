@@ -1031,7 +1031,7 @@ export default function Prescriptions() {
   }
 
   return (
-    <div style={{ display: "grid", gap: 22 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 22 }}>
       <PageHero
         title={t("rx_title", lang)}
         subtitle={t("rx_subtitle", lang)}
@@ -1148,7 +1148,7 @@ export default function Prescriptions() {
             No prescriptions or lab requests yet. Create a medicine prescription or lab request after consultation.
           </p>
         ) : (
-          <div className="table-wrapper" style={{ border: 0 }}>
+          <div className="responsive-table">
             <table className="data-table">
               <thead>
                 <tr>
@@ -1173,20 +1173,20 @@ export default function Prescriptions() {
                   );
                   return (
                   <tr key={item.id}>
-                    <td style={{ fontWeight: 900 }}>
+                    <td data-label={t("rx_th_number", lang)} style={{ fontWeight: 900 }}>
                       {item.prescription_number}
                     </td>
 
-                    <td>
+                    <td data-label={t("appt_th_patient", lang)}>
                       {item.patient_name ||
                         t("rx_resident_hash", lang, {
                           id: item.resident_profile_id,
                         })}
                     </td>
 
-                    <td>{item.diagnosis || "—"}</td>
+                    <td data-label={t("con_th_diagnosis", lang)}>{item.diagnosis || "—"}</td>
 
-                    <td>
+                    <td data-label="Type / Medicines / Tests">
                       <div style={{ display: "grid", gap: 6 }}>
                         <span
                           style={
@@ -1230,11 +1230,11 @@ export default function Prescriptions() {
                       </span>
                     </td>
 
-                    <td>
+                    <td data-label={t("common_date", lang)}>
                       {formatDate(item.prescription_date || item.created_at)}
                     </td>
 
-                    <td>
+                    <td data-label={t("appt_th_status", lang)}>
                       <div style={{ display: "grid", gap: 6 }}>
                         <span className={`badge ${statusClass(item.status)}`}>
                           {getRxStatusLabel(item.status, lang)}
@@ -1258,7 +1258,7 @@ export default function Prescriptions() {
                       </div>
                     </td>
 
-                    <td>
+                    <td data-label={t("rx_th_pdf_actions", lang)}>
                       <div style={actionGroupStyle}>
                         {!readOnlyRecord && (
                         <button

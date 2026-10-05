@@ -689,6 +689,10 @@ function InfoBox({ label, value }: { label: string; value: string }) {
 
 const pageStyle: CSSProperties = {
   display: "grid",
+  // One column, never wider than the screen: an unset column grows to fit
+  // the widest section, and on a phone that pushed the whole page off the
+  // right edge.
+  gridTemplateColumns: "minmax(0, 1fr)",
   gap: 22,
   paddingBottom: 40,
 };
@@ -864,7 +868,9 @@ const errorStyle: CSSProperties = {
 
 const toolbarStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "minmax(280px, 1fr) 180px 140px",
+  // Wraps onto more lines when narrow, as on Telemedicine. The fixed
+  // 280px + 180px + 140px columns needed 654px, wider than a phone.
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(180px, 100%), 1fr))",
   gap: 10,
   alignItems: "center",
   padding: 16,
@@ -887,6 +893,7 @@ const searchBoxStyle: CSSProperties = {
 
 const searchInputStyle: CSSProperties = {
   flex: 1,
+  minWidth: 0,
   border: 0,
   outline: "none",
   background: "transparent",

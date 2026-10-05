@@ -2933,8 +2933,10 @@ const heroButtonStyle: CSSProperties = {
 
 const filterPanelStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns:
-    "repeat(4, minmax(145px, 1fr)) minmax(220px, 1.4fr) auto auto",
+  // Wraps onto more lines when narrow, as on Telemedicine. The fixed seven
+  // columns needed about 1,000px, so below a wide laptop Apply and Reset
+  // were pushed off the right edge.
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(170px, 100%), 1fr))",
   alignItems: "end",
   gap: 12,
   padding: 16,

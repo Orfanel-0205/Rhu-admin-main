@@ -227,7 +227,7 @@ export default function AdminProfile() {
       {loading ? (
         <div style={styles.card}>Loading profile...</div>
       ) : (
-        <div style={styles.grid}>
+        <div className="stack-when-narrow" style={styles.grid}>
           <section style={styles.card}>
             <div style={styles.profileHeader}>
               <div style={styles.avatar}>

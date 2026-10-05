@@ -2177,7 +2177,9 @@ const sectionStyle: CSSProperties = {
 
 const summaryGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  // Four across when there is room, two by two on a phone. Four fixed
+  // columns squeezed each card to ~80px there, and the last one stuck out.
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))",
   gap: 14,
 };
 
