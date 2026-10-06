@@ -277,7 +277,11 @@ function StaffRegisterForm({
     // The real name-match check runs on the server at submission.
     setOcrLoading(true);
     try {
-      const result = await authService.extractEmployeeId(file);
+      const result = await authService.extractEmployeeId(file, {
+        token: inviteToken,
+        expires: inviteExpires,
+        signature: inviteSignature,
+      });
       applyAutofill(result.fields);
       setOcrMessage(
         result.ok

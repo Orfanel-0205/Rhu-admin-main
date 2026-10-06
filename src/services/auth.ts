@@ -241,9 +241,19 @@ export const authService = {
   // Stateless OCR autofill — sends the Employee ID photo, gets extracted fields
   // back for the form to pre-fill. Persists nothing server-side. Errors are
   // handled inline in the form, so the global error toast is suppressed here.
-  async extractEmployeeId(file: File): Promise<ExtractEmployeeIdResult> {
+  //
+  // The invite from the sign-up link goes along: the server only runs the
+  // scan (on the RHU's OCR credit) for someone holding a valid invite. It is
+  // checked there, not used up.
+  async extractEmployeeId(
+    file: File,
+    invite: { token: string; expires: string; signature: string }
+  ): Promise<ExtractEmployeeIdResult> {
     const form = new FormData();
     form.append("employee_id", file);
+    form.append("invite_token", invite.token);
+    form.append("invite_expires", invite.expires);
+    form.append("invite_signature", invite.signature);
 
     const response = await apiClient.post(
       "/admin/register/extract-employee-id",
