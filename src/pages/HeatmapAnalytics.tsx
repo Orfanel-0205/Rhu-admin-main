@@ -253,6 +253,7 @@ function emptyFacilityData(): FacilityHeatmapData {
       events: [],
     })),
     events: [],
+    todayEventCount: 0,
     lastUpdated: "",
     hasLiveQueueData: false,
   };
@@ -483,7 +484,7 @@ export default function HeatmapAnalytics() {
             )
           ),
         },
-        { label: "Active events today", value: String(facilityHeatmap.events.length) },
+        { label: "Active events today", value: String(facilityHeatmap.todayEventCount) },
       ];
     }
 
@@ -493,7 +494,7 @@ export default function HeatmapAnalytics() {
       { label: "High-risk barangays", value: String(summary.highRisk) },
       { label: "Critical barangays", value: String(summary.critical) },
     ];
-  }, [activeWorkspace, facilityHeatmap.facilities, facilityHeatmap.events.length, summary]);
+  }, [activeWorkspace, facilityHeatmap.facilities, facilityHeatmap.todayEventCount, summary]);
 
   const heatmapNotes = useMemo(() => {
     if (activeWorkspace === "queue") {
@@ -595,9 +596,9 @@ export default function HeatmapAnalytics() {
   );
 
   const highestCrowdingEvent = useMemo(() => {
-    return [...facilityHeatmap.events].sort(
-      (a, b) => levelRank(b.crowdingLevel) - levelRank(a.crowdingLevel)
-    )[0];
+    return facilityHeatmap.events
+      .filter((event) => event.isToday)
+      .sort((a, b) => levelRank(b.crowdingLevel) - levelRank(a.crowdingLevel))[0];
   }, [facilityHeatmap.events]);
 
   const exportActiveCases = () =>
@@ -677,7 +678,7 @@ export default function HeatmapAnalytics() {
             <>
               <HeroMetric label="RHU Facilities" value={facilityHeatmap.facilities.length} icon={Building2} />
               <HeroMetric label="Patients Waiting" value={summary.queueLoad} icon={UsersRound} tone="amber" />
-              <HeroMetric label="Active Events" value={facilityHeatmap.events.length} icon={Activity} tone="blue" />
+              <HeroMetric label="Active Events" value={facilityHeatmap.todayEventCount} icon={Activity} tone="blue" />
               <HeroMetric label="Priority Patients" value={facilityHeatmap.facilities.reduce((sum, facility) => sum + facility.priorityCount, 0)} icon={ShieldAlert} tone="red" />
             </>
           ) : (
@@ -904,7 +905,7 @@ type="button"
 
           <section style={miniSummaryCardStyle}>
             <div style={miniLabelStyle}>{t("hm_event_crowding", lang)}</div>
-            <strong style={miniValueStyle}>{facilityHeatmap.events.length}</strong>
+            <strong style={miniValueStyle}>{facilityHeatmap.todayEventCount}</strong>
             <p style={miniTextStyle}>
               {highestCrowdingEvent
                 ? `${highestCrowdingEvent.title}: ${highestCrowdingEvent.registrants ?? "No data"}/${highestCrowdingEvent.slots ?? "unlimited"}`

@@ -13,10 +13,12 @@ import {
   CheckCircle,
   XCircle,
   ArrowLeft,
+  FileText,
 } from "lucide-react";
 
 import {
   getEventRegistrants,
+  markAttendance,
   type EventRegistrant,
   type EventRegistrantsResponse,
 } from "../services/eventRegistrants";
@@ -95,6 +97,33 @@ export default function EventRegistrants() {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [marking, setMarking] = useState<number | null>(null);
+
+  // Check-in on the day: Came / No-show, or Undo. The row updates in place;
+  // the server keeps who marked it and when, for the event report.
+  const mark = useCallback(
+    async (registrant: EventRegistrant, next: "attended" | "no_show" | "registered") => {
+      setMarking(registrant.id);
+      try {
+        const updated = await markAttendance(eventId, registrant.id, next);
+        setData((current) =>
+          current
+            ? {
+                ...current,
+                data: current.data.map((row) =>
+                  row.id === registrant.id ? { ...row, status: updated?.status ?? next } : row
+                ),
+              }
+            : current
+        );
+      } catch (err: any) {
+        setError(err?.response?.data?.message || "Could not save the attendance mark.");
+      } finally {
+        setMarking(null);
+      }
+    },
+    [eventId]
+  );
 
   const loadRegistrants = useCallback(
     async (silent = false) => {
@@ -255,6 +284,15 @@ export default function EventRegistrants() {
         >
           <RefreshCw size={16} />
           {syncing ? t("er_syncing", lang) : t("btn_refresh", lang)}
+        </button>
+
+        <button
+          className="btn-secondary"
+          onClick={() => navigate(`/cms/events/${eventId}/report`)}
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+        >
+          <FileText size={16} />
+          Event report
         </button>
       </div>
 
@@ -534,6 +572,10 @@ export default function EventRegistrants() {
                   <th style={{ textAlign: "left", padding: "12px 8px" }}>
                     {t("er_th_status", lang)}
                   </th>
+
+                  <th style={{ textAlign: "left", padding: "12px 8px" }}>
+                    Attendance
+                  </th>
                 </tr>
               </thead>
 
@@ -582,6 +624,43 @@ export default function EventRegistrants() {
                         >
                           {cfg.label}
                         </span>
+                      </td>
+
+                      <td style={{ padding: "12px 8px", whiteSpace: "nowrap" }}>
+                        {registrant.status === "cancelled" ? (
+                          <span style={{ color: "#94A3B8" }}>—</span>
+                        ) : registrant.status === "registered" ? (
+                          <div style={{ display: "inline-flex", gap: 6 }}>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              disabled={marking === registrant.id}
+                              onClick={() => void mark(registrant, "attended")}
+                              style={{ padding: "6px 10px", fontSize: 12.5 }}
+                            >
+                              <CheckCircle size={14} /> Came
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              disabled={marking === registrant.id}
+                              onClick={() => void mark(registrant, "no_show")}
+                              style={{ padding: "6px 10px", fontSize: 12.5 }}
+                            >
+                              <XCircle size={14} /> No-show
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={marking === registrant.id}
+                            onClick={() => void mark(registrant, "registered")}
+                            style={{ padding: "6px 10px", fontSize: 12.5 }}
+                          >
+                            Undo
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

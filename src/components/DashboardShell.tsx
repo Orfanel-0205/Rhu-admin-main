@@ -333,7 +333,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         if (fresh.length === 1) {
           const n = fresh[0];
           const text = n.title || n.message || "New notification";
-          if (/inventory|low_stock|expir/i.test(n.type)) {
+          if (/inventory|low_stock|expir|queue_overload|crowd/i.test(n.type)) {
             toast.warning(text);
           } else {
             toast.info(text);

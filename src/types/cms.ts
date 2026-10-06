@@ -235,6 +235,14 @@ export interface Event {
   latitude?: number | string | null;
   longitude?: number | string | null;
 
+  /** The target barangays' points on the map (server: EventFacility::pins). */
+  pins?: { barangay: string; latitude: number; longitude: number }[];
+  /** The RHU hosting it, or null for every RHU (EventFacility::hostRhuId). */
+  host_rhu_id?: number | null;
+  /** Past its end time, or its day if it has none (Event::hasEnded). */
+  has_ended?: boolean;
+  report_generated_at?: string | null;
+
   is_registered?: boolean;
   banner_url?: string | null;
   banner_path?: string | null;

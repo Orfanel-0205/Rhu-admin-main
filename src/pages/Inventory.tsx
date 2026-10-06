@@ -34,6 +34,8 @@ import {
   adjustInventoryItem,
   deductInventoryItem,
   deleteInventoryItem,
+  getStockOutEventOptions,
+  type StockOutEventOption,
   getInventory,
   getInventoryAlerts,
   getInventoryTransactions,
@@ -78,6 +80,8 @@ type MovementState = {
   reason: string;
   reference_number: string;
   notes: string;
+  /** Stock-out only: the event it was handed out at ("" for none). */
+  event_id: string;
 };
 
 const emptyForm: ItemFormState = {
@@ -103,6 +107,7 @@ const emptyMovement: MovementState = {
   reason: "",
   reference_number: "",
   notes: "",
+  event_id: "",
 };
 
 const categoryOptions: Array<{
@@ -257,6 +262,7 @@ export default function Inventory() {
 
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [movementModalOpen, setMovementModalOpen] = useState(false);
+  const [eventOptions, setEventOptions] = useState<StockOutEventOption[] | null>(null);
   const [transactionsModalOpen, setTransactionsModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -494,9 +500,17 @@ export default function Inventory() {
             : `Inventory adjustment for ${item.name}.`,
       reference_number: "",
       notes: "",
+      event_id: "",
     });
 
     setMovementModalOpen(true);
+
+    // The events this stock-out could be for, fetched once when first needed.
+    if (mode === "stock_out" && eventOptions === null) {
+      getStockOutEventOptions()
+        .then(setEventOptions)
+        .catch(() => setEventOptions([]));
+    }
   }
 
   async function openTransactionsModal(item: InventoryItem) {
@@ -641,7 +655,8 @@ export default function Inventory() {
           selectedItem.id,
           quantity,
           movement.reason.trim(),
-          movement.notes.trim() || movement.reason.trim()
+          movement.notes.trim() || movement.reason.trim(),
+          movement.event_id ? Number(movement.event_id) : null
         );
 
         flash("Stock deducted successfully.");
@@ -1300,6 +1315,36 @@ export default function Inventory() {
                   setMovement({ ...movement, reference_number: value })
                 }
                 placeholder="Delivery receipt / batch ref"
+              />
+            )}
+
+            {movement.mode === "stock_out" && (eventOptions?.length ?? 0) > 0 && (
+              <SelectField
+                label="Handed out at an event (optional)"
+                value={movement.event_id}
+                onChange={(value) => {
+                  const chosen = eventOptions?.find((option) => String(option.id) === value);
+                  setMovement({
+                    ...movement,
+                    event_id: value,
+                    // Fill the reason only while it is still the untouched default.
+                    reason:
+                      chosen && /^Manual stock deduction for /.test(movement.reason)
+                        ? `Handed out at ${chosen.title}.`
+                        : movement.reason,
+                  });
+                }}
+                options={[
+                  { value: "", label: "Not for an event" },
+                  ...(eventOptions ?? []).map((option) => ({
+                    value: String(option.id),
+                    label: `${option.title}${
+                      option.starts_at
+                        ? ` (${new Date(option.starts_at).toLocaleDateString("en-PH", { month: "short", day: "numeric" })})`
+                        : ""
+                    }`,
+                  })),
+                ]}
               />
             )}
 

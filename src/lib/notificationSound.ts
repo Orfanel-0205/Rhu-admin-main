@@ -290,7 +290,8 @@ export function stopCallRingtone(): void {
  * about to run out. Matched on the notification type the server sends.
  */
 export function isUrgentNotification(type: string | null | undefined): boolean {
-  return /telemedicine|call|queue|emergency|urgent|critical|sos|low_stock|out_of_stock|expir/i.test(
+  // "queue" covers queue_overload; "crowd" event_crowding (StaffAlertService).
+  return /telemedicine|call|queue|crowd|emergency|urgent|critical|sos|low_stock|out_of_stock|expir/i.test(
     String(type ?? "")
   );
 }

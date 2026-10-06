@@ -1046,6 +1046,7 @@ export default function Events() {
                 onTogglePublish={() => confirmTogglePublish(item)}
                 onDelete={() => confirmDelete(item)}
                 onRegistrants={() => navigate(`/cms/events/${item.id}/registrants`)}
+                onReport={() => navigate(`/cms/events/${item.id}/report`)}
               />
             ))}
           </div>
@@ -1100,6 +1101,7 @@ function EventCard({
   onTogglePublish,
   onDelete,
   onRegistrants,
+  onReport,
 }: {
   item: Event;
   onEdit: () => void;
@@ -1107,6 +1109,8 @@ function EventCard({
   onTogglePublish: () => void;
   onDelete: () => void;
   onRegistrants: () => void;
+  /** Who came and what was handed out (pages/EventReport). */
+  onReport: () => void;
 }) {
   const cfg = getTypeConfig(item.event_type);
   const typeLabel = getReadableType(item.event_type);
@@ -1234,6 +1238,13 @@ function EventCard({
           >
             <Users size={17} />
             {getRegistrantsLabel(item)}
+          </button>
+        ) : null}
+
+        {item.event_type !== "announcement" ? (
+          <button type="button" onClick={onReport} style={S.lightButton}>
+            <FileText size={16} />
+            {item.has_ended ? "Event report" : "Report so far"}
           </button>
         ) : null}
 

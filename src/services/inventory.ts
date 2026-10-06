@@ -669,15 +669,31 @@ export async function deductInventoryItem(
   id: number,
   quantityToDeduct: number,
   reason = "Manual stock deduction from RHU admin web.",
-  notes?: string
+  notes?: string,
+  // Handed out at an event: then it is counted in that event's report.
+  eventId?: number | null
 ): Promise<InventoryItem> {
   const response = await apiClient.post(`/inventory/${id}/stock-out`, {
     quantity: Number(quantityToDeduct),
     reason,
     notes: notes || reason,
+    ...(eventId ? { event_id: eventId } : {}),
   });
 
   return normalizeItem(response.data?.data ?? response.data);
+}
+
+export interface StockOutEventOption {
+  id: number;
+  title: string;
+  starts_at?: string | null;
+  barangays: string;
+}
+
+/** Events a stock-out can be recorded against: a week either side of today. */
+export async function getStockOutEventOptions(): Promise<StockOutEventOption[]> {
+  const response = await apiClient.get("/inventory/event-options");
+  return (response.data?.data ?? []) as StockOutEventOption[];
 }
 
 export async function adjustInventoryItem(

@@ -495,21 +495,25 @@ export default function FacilityQueueHeatmapMap({ facilities, events }: Props) {
             const color = levelColor(event.crowdingLevel);
             const position: [number, number] = [event.latitude, event.longitude];
 
+            // Today's events solid; upcoming ones lighter and dashed.
             return (
               <CircleMarker
-                key={`event-${event.id}`}
+                key={`event-${event.key}`}
                 center={position}
                 radius={9}
                 pathOptions={{
                   color: "#0F172A",
                   fillColor: color,
-                  fillOpacity: 0.86,
-                  opacity: 0.82,
+                  fillOpacity: event.isToday ? 0.86 : 0.4,
+                  opacity: event.isToday ? 0.82 : 0.6,
                   weight: 2,
+                  dashArray: event.isToday ? undefined : "4 3",
                 }}
               >
                 <Tooltip direction="right" offset={[8, 0]}>
                   {event.title}
+                  {event.barangay ? ` · ${event.barangay}` : ""}
+                  {event.isToday ? " · today" : ""}
                 </Tooltip>
 
                 <Popup maxWidth={310}>
@@ -517,6 +521,7 @@ export default function FacilityQueueHeatmapMap({ facilities, events }: Props) {
                     <h3 style={{ margin: "0 0 4px", color: "#064E3B" }}>
                       {event.title}
                     </h3>
+                    {event.barangay ? <InfoRow label="Barangay" value={event.barangay} /> : null}
                     <InfoRow label="Facility" value={event.facilityName} />
                     <InfoRow
                       label="Schedule"
@@ -531,6 +536,7 @@ export default function FacilityQueueHeatmapMap({ facilities, events }: Props) {
                           : "Today"
                       }
                     />
+                    <InfoRow label="When" value={event.isToday ? "Today" : "Upcoming"} />
                     <InfoRow label="Registrants" value={event.registrants ?? "No data"} />
                     <InfoRow label="Slots" value={event.slots ?? "Unlimited"} />
                     <InfoRow label="Crowding level" value={levelText(event.crowdingLevel)} />

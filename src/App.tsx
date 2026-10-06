@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Events from "./pages/Events";
 import EventRegistrants from "./pages/EventRegistrants";
+import EventReport from "./pages/EventReport";
 import Announcements from "./pages/Announcements";
 import Analytics from "./pages/Analytics";
 import HeatmapAnalytics from "./pages/HeatmapAnalytics";
@@ -303,6 +304,15 @@ export default function App() {
           element={
             <ProtectedPage>
               <EventRegistrants />
+            </ProtectedPage>
+          }
+        />
+
+        <Route
+          path="/cms/events/:id/report"
+          element={
+            <ProtectedPage>
+              <EventReport />
             </ProtectedPage>
           }
         />

@@ -6,6 +6,8 @@ import type { Event } from "../types/cms";
 export type PressureLevel = "low" | "moderate" | "high" | "critical";
 
 export interface FacilityHeatmapEvent {
+  /** One marker per target barangay, so the id alone is not unique. */
+  key: string;
   id: number;
   title: string;
   facilityId: number;
@@ -17,6 +19,10 @@ export interface FacilityHeatmapEvent {
   slots: number | null;
   crowdingLevel: PressureLevel;
   location?: string | null;
+  /** The target barangay this marker stands for, if the event names any. */
+  barangay?: string | null;
+  /** On today: counts toward the facility's pressure. Later: shown, lighter. */
+  isToday: boolean;
 }
 
 export interface FacilityHeatmapFacility {
@@ -40,7 +46,10 @@ export interface FacilityHeatmapFacility {
 
 export interface FacilityHeatmapData {
   facilities: FacilityHeatmapFacility[];
+  /** Markers: every published event that has not ended, one per barangay. */
   events: FacilityHeatmapEvent[];
+  /** Distinct events happening today. */
+  todayEventCount: number;
   lastUpdated: string;
   hasLiveQueueData: boolean;
 }
@@ -230,51 +239,82 @@ function eventRegistrants(event: Event): number | null {
   return null;
 }
 
-function eventFacility(event: Event, facilities: MapFacility[]): MapFacility {
-  const rhuId = numberOrZero((event as any).rhu_id ?? (event as any).facility_id);
-  return facilities.find((facility) => facility.id === rhuId) ?? facilities[0];
+/*
+ * WHERE AN EVENT GOES ON THE MAP.
+ *
+ * At its target barangays: an event for Buto is pinned at Buto (the server
+ * sends the points, EventFacility::pins). It used to be drawn at the RHU
+ * building, because the event form saved barangay names and never
+ * coordinates. An event for every barangay has no pins and stays at its host
+ * RHU.
+ *
+ * Which RHU it belongs to (for that RHU's pressure) is the server's
+ * host_rhu_id -- the RHU it is restricted to, or the RHU of the staff member
+ * who posted it -- and otherwise the RHU nearest its first barangay.
+ *
+ * It shows from when it is published until it has ended (the server's
+ * has_ended, the same rule that takes it off the residents' list). Only
+ * today's events add to an RHU's pressure; later ones are drawn lighter.
+ */
+function nearestFacility(latitude: number, longitude: number, facilities: MapFacility[]): MapFacility {
+  const scale = Math.cos((latitude * Math.PI) / 180);
+
+  return facilities.reduce((best, facility) => {
+    const distance = (lat: number, lng: number) => (lat - latitude) ** 2 + ((lng - longitude) * scale) ** 2;
+    return distance(facility.latitude, facility.longitude) < distance(best.latitude, best.longitude)
+      ? facility
+      : best;
+  }, facilities[0]);
 }
 
-function eventCoordinates(event: Event, facility: MapFacility) {
-  const latitude = Number(event.latitude);
-  const longitude = Number(event.longitude);
-
-  if (Number.isFinite(latitude) && Number.isFinite(longitude) && latitude !== 0 && longitude !== 0) {
-    return { latitude, longitude };
+export function eventMarkers(event: Event, facilities: MapFacility[]): FacilityHeatmapEvent[] {
+  if (event.event_type === "announcement" || facilities.length === 0) {
+    return [];
   }
 
-  return {
-    latitude: facility.latitude,
-    longitude: facility.longitude,
-  };
-}
+  const start = event.starts_at ?? event.event_date;
+  const ended = typeof event.has_ended === "boolean" ? event.has_ended : !sameDay(start);
+  if (ended) return [];
 
-function normalizeEvent(
-  event: Event,
-  facilities: MapFacility[]
-): FacilityHeatmapEvent | null {
-  if (event.event_type === "announcement" || !sameDay(event.starts_at ?? event.event_date)) {
-    return null;
-  }
+  const pins = (event.pins ?? []).filter(
+    (pin) => Number.isFinite(Number(pin.latitude)) && Number.isFinite(Number(pin.longitude))
+  );
 
-  const facility = eventFacility(event, facilities);
-  const coordinates = eventCoordinates(event, facility);
+  const host =
+    facilities.find((facility) => facility.id === numberOrZero(event.host_rhu_id)) ??
+    (pins.length > 0
+      ? nearestFacility(Number(pins[0].latitude), Number(pins[0].longitude), facilities)
+      : facilities[0]);
+
+  const own = { latitude: Number(event.latitude), longitude: Number(event.longitude) };
+  const points =
+    pins.length > 0
+      ? pins.map((pin) => ({ latitude: Number(pin.latitude), longitude: Number(pin.longitude), barangay: pin.barangay }))
+      : [
+          Number.isFinite(own.latitude) && Number.isFinite(own.longitude) && own.latitude !== 0 && own.longitude !== 0
+            ? { ...own, barangay: null }
+            : { latitude: host.latitude, longitude: host.longitude, barangay: null },
+        ];
+
   const registrants = eventRegistrants(event);
   const slots = event.max_slots ?? null;
 
-  return {
+  return points.map((point, index) => ({
+    key: `${event.id}-${index}`,
     id: event.id,
     title: event.title || "Untitled event",
-    facilityId: facility.id,
-    facilityName: facility.name,
-    latitude: coordinates.latitude,
-    longitude: coordinates.longitude,
-    schedule: event.starts_at ?? event.event_date ?? "",
+    facilityId: host.id,
+    facilityName: host.name,
+    latitude: point.latitude,
+    longitude: point.longitude,
+    schedule: start ?? "",
     registrants,
     slots,
     crowdingLevel: getEventCrowdingLevel(registrants, slots),
     location: event.location,
-  };
+    barangay: point.barangay,
+    isToday: sameDay(start),
+  }));
 }
 
 export async function fetchFacilityHeatmapData(): Promise<FacilityHeatmapData> {
@@ -290,9 +330,12 @@ export async function fetchFacilityHeatmapData(): Promise<FacilityHeatmapData> {
     per_page: 100,
   });
 
-  const events = eventsResult.data
-    .map((event) => normalizeEvent(event, mapFacilities))
-    .filter(Boolean) as FacilityHeatmapEvent[];
+  const events = eventsResult.data.flatMap((event) => eventMarkers(event, mapFacilities));
+
+  // One entry per event (an event in three barangays is one event).
+  const todayEvents = [
+    ...new Map(events.filter((event) => event.isToday).map((event) => [event.id, event])).values(),
+  ];
 
   const facilities = mapFacilities.map((facility, index) => {
     const queueResult = queueResults[index];
@@ -304,7 +347,7 @@ export async function fetchFacilityHeatmapData(): Promise<FacilityHeatmapData> {
       ["in_service", "serving"].includes(String(ticket.status))
     );
     const priority = waiting.filter(isPriorityTicket);
-    const facilityEvents = events.filter((event) => event.facilityId === facility.id);
+    const facilityEvents = todayEvents.filter((event) => event.facilityId === facility.id);
     const highestEventLevel = facilityEvents.reduce<PressureLevel>(
       (level, event) => strongerLevel(level, event.crowdingLevel),
       "low"
@@ -345,6 +388,7 @@ export async function fetchFacilityHeatmapData(): Promise<FacilityHeatmapData> {
   return {
     facilities,
     events,
+    todayEventCount: todayEvents.length,
     lastUpdated: new Date().toISOString(),
     hasLiveQueueData: queueResults.some((result) => result.status === "fulfilled"),
   };
