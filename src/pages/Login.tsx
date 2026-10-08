@@ -48,6 +48,20 @@ export default function Login() {
   // "Forgot password?" replaces the form while it is open.
   const [forgotOpen, setForgotOpen] = useState(false);
 
+  // Signed out by the dashboard after a while without activity
+  // (lib/idleSignOut): say so once.
+  useEffect(() => {
+    try {
+      const minutes = sessionStorage.getItem("ka_agapay_signed_out_idle");
+      if (minutes) {
+        sessionStorage.removeItem("ka_agapay_signed_out_idle");
+        setInfo(`You were signed out after ${minutes} minutes without activity. Please sign in again.`);
+      }
+    } catch {
+      // Nothing to show.
+    }
+  }, []);
+
   function openForgot() {
     setError("");
     setInfo("");

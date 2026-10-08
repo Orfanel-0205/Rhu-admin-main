@@ -683,6 +683,12 @@ export default function Settings() {
             onChange={(value) => update("facility", "operating_hours", value)}
             icon={<Clock3 size={16} />}
           />
+
+          <small className="is-enforced">
+            <ShieldCheck size={14} />
+            Printed on this RHU's e-prescriptions and lab requests. A field left empty uses the RHU's
+            record under Administration → RHU Facilities.
+          </small>
         </SettingsSection>
 
         <SettingsSection
@@ -690,14 +696,6 @@ export default function Settings() {
           helper={c.notificationsHelp}
           icon={<Bell size={20} />}
         >
-          <Field
-            label={c.smsProvider}
-            helper={c.smsProviderHelp}
-            value={settings.notifications.sms_provider}
-            onChange={(value) => update("notifications", "sms_provider", value)}
-            icon={<Smartphone size={16} />}
-          />
-
           {/* This used to be an editable password input. It was doubly
               misleading: the value was discarded on save (never persisted,
               never sent anywhere), and the "Configured" status beside it came
@@ -724,35 +722,20 @@ export default function Settings() {
             </small>
           </div>
 
-          {meta && !meta.sms_settings_enforced && (
-            <div className="field">
-              <small className="not-enforced">
-                <AlertTriangle size={14} />
-                The values below are saved, but the SMS pipeline does not read
-                them yet — reminder timing is still controlled in code. Changing
-                them does not currently affect when messages are sent. Contact
-                your developer to apply these values.
-              </small>
-            </div>
-          )}
-
-          <Field
-            label={c.reminderHours}
-            helper={c.reminderHoursHelp}
-            value={settings.notifications.appointment_reminder_hours}
-            onChange={(value) => update("notifications", "appointment_reminder_hours", value)}
-            type="number"
-            icon={<Bell size={16} />}
-          />
-
-          <Field
-            label={c.queueAlert}
-            helper={c.queueAlertHelp}
-            value={settings.notifications.queue_alert_ahead}
-            onChange={(value) => update("notifications", "queue_alert_ahead", value)}
-            type="number"
-            icon={<Bell size={16} />}
-          />
+          {/* SMS provider, reminder hours and "queue alert" used to be
+              editable here. Nothing read them: Semaphore is the only provider
+              (its key is under API keys), and the reminder times are fixed.
+              They were removed in Oct 2026 rather than left looking like
+              they did something; this says what actually happens. */}
+          <div className="field">
+            <label>When messages are sent</label>
+            <ul style={{ margin: "6px 0 0", paddingLeft: 18, color: "#475569", fontSize: 13.5, lineHeight: 1.6 }}>
+              <li>Appointments: a reminder the day before and on the day.</li>
+              <li>Follow-ups: a text and an app reminder 3 days before and the day before (8:00 AM), and an app reminder on the day.</li>
+              <li>Events: a text 3 days before (8:15 AM) to the barangays the event targets.</li>
+              <li>Staff: an alert when an RHU's queue is heavy (26+ waiting) or over capacity (51+), or an event is nearly full.</li>
+            </ul>
+          </div>
         </SettingsSection>
 
         <SettingsSection
@@ -769,19 +752,11 @@ export default function Settings() {
             icon={<Clock3 size={16} />}
           />
 
-          {/* Stated on screen, not just in a code comment. Anyone reading this
-              panel needs to know the number they just typed is recorded but
-              inert -- otherwise this is the old fake-settings problem wearing a
-              database. */}
-          {meta && !meta.session_timeout_enforced && (
-            <small className="not-enforced">
-              <AlertTriangle size={14} />
-              Changing this value does not currently affect session length —
-              contact your developer to apply this change. Sessions currently
-              last {Math.round(meta.session_lifetime_minutes_actual / 60 / 24)} days,
-              set in the server configuration.
-            </small>
-          )}
+          <small className="is-enforced">
+            <ShieldCheck size={14} />
+            Staff are signed out of the dashboard after this many minutes without activity
+            (10 to 480). Leave it empty for no limit.
+          </small>
 
           <Field
             label={c.maxLogin}

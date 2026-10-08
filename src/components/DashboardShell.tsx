@@ -30,6 +30,7 @@ import {
 } from "../services/notifications";
 import { useToast } from "../contexts/ToastContext";
 import { authService } from "../services/auth";
+import { useIdleSignOut } from "../lib/idleSignOut";
 import { openAssistant, openGettingStarted } from "../lib/tutorialBus";
 import {
   isNotificationSoundEnabled,
@@ -212,6 +213,16 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const authUser = useAuthStore((state) => state.user) as AnyUser | null;
   const patchUser = useAuthStore((state) => state.patchUser);
   const lang = useLangStore((state) => state.lang);
+
+  // Settings → Security Rules → Session timeout (lib/idleSignOut).
+  const signOutIdle = useCallback(() => {
+    authService.logout().catch(() => {
+      // The local session is cleared either way.
+    });
+    useAuthStore.getState().clearAuth();
+    navigate("/login", { replace: true });
+  }, [navigate]);
+  useIdleSignOut(signOutIdle);
 
   // Guards against a second fire from a re-render/StrictMode double-invoke
   // before the patched user has propagated.
