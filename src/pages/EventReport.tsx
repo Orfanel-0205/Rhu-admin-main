@@ -11,7 +11,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Download, Printer, RefreshCw } from "lucide-react";
 
 import { getEventReport, type EventReport as Report } from "../services/eventRegistrants";
-import { eventReportCsv, eventReportHtml, formatWhen, statusLabel } from "../utils/eventReport";
+import { attendanceLabel, eventReportCsv, eventReportHtml, formatWhen } from "../utils/eventReport";
 
 const cardStyle: React.CSSProperties = {
   background: "#FFFFFF",
@@ -70,8 +70,10 @@ export default function EventReport() {
 
   const figures = report
     ? ([
-        ["Registered", report.summary.registered, "#0F172A"],
-        ["Came", report.summary.attended, "#047857"],
+        ["Registered in the app", report.summary.registered, "#0F172A"],
+        ["Came (registered)", report.summary.attended, "#047857"],
+        ["Walk-ins", report.summary.walk_ins, "#3730A3"],
+        ["Total present", report.summary.present, "#047857"],
         ["No-show", report.summary.no_show, "#B91C1C"],
         ["Not marked", report.summary.not_marked, "#B45309"],
         ["Cancelled", report.summary.cancelled, "#64748B"],
@@ -151,7 +153,7 @@ export default function EventReport() {
                       <tr key={row.id}>
                         <td data-label="Name" style={{ ...tdStyle, fontWeight: 700 }}>{row.name}</td>
                         <td data-label="Barangay" style={tdStyle}>{row.barangay ?? "—"}</td>
-                        <td data-label="Attendance" style={tdStyle}>{statusLabel(row.status)}</td>
+                        <td data-label="Attendance" style={tdStyle}>{attendanceLabel(row)}</td>
                         <td data-label="Marked by" style={tdStyle}>{row.marked_by ?? "—"}</td>
                         <td data-label="Marked at" style={tdStyle}>{row.marked_at ? formatWhen(row.marked_at) : "—"}</td>
                       </tr>

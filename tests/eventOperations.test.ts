@@ -82,10 +82,11 @@ describe("the event report", () => {
       id: 7, title: 'Deworming "Day"', barangays: "Buto", services: [], has_ended: true,
       host_rhu: "RHU 1", posted_by: "Nurse Santos", starts_at: today, ends_at: today,
     },
-    summary: { registered: 2, attended: 1, no_show: 1, not_marked: 0, cancelled: 0, items_dispensed: 15 },
+    summary: { registered: 2, attended: 1, walk_ins: 1, present: 2, no_show: 1, not_marked: 0, cancelled: 0, items_dispensed: 15 },
     attendees: [
       { id: 1, name: "<script>alert(1)</script>", barangay: "Buto", status: "attended", marked_by: "Nurse Santos" },
       { id: 2, name: "=HYPERLINK(\"x\")", barangay: "Buto", status: "no_show" },
+      { id: 3, name: "Juan dela Cruz", barangay: "Buto", status: "attended", walk_in: true, patient_account: false },
     ],
     dispensed: [{ id: 1, item: "Albendazole", unit: "tablet", quantity: 15, recorded_by: "Nurse Santos", recorded_at: today }],
     dispensed_totals: [{ item: "Albendazole", unit: "tablet", quantity: 15 }],
@@ -98,7 +99,10 @@ describe("the event report", () => {
     expect(csv).toContain('"Deworming ""Day"""');
     expect(csv).toContain(`"'=HYPERLINK(""x"")"`);
     expect(csv).toContain('"Albendazole","tablet","15"');
-    expect(csv).toContain('"Came","1"');
+    expect(csv).toContain('"Came (of those registered)","1"');
+    expect(csv).toContain('"Walk-ins","1"');
+    expect(csv).toContain('"Total present","2"');
+    expect(csv).toContain('"Juan dela Cruz","Buto","Came (walk-in, no account)"');
   });
 
   it("prints with every value escaped", () => {

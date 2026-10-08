@@ -19,6 +19,7 @@ import {
   Clock,
   Edit2,
   Eye,
+  Building2,
   FileText,
   Globe,
   Image as ImageIcon,
@@ -669,7 +670,9 @@ export default function Events() {
       services: Array.isArray(item.services) ? item.services : [],
       sms_summary: item.sms_summary ?? "",
       priority: item.priority ?? "normal",
-      visibility: item.visibility ?? "public",
+      // The form's RHU choice is the host now (the server stores
+      // host_rhu_id and keeps every post public).
+      visibility: (item.host_rhu_id ? `rhu${item.host_rhu_id}` : "public") as FormState["visibility"],
       is_published: Boolean(item.is_published),
       banner_image: null,
     });
@@ -1218,6 +1221,11 @@ function EventCard({
             label="Next Step"
             value={getNextStep(item)}
           />
+          <InfoBlock
+            icon={<Building2 size={16} />}
+            label="Hosted by"
+            value={item.host_rhu_label ?? "All RHUs"}
+          />
         </div>
 
         {item.tags && item.tags.length > 0 ? (
@@ -1492,7 +1500,7 @@ function EventFormPanel({
   // Facilities come from the server, so a newly opened RHU can be chosen here
   // the day it exists.
   const rhuOptions = useRhuOptions();
-  const restrictedToRhu =
+  const hostedBy =
     rhuOptions.find((option) => `rhu${option.id}` === form.visibility)?.label ?? null;
 
   const [dirty, setDirty] = useState(false);
@@ -2056,25 +2064,31 @@ function EventFormPanel({
           />
 
           <div style={S.field}>
+            {/*
+              Hosted by -- which RHU is running it, shown to residents as
+              "Hosted by RHU 1". It does not limit who sees the post: every
+              RHU serves the whole town, so every resident sees every post,
+              and "Target barangays" above is how a post is aimed.
+            */}
             <ChoiceGroup
-              label="Visibility"
+              label="Hosted by"
               value={form.visibility}
               onChange={(value) => update("visibility", value as EventVisibility)}
               options={[
-                { value: "public", label: "Public", hint: "All residents, every RHU" },
+                { value: "public", label: "All RHUs", hint: "Run by the municipality / every RHU" },
                 ...rhuOptions.map((option) => ({
                   value: `rhu${option.id}`,
                   label: option.label,
-                  hint: `${option.label} residents only`,
+                  hint: `Run by ${option.label}`,
                 })),
               ]}
             />
             <FieldMessage
               check={
-                restrictedToRhu
+                hostedBy
                   ? {
-                      tone: "warn",
-                      message: `Only residents under ${restrictedToRhu} will see this post.`,
+                      tone: "ok",
+                      message: `Residents see "Hosted by ${hostedBy}". Every resident can see this post.`,
                     }
                   : null
               }

@@ -224,7 +224,9 @@ function sameDay(value?: string | null): boolean {
 
 function eventRegistrants(event: Event): number | null {
   if (event.total_registered !== undefined && event.total_registered !== null) {
-    return Math.max(0, numberOrZero(event.total_registered));
+    // Still expected plus already here (walk-ins included): marking people
+    // as they arrive must not make a crowded event look emptier.
+    return Math.max(0, numberOrZero(event.total_registered) + numberOrZero(event.total_attended));
   }
 
   if (

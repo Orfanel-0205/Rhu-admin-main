@@ -23,6 +23,11 @@ export interface EventRegistrant {
   registered_at?: string | null;
   cancelled_at?: string | null;
   created_at?: string | null;
+
+  /** Came without registering in the app. */
+  is_walk_in?: boolean;
+  /** False for a walk-in recorded by name and barangay only. */
+  has_account?: boolean;
 }
 
 export interface EventRegistrantEvent {
@@ -102,8 +107,14 @@ export interface EventReport {
     report_generated_at?: string | null;
   };
   summary: {
+    /** Registered in the app (and did not cancel). */
     registered: number;
+    /** Of those, came. */
     attended: number;
+    /** Came without registering. */
+    walk_ins: number;
+    /** Everyone who came: attended + walk_ins. */
+    present: number;
     no_show: number;
     not_marked: number;
     cancelled: number;
@@ -117,6 +128,8 @@ export interface EventReport {
     registered_at?: string | null;
     marked_by?: string | null;
     marked_at?: string | null;
+    walk_in?: boolean;
+    patient_account?: boolean;
   }[];
   dispensed: {
     id: number;
@@ -136,4 +149,22 @@ export interface EventReport {
 export async function getEventReport(eventId: number): Promise<EventReport> {
   const res = await apiClient.get(`/admin/events/${eventId}/report`);
   return res.data?.data as EventReport;
+}
+
+/**
+ * Someone who came without registering in the app: a patient account
+ * (user_id), or -- with no account -- a name and barangay. A patient who had
+ * registered after all is simply marked as came.
+ */
+export async function addWalkIn(
+  eventId: number,
+  person: { user_id: number } | { name: string; barangay_id?: number | null }
+): Promise<EventRegistrant> {
+  const res = await apiClient.post(`/admin/events/${eventId}/walk-ins`, person);
+  return res.data?.data as EventRegistrant;
+}
+
+/** Take back a walk-in added by mistake (only walk-ins can be removed). */
+export async function removeWalkIn(eventId: number, registrationId: number): Promise<void> {
+  await apiClient.delete(`/admin/events/${eventId}/walk-ins/${registrationId}`);
 }

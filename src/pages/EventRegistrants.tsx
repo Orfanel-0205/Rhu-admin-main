@@ -14,11 +14,14 @@ import {
   XCircle,
   ArrowLeft,
   FileText,
+  UserPlus,
 } from "lucide-react";
 
+import EventWalkInModal from "../components/events/EventWalkInModal";
 import {
   getEventRegistrants,
   markAttendance,
+  removeWalkIn,
   type EventRegistrant,
   type EventRegistrantsResponse,
 } from "../services/eventRegistrants";
@@ -98,6 +101,25 @@ export default function EventRegistrants() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [marking, setMarking] = useState<number | null>(null);
+  const [walkInOpen, setWalkInOpen] = useState(false);
+
+  // Take back a walk-in added by mistake (only walk-ins can be removed).
+  const dropWalkIn = useCallback(
+    async (registrant: EventRegistrant) => {
+      setMarking(registrant.id);
+      try {
+        await removeWalkIn(eventId, registrant.id);
+        setData((current) =>
+          current ? { ...current, data: current.data.filter((row) => row.id !== registrant.id) } : current
+        );
+      } catch (err: any) {
+        setError(err?.response?.data?.message || "Could not remove the walk-in.");
+      } finally {
+        setMarking(null);
+      }
+    },
+    [eventId]
+  );
 
   // Check-in on the day: Came / No-show, or Undo. The row updates in place;
   // the server keeps who marked it and when, for the event report.
@@ -284,6 +306,15 @@ export default function EventRegistrants() {
         >
           <RefreshCw size={16} />
           {syncing ? t("er_syncing", lang) : t("btn_refresh", lang)}
+        </button>
+
+        <button
+          className="btn-primary"
+          onClick={() => setWalkInOpen(true)}
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+        >
+          <UserPlus size={16} />
+          Add walk-in
         </button>
 
         <button
@@ -601,6 +632,11 @@ export default function EventRegistrants() {
 
                       <td style={{ padding: "12px 8px", fontWeight: 700 }}>
                         {registrant.name}
+                        {registrant.is_walk_in ? (
+                          <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, background: "#EEF2FF", color: "#3730A3", fontSize: 11.5, fontWeight: 800 }}>
+                            Walk-in{registrant.has_account === false ? " · no account" : ""}
+                          </span>
+                        ) : null}
                       </td>
 
                       <td style={{ padding: "12px 8px", color: "#6B7280" }}>
@@ -650,6 +686,16 @@ export default function EventRegistrants() {
                               <XCircle size={14} /> No-show
                             </button>
                           </div>
+                        ) : registrant.is_walk_in ? (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={marking === registrant.id}
+                            onClick={() => void dropWalkIn(registrant)}
+                            style={{ padding: "6px 10px", fontSize: 12.5 }}
+                          >
+                            Remove
+                          </button>
                         ) : (
                           <button
                             type="button"
@@ -684,6 +730,13 @@ export default function EventRegistrants() {
           />
         ) : null}
       </div>
+      {walkInOpen ? (
+        <EventWalkInModal
+          eventId={eventId}
+          onClose={() => setWalkInOpen(false)}
+          onAdded={() => void loadRegistrants(true)}
+        />
+      ) : null}
     </div>
   );
 }

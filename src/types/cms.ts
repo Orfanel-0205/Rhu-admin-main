@@ -239,6 +239,10 @@ export interface Event {
   pins?: { barangay: string; latitude: number; longitude: number }[];
   /** The RHU hosting it, or null for every RHU (EventFacility::hostRhuId). */
   host_rhu_id?: number | null;
+  /** "RHU 1": shown as "Hosted by RHU 1"; null for every RHU. */
+  host_rhu_label?: string | null;
+  /** Came so far, walk-ins included (turnout on the day). */
+  total_attended?: number | null;
   /** Past its end time, or its day if it has none (Event::hasEnded). */
   has_ended?: boolean;
   report_generated_at?: string | null;

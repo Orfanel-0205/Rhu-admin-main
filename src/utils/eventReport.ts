@@ -17,6 +17,12 @@ export function statusLabel(status: string): string {
   return STATUS_LABEL[status] ?? status;
 }
 
+/** An attendee's line: "Came", or "Came (walk-in)" / "(walk-in, no account)". */
+export function attendanceLabel(row: { status: string; walk_in?: boolean; patient_account?: boolean }): string {
+  if (!row.walk_in) return statusLabel(row.status);
+  return row.patient_account === false ? "Came (walk-in, no account)" : "Came (walk-in)";
+}
+
 export function formatWhen(value?: string | null): string {
   if (!value) return "—";
   const date = new Date(value);
@@ -58,8 +64,10 @@ export function eventReportCsv(report: EventReport): string {
       ["Posted by", event.posted_by ?? ""],
       ["Generated", formatWhen(report.generated_at)],
       [],
-      ["Registered", summary.registered],
-      ["Came", summary.attended],
+      ["Registered in the app", summary.registered],
+      ["Came (of those registered)", summary.attended],
+      ["Walk-ins", summary.walk_ins],
+      ["Total present", summary.present],
       ["No-show", summary.no_show],
       ["Not marked", summary.not_marked],
       ["Cancelled", summary.cancelled],
@@ -70,7 +78,7 @@ export function eventReportCsv(report: EventReport): string {
       ...report.attendees.map((row) => [
         row.name,
         row.barangay ?? "",
-        statusLabel(row.status),
+        attendanceLabel(row),
         row.marked_by ?? "",
         row.marked_at ? formatWhen(row.marked_at) : "",
       ]),
@@ -116,6 +124,8 @@ export function eventReportHtml(report: EventReport): string {
   const figures: [string, number][] = [
     ["Registered", summary.registered],
     ["Came", summary.attended],
+    ["Walk-ins", summary.walk_ins],
+    ["Total present", summary.present],
     ["No-show", summary.no_show],
     ["Not marked", summary.not_marked],
     ["Cancelled", summary.cancelled],
@@ -127,7 +137,7 @@ export function eventReportHtml(report: EventReport): string {
   body { font: 12px/1.45 Arial, sans-serif; color: #0f172a; margin: 24px; }
   h1 { font-size: 18px; margin: 0 0 4px; } h2 { font-size: 13px; margin: 18px 0 6px; }
   .meta { color: #475569; margin-bottom: 12px; }
-  .figures { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .figure { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; }
   .figure b { display: block; font-size: 16px; }
   table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; }
@@ -140,7 +150,7 @@ export function eventReportHtml(report: EventReport): string {
 <h2>Attendees</h2>
 ${table(
   ["Name", "Barangay", "Attendance", "Marked by", "Marked at"],
-  report.attendees.map((row) => [row.name, row.barangay ?? "—", statusLabel(row.status), row.marked_by ?? "—", row.marked_at ? formatWhen(row.marked_at) : "—"]),
+  report.attendees.map((row) => [row.name, row.barangay ?? "—", attendanceLabel(row), row.marked_by ?? "—", row.marked_at ? formatWhen(row.marked_at) : "—"]),
   "Nobody registered."
 )}
 <h2>Handed out</h2>
