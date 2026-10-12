@@ -12,7 +12,9 @@ export interface PatientIdentity {
   barangay?: string | null;
   mobile_number?: string | null;
   philhealth_id?: string | null;
+  /** The RHU they last went to; residents have no RHU of their own. */
   rhu_id?: number | null;
+  rhu_label?: string | null;
 }
 
 export interface PatientSummary {

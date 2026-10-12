@@ -136,7 +136,7 @@ export default function PatientProfile() {
                   patient.age ? `${patient.age} yrs` : null,
                   patient.sex,
                   patient.barangay,
-                  patient.rhu_id ? `RHU ${patient.rhu_id}` : null,
+                  patient.rhu_id ? `Last visit: ${patient.rhu_label ?? `RHU ${patient.rhu_id}`}` : null,
                 ]
                   .filter(Boolean)
                   .join(" · ") || "—"}

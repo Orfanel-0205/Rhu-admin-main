@@ -169,7 +169,7 @@ export default function PatientRegistry() {
                       </button>
                       <div style={{ fontSize: 11.5, color: color.textMuted }}>
                         {p.mobile_number || "No mobile"}
-                        {p.rhu_id ? ` · RHU ${p.rhu_id}` : ""}
+                        {p.rhu_id ? ` · Last visit: ${p.rhu_label ?? `RHU ${p.rhu_id}`}` : ""}
                       </div>
                     </td>
                     <td>{p.barangay || "—"}</td>

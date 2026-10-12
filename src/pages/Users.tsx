@@ -819,7 +819,9 @@ export default function Users() {
                       <td style={tdStyle}>{user.phone || "—"}</td>
                       <td style={tdStyle}>{user.barangay || "—"}</td>
                       <td style={tdStyle}>
-                        {user.assigned_rhu_label ?? user.rhu_label ?? rhuLabel(user.effective_rhu_id)}
+                        {isPatientRole(normalizedRole)
+                          ? "—"
+                          : user.assigned_rhu_label ?? user.rhu_label ?? rhuLabel(user.effective_rhu_id)}
                       </td>
 
                       <td style={tdStyle}>

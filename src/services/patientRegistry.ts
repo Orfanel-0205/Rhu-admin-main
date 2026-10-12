@@ -8,7 +8,9 @@ export interface RegistryPatient {
   user_id: number;
   name: string;
   barangay: string | null;
+  /** The RHU they last went to; residents have no RHU of their own. */
   rhu_id: number | null;
+  rhu_label?: string | null;
   sex: string | null;
   age: number | null;
   mobile_number: string | null;
