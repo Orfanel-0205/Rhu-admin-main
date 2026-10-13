@@ -491,8 +491,11 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           transition: "margin-left 0.2s ease",
           minHeight: "100vh",
           padding: isMobile ? 16 : 28,
+          // No z-index: one here made <main> its own stacking layer under
+          // the sidebar (35), so every pop-up opened inside a page sat
+          // beneath the sidebar and wide ones were cut off on the left
+          // (event Preview, Oct 2026).
           position: "relative",
-          zIndex: 1,
 
           /*
            * Containment, so one wide child cannot drag the page sideways.
