@@ -31,6 +31,8 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { useLangStore } from "../store/langStore";
+import { useAuthStore } from "../store/authStore";
+import { canManageSms, canSeeAnalytics } from "../lib/roleAccess";
 import { t } from "../i18n/translations";
 import StatusBadge from "../components/ui/StatusBadge";
 import ModuleTabs from "../components/ui/ModuleTabs";
@@ -189,6 +191,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const lang = useLangStore((state) => state.lang);
   const toast = useToast();
+  const authUser = useAuthStore((state) => state.user);
+  // The analytics and SMS APIs serve some staff roles only (lib/roleAccess).
+  const showAnalytics = canSeeAnalytics(authUser);
+  const showSms = canManageSms(authUser);
 
   const [dashboard, setDashboard] = useState<RealtimeDashboardData | null>(null);
   const [heatmap, setHeatmap] = useState<HeatmapPoint[]>([]);
@@ -224,36 +230,44 @@ export default function Dashboard() {
     setError(null);
 
     try {
+      // Each part stands alone. With Promise.all, one refused widget (the
+      // analytics calls, for a nurse) threw away every figure on the page and
+      // the dashboard read all zeros under a "Forbidden" banner (Oct 2026).
+      const none = <T,>(value: T) => Promise.resolve(value);
       const [
-        dashData,
-        heatmapData,
-        riskData,
-        alertData,
-        followUpData,
-        inventoryData,
-        inventoryAlertData,
-      ] = await Promise.all([
+        dashResult,
+        heatmapResult,
+        riskResult,
+        alertResult,
+        followUpResult,
+        inventoryResult,
+        inventoryAlertResult,
+      ] = await Promise.allSettled([
         fetchRealtimeDashboard(),
-        fetchQueueHeatmap(),
-        fetchBarangayRisk(),
-        fetchOutbreakAlerts(),
+        showAnalytics ? fetchQueueHeatmap() : none<HeatmapPoint[]>([]),
+        showAnalytics ? fetchBarangayRisk() : none<HeatmapPoint[]>([]),
+        showAnalytics ? fetchOutbreakAlerts() : none<OutbreakAlert[]>([]),
         getFollowUps({ per_page: 20 }),
         getInventory({ type: "all" }),
         getInventoryAlerts(),
       ]);
 
-      setDashboard(dashData);
-      setHeatmap(heatmapData);
-      setRisk(riskData);
-      setAlerts(alertData);
-      setFollowUps(followUpData);
-      setInventoryItems(inventoryData);
-      setInventoryAlerts(inventoryAlertData);
-      setLastUpdated(new Date().toISOString());
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message || err?.message || t("dash_error_fallback", lang)
-      );
+      if (dashResult.status === "fulfilled") setDashboard(dashResult.value);
+      if (heatmapResult.status === "fulfilled") setHeatmap(heatmapResult.value);
+      if (riskResult.status === "fulfilled") setRisk(riskResult.value);
+      if (alertResult.status === "fulfilled") setAlerts(alertResult.value);
+      if (followUpResult.status === "fulfilled") setFollowUps(followUpResult.value);
+      if (inventoryResult.status === "fulfilled") setInventoryItems(inventoryResult.value);
+      if (inventoryAlertResult.status === "fulfilled") setInventoryAlerts(inventoryAlertResult.value);
+
+      // Only the main figures failing is worth a banner; a side panel that
+      // could not load simply shows its empty state.
+      if (dashResult.status === "rejected") {
+        const err: any = dashResult.reason;
+        setError(err?.response?.data?.message || err?.message || t("dash_error_fallback", lang));
+      } else {
+        setLastUpdated(new Date().toISOString());
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -486,11 +500,15 @@ export default function Dashboard() {
             badge: cards?.waiting_queue || undefined,
           },
           { key: "reports", label: "Reports" },
-          {
-            key: "analytics",
-            label: "Analytics",
-            badge: alerts.length || undefined,
-          },
+          ...(showAnalytics
+            ? [
+                {
+                  key: "analytics",
+                  label: "Analytics",
+                  badge: alerts.length || undefined,
+                },
+              ]
+            : []),
         ]}
         active={dashTab}
         onChange={(key) => setDashTab(key as typeof dashTab)}
@@ -516,10 +534,12 @@ export default function Dashboard() {
           <Pill size={15} color="#2563EB" />
           {t("dash_create_prescription", lang)}
         </button>
-        <button type="button" style={quickPillStyle} className="ka-btn" onClick={() => navigate("/sms")}>
-          <Megaphone size={15} color="#7C3AED" />
-          {t("dash_send_sms", lang)}
-        </button>
+        {showSms ? (
+          <button type="button" style={quickPillStyle} className="ka-btn" onClick={() => navigate("/sms")}>
+            <Megaphone size={15} color="#7C3AED" />
+            {t("dash_send_sms", lang)}
+          </button>
+        ) : null}
       </section>
 
       {/* KEY METRICS — exactly 4 color-coded cards (blue appointments, amber

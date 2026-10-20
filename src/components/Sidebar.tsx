@@ -39,6 +39,8 @@ import { fetchRealtimeDashboard } from "../services/dashboard";
 import { getSmsLogs } from "../services/sms";
 import { getUnreadCount as getTeamChatUnread } from "../services/teamChat";
 import { openGettingStarted } from "../lib/tutorialBus";
+// Pages whose data the server serves to some roles only (see lib/roleAccess).
+import { canManageSms, pageAllowed } from "../lib/roleAccess";
 
 type SidebarProps = {
   collapsed?: boolean;
@@ -299,11 +301,6 @@ function isApprover(user: any): boolean {
   return ["super_admin", "superadmin", "mho", "mho_admin"].includes(role);
 }
 
-// The roles the SMS API serves (routes/api.php: role:super_admin,mho,rhu_admin).
-function canManageSms(user: any): boolean {
-  const role = normalizeRoleName(user?.role_name ?? user?.role?.name ?? user?.role);
-  return ["super_admin", "superadmin", "mho", "mho_admin", "rhu_admin"].includes(role);
-}
 
 function filterNavConfig(entries: NavEntry[], user: any): NavEntry[] {
   const superAdmin = isSuperAdmin(user);
@@ -320,7 +317,8 @@ function filterNavConfig(entries: NavEntry[], user: any): NavEntry[] {
         const hidden =
           (entry.superAdminOnly && !superAdmin) ||
           (entry.approverOnly && !approver) ||
-          (entry.smsManagerOnly && !smsManager);
+          (entry.smsManagerOnly && !smsManager) ||
+          !pageAllowed(entry.path, user);
         return hidden ? null : entry;
       }
 
@@ -329,7 +327,8 @@ function filterNavConfig(entries: NavEntry[], user: any): NavEntry[] {
           !(
             (child.superAdminOnly && !superAdmin) ||
             (child.approverOnly && !approver) ||
-            (child.smsManagerOnly && !smsManager)
+            (child.smsManagerOnly && !smsManager) ||
+            !pageAllowed(child.path, user)
           )
       );
 

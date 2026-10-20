@@ -51,6 +51,8 @@ import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
 import AnalyticsBriefing from "../components/AnalyticsBriefing";
 import PageHero from "../components/ui/PageHero";
 import { localDateKey } from "../lib/localDate";
+import { canSeeAnalytics } from "../lib/roleAccess";
+import { useAuthStore } from "../store/authStore";
 
 // Malasiqui operates two facilities. Global staff (super_admin / MHO) may switch
 // between them; facility-scoped staff are locked to their own RHU (the backend
@@ -477,6 +479,9 @@ function errorMessage(error: any): string {
 export default function Reports() {
   const rhuOptions = useRhuOptions();
   const isGlobal = isGlobalRhuRole();
+  // /analytics/* serves some staff roles only; the ITR report serves all
+  // clinical staff (lib/roleAccess).
+  const showAnalytics = canSeeAnalytics(useAuthStore((state) => state.user));
   const [filters, setFilters] = useState<FilterState>(() => defaultFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() =>
     defaultFilters()
@@ -538,34 +543,46 @@ export default function Reports() {
       setExportError("");
 
       try {
-        const [analyticsResult, diagnosisResult] = await Promise.all([
-          getRealtimeAnalytics(cleanAnalyticsFilters(activeFilters)),
+        // Each part stands alone: with Promise.all, a nurse's refused
+        // analytics call threw away the ITR rows the server did send.
+        const [analyticsSettled, diagnosisSettled] = await Promise.allSettled([
+          showAnalytics
+            ? getRealtimeAnalytics(cleanAnalyticsFilters(activeFilters))
+            : Promise.resolve(null),
           getDiagnosisItrRows(cleanDiagnosisItrFilters(activeFilters)),
         ]);
 
-        setOverview(analyticsResult.overview ?? {});
-        setRisk(Array.isArray(analyticsResult.risk) ? analyticsResult.risk : []);
-        setDiagnosisRows(Array.isArray(diagnosisResult.data) ? diagnosisResult.data : []);
-        setDiagnosisSummary(
-          diagnosisResult.summary ?? {
-            total_completed_consultations: 0,
-            total_diagnosed_consultations: 0,
-            followups_scheduled: 0,
-          }
-        );
-        setLastUpdated(
-          diagnosisResult.generated_at ||
-            analyticsResult.generated_at ||
-            new Date().toISOString()
-        );
-      } catch (err: any) {
-        setError(errorMessage(err));
+        const analyticsResult = analyticsSettled.status === "fulfilled" ? analyticsSettled.value : null;
+
+        if (analyticsResult) {
+          setOverview(analyticsResult.overview ?? {});
+          setRisk(Array.isArray(analyticsResult.risk) ? analyticsResult.risk : []);
+        }
+
+        if (diagnosisSettled.status === "fulfilled") {
+          const diagnosisResult = diagnosisSettled.value;
+          setDiagnosisRows(Array.isArray(diagnosisResult.data) ? diagnosisResult.data : []);
+          setDiagnosisSummary(
+            diagnosisResult.summary ?? {
+              total_completed_consultations: 0,
+              total_diagnosed_consultations: 0,
+              followups_scheduled: 0,
+            }
+          );
+          setLastUpdated(
+            diagnosisResult.generated_at ||
+              analyticsResult?.generated_at ||
+              new Date().toISOString()
+          );
+        } else {
+          setError(errorMessage(diagnosisSettled.reason));
+        }
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [appliedFilters]
+    [appliedFilters, showAnalytics]
   );
 
   useEffect(() => {

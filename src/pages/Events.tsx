@@ -180,6 +180,24 @@ function canManageEvents(user: AnyUser): boolean {
   );
 }
 
+/**
+ * Posting, editing, publishing and deleting: the CMS roles only, as in
+ * routes/api.php. Everyone canManageEvents() lets in may still open an
+ * event's registrants and report -- the nurses, midwives and BHWs running
+ * event day -- but the server refuses them the editor, so it is not offered.
+ */
+function canEditEvents(user: AnyUser): boolean {
+  const role = normalizeRole(user);
+  const capabilities = Array.isArray(user?.capabilities)
+    ? user.capabilities.map((capability) => String(capability).toLowerCase().trim())
+    : [];
+
+  return (
+    ["admin", "staff", "rhu_admin", "mho", "super_admin", "superadmin"].includes(role) ||
+    capabilities.includes("full_access")
+  );
+}
+
 function getErrorMessage(error: unknown, fallback = "Something went wrong."): string {
   if (error instanceof Error) {
     return error.message || fallback;
@@ -480,6 +498,7 @@ export default function Events() {
   const user = useAuthStore((state) => state.user) as AnyUser;
 
   const allowed = canManageEvents(user);
+  const canEdit = canEditEvents(user);
 
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
@@ -619,6 +638,9 @@ export default function Events() {
    * are not selectable options are reported rather than silently dropped.
    */
   useEffect(() => {
+    // The editor is only offered to the roles the server lets post.
+    if (!canEdit) return;
+
     const draft = takeCmsDraft();
 
     if (!draft) return;
@@ -651,7 +673,7 @@ export default function Events() {
         ? `AI draft loaded. Please review every field before publishing. Could not auto-select: ${draft.unmatched.join(", ")}.`
         : "AI draft loaded. Please review every field before publishing."
     );
-  }, []);
+  }, [canEdit]);
 
   function openEdit(item: Event) {
     setActiveEvent(item);
@@ -869,10 +891,12 @@ export default function Events() {
           </div>
         </div>
 
-        <button type="button" onClick={openCreate} style={S.heroButton}>
-          <Plus size={22} />
-          New Post
-        </button>
+        {canEdit ? (
+          <button type="button" onClick={openCreate} style={S.heroButton}>
+            <Plus size={22} />
+            New Post
+          </button>
+        ) : null}
       </section>
 
       <section style={S.statsGrid}>
@@ -1032,11 +1056,13 @@ export default function Events() {
           <div style={S.emptyState}>
             <CalendarDays size={42} />
             <strong>No events or programs found in this view.</strong>
-            <span>Create your first RHU event or adjust the filters.</span>
-            <button type="button" onClick={openCreate} style={S.primaryButton}>
-              <Plus size={18} />
-              Create New Post
-            </button>
+            <span>{canEdit ? "Create your first RHU event or adjust the filters." : "Adjust the filters, or ask your RHU admin to post the event."}</span>
+            {canEdit ? (
+              <button type="button" onClick={openCreate} style={S.primaryButton}>
+                <Plus size={18} />
+                Create New Post
+              </button>
+            ) : null}
           </div>
         ) : (
           <div style={S.cardGrid}>
@@ -1044,10 +1070,10 @@ export default function Events() {
               <EventCard
                 key={item.id}
                 item={item}
-                onEdit={() => openEdit(item)}
+                onEdit={canEdit ? () => openEdit(item) : undefined}
                 onPreview={() => setPreviewEvent(item)}
-                onTogglePublish={() => confirmTogglePublish(item)}
-                onDelete={() => confirmDelete(item)}
+                onTogglePublish={canEdit ? () => confirmTogglePublish(item) : undefined}
+                onDelete={canEdit ? () => confirmDelete(item) : undefined}
                 onRegistrants={() => navigate(`/cms/events/${item.id}/registrants`)}
                 onReport={() => navigate(`/cms/events/${item.id}/report`)}
               />
@@ -1107,10 +1133,11 @@ function EventCard({
   onReport,
 }: {
   item: Event;
-  onEdit: () => void;
+  /** Absent for roles the server will not let edit (canEditEvents). */
+  onEdit?: () => void;
   onPreview: () => void;
-  onTogglePublish: () => void;
-  onDelete: () => void;
+  onTogglePublish?: () => void;
+  onDelete?: () => void;
   onRegistrants: () => void;
   /** Who came and what was handed out (pages/EventReport). */
   onReport: () => void;
@@ -1266,33 +1293,39 @@ function EventCard({
             Preview
           </button>
 
-          <button type="button" onClick={onEdit} style={S.lightButton}>
-            <Edit2 size={16} />
-            Edit
-          </button>
+          {onEdit ? (
+            <button type="button" onClick={onEdit} style={S.lightButton}>
+              <Edit2 size={16} />
+              Edit
+            </button>
+          ) : null}
 
-          <button
-            type="button"
-            onClick={onTogglePublish}
-            style={item.is_published ? S.warningButton : S.successButton}
-          >
-            {item.is_published ? (
-              <>
-                <FileText size={16} />
-                Draft
-              </>
-            ) : (
-              <>
-                <Send size={16} />
-                Publish
-              </>
-            )}
-          </button>
+          {onTogglePublish ? (
+            <button
+              type="button"
+              onClick={onTogglePublish}
+              style={item.is_published ? S.warningButton : S.successButton}
+            >
+              {item.is_published ? (
+                <>
+                  <FileText size={16} />
+                  Draft
+                </>
+              ) : (
+                <>
+                  <Send size={16} />
+                  Publish
+                </>
+              )}
+            </button>
+          ) : null}
 
-          <button type="button" onClick={onDelete} style={S.dangerButton}>
-            <Trash2 size={16} />
-            Delete
-          </button>
+          {onDelete ? (
+            <button type="button" onClick={onDelete} style={S.dangerButton}>
+              <Trash2 size={16} />
+              Delete
+            </button>
+          ) : null}
         </div>
       </div>
     </article>
