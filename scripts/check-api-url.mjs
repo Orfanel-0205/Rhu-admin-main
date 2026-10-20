@@ -92,7 +92,7 @@ function checkConfig() {
       "so every staff browser would call its OWN machine instead of the server.",
       '',
       'Set it in .env.production (gitignored) -- see .env.example -- e.g.',
-      '  VITE_API_URL=https://rhu-kaagapay.129-212-236-47.sslip.io/api/v1',
+      '  VITE_API_URL=https://rhukaagapaymsq.com/api/v1',
     ]);
   }
 

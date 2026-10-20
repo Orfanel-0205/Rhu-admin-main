@@ -35,7 +35,7 @@ set -euo pipefail
 
 DROPLET="${DROPLET:-root@129.212.236.47}"
 DOCROOT="${DOCROOT:-/var/www/ka-agapay-admin}"
-ADMIN_URL="${ADMIN_URL:-https://rhu-kaagapay.129-212-236-47.sslip.io}"
+ADMIN_URL="${ADMIN_URL:-https://rhukaagapaymsq.com}"
 
 cd "$(dirname "$0")/.."
 
