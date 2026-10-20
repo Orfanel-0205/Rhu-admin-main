@@ -35,6 +35,7 @@ import {
   type SmsRecipientPreview,
 } from "../services/sms";
 import { useToast } from "../contexts/ToastContext";
+import { localDateKey } from "../lib/localDate";
 
 type FormState = {
   mode: SmsMode;
@@ -356,7 +357,7 @@ export default function SmsModule() {
         // Default view = TODAY only (panelist follow-up round). This is a
         // VIEW scope, not a data-lifecycle change: nothing is archived or
         // deleted — "All history" fetches the same table unbounded.
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localDateKey();
 
         const data = await getSmsLogs({
           search: search.trim() || undefined,

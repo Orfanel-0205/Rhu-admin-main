@@ -1,6 +1,7 @@
 // src/services/inventory.ts
 
 import apiClient from "../lib/apiClient";
+import { localDateKey } from "../lib/localDate";
 
 export type InventoryStatus =
   | "ok"
@@ -174,7 +175,7 @@ function normalizeDate(value?: string | null): string | null {
     return raw;
   }
 
-  return parsed.toISOString().slice(0, 10);
+  return localDateKey(parsed);
 }
 
 function daysUntil(dateValue?: string | null): number | null {

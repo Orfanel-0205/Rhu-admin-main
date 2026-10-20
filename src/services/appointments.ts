@@ -2,6 +2,7 @@
 
 import apiClient from "../lib/apiClient";
 import { clinicalSubjective } from "../utils/clinicalText";
+import { localDateKey } from "../lib/localDate";
 
 export type AppointmentStatus =
   | "pending"
@@ -741,7 +742,7 @@ export function getAppointmentNextStep(appointment: Appointment): string {
 export function buildAppointmentSummary(
   appointments: Appointment[]
 ): AppointmentSummary {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
 
   return {
     total: appointments.length,

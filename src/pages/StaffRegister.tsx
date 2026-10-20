@@ -26,6 +26,7 @@ import {
 } from "../services/registrationInvites";
 import PasswordStrengthMeter from "../components/ui/PasswordStrengthMeter";
 import TermsModal from "../components/TermsModal";
+import { localDateKey } from "../lib/localDate";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB — matches backend config/ocr_validation
 const MOBILE_PATTERN = /^09\d{9}$/;
@@ -530,7 +531,7 @@ function StaffRegisterForm({
               <input
                 type="date"
                 value={form.birthday}
-                max={new Date().toISOString().slice(0, 10)}
+                max={localDateKey()}
                 onChange={(event) => update("birthday", event.target.value)}
                 style={styles.input}
               />

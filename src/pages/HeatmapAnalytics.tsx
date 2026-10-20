@@ -68,6 +68,7 @@ import {
 } from "../services/heatmap";
 import { useLangStore } from "../store/langStore";
 import PageHero from "../components/ui/PageHero";
+import { localDateKey } from "../lib/localDate";
 
 // ── design tokens (presentation only — nothing below reads these as data) ──
 
@@ -198,13 +199,13 @@ function riskRank(level?: string) {
 }
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function todayMinus(days: number) {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function heatmapSignalFilters(
@@ -1275,7 +1276,7 @@ function signalDayKey(value?: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function buildCaseTrend(
@@ -1290,7 +1291,7 @@ function buildCaseTrend(
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - i);
-    const key = date.toISOString().slice(0, 10);
+    const key = localDateKey(date);
 
     index.set(key, buckets.length);
     buckets.push({

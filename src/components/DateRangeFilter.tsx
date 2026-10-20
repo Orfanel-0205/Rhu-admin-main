@@ -24,6 +24,7 @@
 
 import type { CSSProperties } from "react";
 import { CalendarDays, X } from "lucide-react";
+import { localDateKey } from "../lib/localDate";
 
 /** Keys of the quick-range chips, used to label them with a count. */
 export type DateShortcutKey = "all" | "today" | "yesterday" | "week" | "month";
@@ -41,7 +42,7 @@ function isoDay(offsetDays = 0): string {
 
   date.setDate(date.getDate() + offsetDays);
 
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 /** Describes the current selection in the words someone would say out loud. */

@@ -77,6 +77,7 @@ import { useToast } from "../contexts/ToastContext";
 import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
 import AnalyticsBriefing from "../components/AnalyticsBriefing";
 import CardInsight from "../components/CardInsight";
+import { localDateKey } from "../lib/localDate";
 
 type FilterState = {
   from: string;
@@ -128,13 +129,13 @@ function caseAgeSex(row: any): string {
 }
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function todayMinus(days: number) {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function defaultFilters(): FilterState {
@@ -324,7 +325,7 @@ function diagnosisCaseDate(row: any): string {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return "";
 
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function diagnosisCaseBarangay(row: any): string {

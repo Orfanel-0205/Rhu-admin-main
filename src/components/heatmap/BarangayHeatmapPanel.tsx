@@ -19,6 +19,7 @@ import { Download, MapPin, TrendingUp } from "lucide-react";
 import MalasiquiHeatmapMap from "../MalasiquiHeatmapMap";
 import type { HeatmapPoint } from "../../services/heatmap";
 import type { HeatmapDiagnosisItrSignal } from "../../services/analytics";
+import { localDateKey } from "../../lib/localDate";
 
 type RiskKey = "low" | "moderate" | "high" | "critical";
 
@@ -61,7 +62,7 @@ function dayKey(value?: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 interface TrendPoint {
@@ -83,7 +84,7 @@ function buildTrend(
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - i);
-    const key = date.toISOString().slice(0, 10);
+    const key = localDateKey(date);
 
     index.set(key, buckets.length);
     buckets.push({

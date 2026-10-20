@@ -61,6 +61,7 @@ import {
   type ConsultationType,
 } from "../services/appointments";
 import PageHero from "../components/ui/PageHero";
+import { localDateKey } from "../lib/localDate";
 
 type StatusFilter = "all" | AppointmentStatus | "ongoing";
 type TypeFilter = "all" | ConsultationType;
@@ -108,13 +109,13 @@ const BOARD_TABS: { key: AppointmentBoard; label: string }[] = [
 ];
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function dateOffsetString(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function isToday(value?: string | null): boolean {
@@ -139,7 +140,7 @@ function toInputDate(value?: string | null): string {
     return todayString();
   }
 
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function toInputTime(value?: string | null): string {

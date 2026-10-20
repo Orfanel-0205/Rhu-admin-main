@@ -50,6 +50,7 @@ import { getCurrentUserRhuId, isGlobalRhuRole } from "../services/queue";
 import { useScreenSnapshot } from "../hooks/useScreenSnapshot";
 import AnalyticsBriefing from "../components/AnalyticsBriefing";
 import PageHero from "../components/ui/PageHero";
+import { localDateKey } from "../lib/localDate";
 
 // Malasiqui operates two facilities. Global staff (super_admin / MHO) may switch
 // between them; facility-scoped staff are locked to their own RHU (the backend
@@ -130,13 +131,13 @@ type BarRow = {
 };
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function todayMinus(days: number) {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+  return localDateKey(date);
 }
 
 function defaultFilters(): FilterState {

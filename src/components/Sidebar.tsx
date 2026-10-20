@@ -53,6 +53,8 @@ type NavLeaf = {
   superAdminOnly?: boolean;
   /** Visible to the registration approvers only: Super Admin OR MHO (Part 1). */
   approverOnly?: boolean;
+  /** Visible to the roles the SMS API serves: Super Admin, MHO, RHU Admin. */
+  smsManagerOnly?: boolean;
 };
 
 type NavGroup = {
@@ -146,6 +148,9 @@ const navConfig: NavEntry[] = [
         fallback: "SMS",
         path: "/sms",
         icon: MessageSquare,
+        // /admin/sms/* answers super_admin, mho and rhu_admin only; a nurse
+        // was shown the link and a page of refused requests.
+        smsManagerOnly: true,
       },
       {
         labelKey: "nav_notifications",
@@ -294,6 +299,12 @@ function isApprover(user: any): boolean {
   return ["super_admin", "superadmin", "mho", "mho_admin"].includes(role);
 }
 
+// The roles the SMS API serves (routes/api.php: role:super_admin,mho,rhu_admin).
+function canManageSms(user: any): boolean {
+  const role = normalizeRoleName(user?.role_name ?? user?.role?.name ?? user?.role);
+  return ["super_admin", "superadmin", "mho", "mho_admin", "rhu_admin"].includes(role);
+}
+
 function filterNavConfig(entries: NavEntry[], user: any): NavEntry[] {
   const superAdmin = isSuperAdmin(user);
 
@@ -301,13 +312,15 @@ function filterNavConfig(entries: NavEntry[], user: any): NavEntry[] {
   // the backend's super_admin guard is mirrored in the UI. The backend still
   // enforces access regardless of what the sidebar shows.
   const approver = isApprover(user);
+  const smsManager = canManageSms(user);
 
   const superFiltered = entries
     .map((entry) => {
       if (!isGroup(entry)) {
         const hidden =
           (entry.superAdminOnly && !superAdmin) ||
-          (entry.approverOnly && !approver);
+          (entry.approverOnly && !approver) ||
+          (entry.smsManagerOnly && !smsManager);
         return hidden ? null : entry;
       }
 
@@ -315,7 +328,8 @@ function filterNavConfig(entries: NavEntry[], user: any): NavEntry[] {
         (child) =>
           !(
             (child.superAdminOnly && !superAdmin) ||
-            (child.approverOnly && !approver)
+            (child.approverOnly && !approver) ||
+            (child.smsManagerOnly && !smsManager)
           )
       );
 
@@ -428,10 +442,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   useEffect(() => {
     let active = true;
 
+    // Only the roles the SMS API serves ask for its badge; for anyone else
+    // the request was refused every 30 seconds on every page.
+    const smsManager = canManageSms(authUser);
+
     async function loadCounts() {
       const [dashboardResult, smsResult, chatResult] = await Promise.allSettled([
         fetchRealtimeDashboard(),
-        getSmsLogs({ status: "failed" }),
+        smsManager ? getSmsLogs({ status: "failed" }) : Promise.reject(new Error("not an SMS role")),
         getTeamChatUnread(),
       ]);
 
@@ -474,7 +492,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       active = false;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
     setOpenGroups((prev) => {

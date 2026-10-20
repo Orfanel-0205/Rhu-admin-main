@@ -1,6 +1,7 @@
 // src/services/telemedicine.ts
 
 import apiClient from "../lib/apiClient";
+import { localDateKey } from "../lib/localDate";
 
 export type TelemedicineRequestStatus =
   | "pending"
@@ -222,7 +223,7 @@ function extractMe(payload: MeResponse): any {
 }
 
 function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function currentTimeHHMM(): string {
