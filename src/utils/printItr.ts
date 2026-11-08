@@ -70,6 +70,18 @@ export interface ItrPrintData {
   prescribedDrugs?: string | null;
 
   attendingName?: string | null;
+
+  // The saved signature of whoever completed the record (a PNG data URI from
+  // /admin/consultations/{id}/signature), printed with their name under it.
+  signatureImage?: string | null;
+  signerName?: string | null;
+}
+
+/** Only an image the server produced; anything else prints no signature. */
+function signatureImg(src?: string | null): string {
+  return src && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(src)
+    ? `<img class="sig" src="${src}" alt="" />`
+    : "";
 }
 
 function esc(value: unknown): string {
@@ -136,6 +148,7 @@ function buildHtml(d: ItrPrintData): string {
   .sign { padding: 24px 8px 8px; }
   .sign .name { font-weight: 800; border-top: 1px solid #000; display: inline-block; padding: 2px 40px 0; margin-top: 26px; }
   .sign .role { font-size: 10px; }
+  .sign .sig { display: block; height: 48px; max-width: 260px; margin: 0 0 -40px 30px; }
   .cols3 > * { flex: 1 1 30%; }
   .muted { color: #333; }
 </style>
@@ -266,7 +279,8 @@ function buildHtml(d: ItrPrintData): string {
     <div class="sec"><div class="rx">${block(d.prescribedDrugs)}</div></div>
 
     <div class="sign">
-      <div class="name">${esc(d.attendingName) || "&nbsp;"}</div>
+      ${signatureImg(d.signatureImage)}
+      <div class="name">${esc(d.signatureImage ? d.signerName || d.attendingName : d.attendingName) || "&nbsp;"}</div>
       <div class="role">Attending Physician / RHU Staff</div>
     </div>
   </div>

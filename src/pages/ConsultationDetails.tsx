@@ -27,6 +27,7 @@ import {
   getItrSnapshot,
   getPatientName,
   saveSoap,
+  saveSoapDraft,
   scanPaperSoap,
   sendSoapForReview,
   summarizeConsultation,
@@ -55,6 +56,46 @@ import {
 import { useLangStore } from "../store/langStore";
 import { useAuthStore } from "../store/authStore";
 import { printItrForm } from "../utils/printItr";
+import { getConsultationSignature, type ConsultationSignature } from "../services/signature";
+import { currentUserId } from "../lib/offlineOutbox";
+import { clearSoapAutosave, newerThanServer, readSoapAutosave, writeSoapAutosave } from "../lib/soapAutosave";
+import { AI_DICTATION_NOTE, AI_DICTATION_OPTION, useAiDictation } from "../hooks/useAiDictation";
+
+/*
+ * The SOAP recording panel's languages. The browser recognises Filipino and
+ * English only; the last option records and has the AI transcribe
+ * Pangasinan, Ilocano and mixed speech (hooks/useAiDictation).
+ */
+const SOAP_DICTATION_LANGUAGES = [
+  { value: "en-PH", label: "English (PH)" },
+  { value: "fil-PH", label: "Filipino / Tagalog" },
+  AI_DICTATION_OPTION,
+] as const;
+const SOAP_DICTATION_KEY = "ka_soap_dictation_lang";
+
+function initialSoapDictationLang(): string {
+  try {
+    const saved = window.localStorage.getItem(SOAP_DICTATION_KEY);
+    if (saved && SOAP_DICTATION_LANGUAGES.some((option) => option.value === saved)) return saved;
+  } catch {
+    // Blocked storage: the default is fine.
+  }
+  return "en-PH";
+}
+
+/** The SOAP fields the autosave keeps, as the server last saved them. */
+function soapFieldsFrom(data: any): Record<string, unknown> {
+  return {
+    subjective: data?.subjective || data?.chief_complaint || data?.appointment?.symptoms || data?.appointment?.reason || "",
+    objective: data?.objective || "",
+    assessment: data?.assessment || data?.diagnosis || "",
+    plan: data?.plan || data?.treatment_plan || data?.treatment || "",
+    diagnosis: data?.diagnosis || "",
+    treatment: data?.treatment || data?.treatment_plan || "",
+    notes: data?.notes || "",
+    clinical: clinicalFromConsultation(data),
+  };
+}
 
 // ITR snapshot fields default to "Not provided"; on the printed form we want a
 // blank line there instead so staff can hand-write it.
@@ -340,6 +381,25 @@ export default function ConsultationDetails() {
 
   const [consultation, setConsultation] = useState<Consultation | null>(null);
 
+  // The ITR prints with the signature of whoever completed the record. It is
+  // fetched ahead of the click: the print window has to open in the click
+  // itself, or the browser blocks it as a pop-up.
+  const [itrSignature, setItrSignature] = useState<ConsultationSignature | null>(null);
+  const consultationStatus = String((consultation as any)?.status || "").toLowerCase();
+  useEffect(() => {
+    if (!id || consultationStatus !== "completed") {
+      setItrSignature(null);
+      return;
+    }
+    let cancelled = false;
+    getConsultationSignature(id).then((signature) => {
+      if (!cancelled) setItrSignature(signature);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, consultationStatus]);
+
   const [subjective, setSubjective] = useState("");
   const [objective, setObjective] = useState("");
   const [assessment, setAssessment] = useState("");
@@ -355,6 +415,20 @@ export default function ConsultationDetails() {
   const setClinicalField = (key: keyof ClinicalState, value: string | boolean) =>
     setClinical((prev) => ({ ...prev, [key]: value }));
 
+  // A safety copy of what is typed (lib/soapAutosave), a moment after each
+  // change and only when it differs from the server's last save.
+  const serverSoapRef = useRef<string>("");
+  useEffect(() => {
+    if (!id || !consultation || ["completed", "cancelled", "finalized"].includes(consultationStatus)) return;
+    const fields = { subjective, objective, assessment, plan, diagnosis, treatment, notes, clinical };
+    const timer = window.setTimeout(() => {
+      if (JSON.stringify(fields) !== serverSoapRef.current) {
+        writeSoapAutosave(id, currentUserId(), fields);
+      }
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [id, consultation, consultationStatus, subjective, objective, assessment, plan, diagnosis, treatment, notes, clinical]);
+
   const [aiSummary, setAiSummary] = useState<any>(null);
   const [prescriptionResult, setPrescriptionResult] =
     useState<PrescriptionOcrResult | null>(null);
@@ -363,6 +437,18 @@ export default function ConsultationDetails() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [recording, setRecording] = useState(false);
+
+  const [dictationLang, setDictationLang] = useState<string>(initialSoapDictationLang);
+  const aiMode = dictationLang === AI_DICTATION_OPTION.value;
+  const aiDictation = useAiDictation({
+    context: "soap",
+    onText: (text) => setTranscript((prev) => `${prev} ${text}`.replace(/\s+/g, " ").trim()),
+  });
+  const dictating = aiMode ? aiDictation.recording : recording;
+  useEffect(() => {
+    if (aiDictation.error) toast.error(aiDictation.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiDictation.error]);
 
   // Follow-up reminder (saved from the SOAP page; optional SMS to patient).
   const [needsFollowUp, setNeedsFollowUp] = useState(false);
@@ -509,6 +595,35 @@ export default function ConsultationDetails() {
       setTranscript((data as any).transcript || "");
       setClinical(clinicalFromConsultation(data as any));
 
+      // Notes typed here and never saved -- a closed tab, a reload while
+      // offline -- come back if they are newer than the server's save.
+      const serverFields = soapFieldsFrom(data);
+      serverSoapRef.current = JSON.stringify(serverFields);
+      const status = String((data as any).status || "").toLowerCase();
+      const kept = ["completed", "cancelled", "finalized"].includes(status)
+        ? null
+        : newerThanServer(
+            readSoapAutosave(id, currentUserId()),
+            (data as any).draft_saved_at || (data as any).updated_at,
+            serverFields
+          );
+      if (kept) {
+        const f = kept.fields as Record<string, any>;
+        setSubjective(f.subjective ?? "");
+        setObjective(f.objective ?? "");
+        setAssessment(f.assessment ?? "");
+        setPlan(f.plan ?? "");
+        setDiagnosis(f.diagnosis ?? "");
+        setTreatment(f.treatment ?? "");
+        setNotes(f.notes ?? "");
+        if (f.clinical) setClinical(f.clinical);
+        toast.info(
+          `Restored notes typed on this computer at ${new Date(kept.savedAt).toLocaleTimeString()} that were not saved yet. Press Save Draft to keep them.`
+        );
+      } else {
+        clearSoapAutosave(id, currentUserId());
+      }
+
       // Prefill the follow-up mobile from the patient ITR (editable by staff).
       const snapContact = getItrSnapshot(data).contact;
       setFollowUpMobile(
@@ -571,11 +686,35 @@ export default function ConsultationDetails() {
     return updated;
   }
 
+  // "Save Draft": kept on this computer when the connection is down, and
+  // sent when it returns (lib/offlineOutbox). Completing still needs a
+  // connection, through handleSave.
   async function onSave() {
+    if (!id || !consultation) return;
     setSaving(true);
 
     try {
-      await handleSave();
+      const result = await saveSoapDraft(
+        id,
+        {
+          subjective,
+          objective,
+          assessment,
+          plan,
+          diagnosis,
+          treatment,
+          treatment_plan: treatment,
+          notes,
+          ...clinical,
+          status: (consultation as any)?.status || "ongoing",
+        },
+        getPatientName(consultation) || `Consultation #${id}`
+      );
+      // Kept on this computer: the autosave copy stays until the server has it.
+      if (result.queued) return;
+      setConsultation(result.data);
+      serverSoapRef.current = JSON.stringify(soapFieldsFrom(result.data));
+      clearSoapAutosave(id, currentUserId());
       toast.success(t("cd_alert_saved", lang));
     } catch (err: any) {
       toast.error(
@@ -785,7 +924,7 @@ export default function ConsultationDetails() {
     setSavingFollowUp(true);
 
     try {
-      const result = await saveFollowUp({
+      const sent = await saveFollowUp({
         consultation_id: consultation.id,
         appointment_id:
           (consultation as any).appointment_id ??
@@ -809,7 +948,11 @@ export default function ConsultationDetails() {
         urgency: followUpUrgency,
         sms_enabled: smsEnabled,
         mobile_number: followUpMobile.trim() || null,
-      });
+      }, `Follow-up: ${getPatientName(consultation) || `Consultation #${consultation.id}`}`);
+
+      // Kept on this computer with no connection; the outbox said so.
+      if (sent.queued) return;
+      const result = sent.data;
 
       applyFollowUpReminder(result);
 
@@ -879,6 +1022,11 @@ export default function ConsultationDetails() {
   }
 
   function startSpeechToText() {
+    if (aiMode) {
+      void aiDictation.start();
+      return;
+    }
+
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
@@ -890,7 +1038,7 @@ export default function ConsultationDetails() {
 
     const recognition = new SpeechRecognition();
 
-    recognition.lang = "en-PH";
+    recognition.lang = dictationLang;
     recognition.continuous = true;
     recognition.interimResults = true;
 
@@ -926,6 +1074,11 @@ export default function ConsultationDetails() {
   }
 
   function stopSpeechToText() {
+    if (aiMode) {
+      aiDictation.stop();
+      return;
+    }
+
     recognitionRef.current?.stop?.();
     setRecording(false);
   }
@@ -1413,6 +1566,8 @@ export default function ConsultationDetails() {
                       [pv(diagnosis), pv(treatment)].filter(Boolean).join("\n"),
                     prescribedDrugs: pv(clinical.prescribed_drugs) || pv(treatment),
                     attendingName: pv(itr.attendingStaff),
+                    signatureImage: itrSignature?.image ?? null,
+                    signerName: itrSignature?.signer_name ?? null,
                   })
                 }
                 style={secondaryButton}
@@ -1635,13 +1790,40 @@ export default function ConsultationDetails() {
 
           {!isSoapReadOnly ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {!recording ? (
+              <select
+                value={dictationLang}
+                onChange={(event) => {
+                  setDictationLang(event.target.value);
+                  try {
+                    window.localStorage.setItem(SOAP_DICTATION_KEY, event.target.value);
+                  } catch {
+                    // Not remembering it is not worth an error.
+                  }
+                }}
+                disabled={dictating || aiDictation.transcribing}
+                aria-label="Dictation language"
+                title="Language the consultation is mostly spoken in"
+                style={{ ...secondaryButton, paddingRight: 8 }}
+              >
+                {SOAP_DICTATION_LANGUAGES.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              {aiDictation.transcribing ? (
+                <button disabled style={secondaryButton}>
+                  Transcribing…
+                </button>
+              ) : !dictating ? (
                 <button onClick={startSpeechToText} style={secondaryButton}>
                   {t("cd_btn_start_recording", lang)}
                 </button>
               ) : (
                 <button onClick={stopSpeechToText} style={dangerButton}>
                   {t("cd_btn_stop", lang)}
+                  {aiMode ? ` (${aiDictation.seconds}s)` : ""}
                 </button>
               )}
 
@@ -1664,6 +1846,9 @@ export default function ConsultationDetails() {
             background: isSoapReadOnly ? "#F8FAFC" : "#FFFFFF",
           }}
         />
+        {aiMode && !isSoapReadOnly ? (
+          <p style={{ ...mutedTextStyle, marginTop: 8 }}>{AI_DICTATION_NOTE}</p>
+        ) : null}
       </section>
 
       {aiSummary && (

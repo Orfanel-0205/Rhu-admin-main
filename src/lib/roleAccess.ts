@@ -15,6 +15,11 @@ export function roleOf(user: any): string {
     .replace(/[\s-]+/g, "_");
 }
 
+/** role:mho,doctor -- My Signature, printed on their prescriptions, lab requests and ITRs. */
+export function canSignDocuments(user: any): boolean {
+  return ["mho", "doctor"].includes(roleOf(user));
+}
+
 function hasFullAccess(user: any): boolean {
   const capabilities = Array.isArray(user?.capabilities) ? user.capabilities : [];
   return capabilities.includes("full_access");

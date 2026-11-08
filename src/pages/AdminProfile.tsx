@@ -18,6 +18,8 @@ import { authService } from "../services/auth";
 import { roleLabel as centralRoleLabel } from "../services/users";
 import { useAuthStore } from "../store/authStore";
 import { ImageUploader } from "../components/ImageUploader";
+import { SignatureCard } from "../components/SignatureCard";
+import { canSignDocuments } from "../lib/roleAccess";
 
 export default function AdminProfile() {
   const currentUser = useAuthStore((state) => state.user);
@@ -383,6 +385,8 @@ export default function AdminProfile() {
           </section>
         </div>
       )}
+
+      {!loading && canSignDocuments({ role: role || currentUser?.role }) ? <SignatureCard /> : null}
     </main>
   );
 }

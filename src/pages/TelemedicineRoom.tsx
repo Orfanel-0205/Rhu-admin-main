@@ -30,6 +30,7 @@ import {
   type TelemedicineSession,
 } from "../services/telemedicine";
 import { useWebSpeechRecognition } from "../hooks/useWebSpeechRecognition";
+import { AI_DICTATION_NOTE, AI_DICTATION_OPTION, useAiDictation } from "../hooks/useAiDictation";
 import JitsiRoom, { type JitsiRoomHandle } from "../components/JitsiRoom";
 
 type SoapFields = {
@@ -60,19 +61,19 @@ type SoapFields = {
  * being broken rather than absent. Filipino is the Tagalog option; it is
  * labelled so nobody goes looking for a separate one.
  *
- * Pangasinense is not in that list and is not offered by any browser or
- * major cloud recogniser. There is no setting that will transcribe it and
- * no fallback worth pretending about, so the panel says so plainly and
- * the clinician types those consultations instead.
+ * Pangasinense is not in that list and is not offered by any browser. Since
+ * Nov 2026 the last option records instead and has the AI transcribe it
+ * (hooks/useAiDictation), which takes Pangasinan, Ilocano and mixed speech:
+ * the words arrive after Stop rather than live, for the clinician to check.
  */
 const DICTATION_LANGUAGES = [
   { value: "en-US", label: "English (US)" },
   { value: "en-PH", label: "English (PH)" },
   { value: "fil-PH", label: "Filipino / Tagalog" },
+  AI_DICTATION_OPTION,
 ] as const;
 
-const NO_DICTATION_NOTE =
-  "Pangasinense is not available for dictation in any browser — type those consultations, or dictate in Filipino or English.";
+const NO_DICTATION_NOTE = AI_DICTATION_NOTE;
 
 const DICTATION_LANGUAGE_KEY = "ka_telemedicine_dictation_lang";
 
@@ -284,8 +285,19 @@ export default function TelemedicineRoom() {
   //
   // maxAlternatives asks the recogniser for its runners-up as well as its
   // best guess, which is what makes the correction chips below possible.
+  const aiMode = dictationLang === AI_DICTATION_OPTION.value;
+
+  // Pangasinan, Ilocano and mixed speech: recorded, then transcribed by the AI.
+  const aiDictation = useAiDictation({
+    context: "telemedicine",
+    onText: (text) => {
+      lastChunkRef.current = text;
+      setTranscript((current) => [current, text].filter(Boolean).join(" "));
+    },
+  });
+
   const stt = useWebSpeechRecognition({
-    lang: dictationLang,
+    lang: aiMode ? "fil-PH" : dictationLang,
     interimResults: true,
     continuous: true,
     maxAlternatives: 3,
@@ -297,7 +309,7 @@ export default function TelemedicineRoom() {
       );
     },
   });
-  const listening = stt.isListening;
+  const listening = aiMode ? aiDictation.recording : stt.isListening;
 
   const patientName = useMemo(() => {
     return getPatientNameFromSession(session);
@@ -391,6 +403,7 @@ export default function TelemedicineRoom() {
 
     return () => {
       stt.stopListening();
+      aiDictation.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
@@ -401,6 +414,18 @@ export default function TelemedicineRoom() {
       setError(stt.error);
     }
   }, [stt.error]);
+
+  useEffect(() => {
+    if (aiDictation.error) {
+      setError(aiDictation.error);
+    }
+  }, [aiDictation.error]);
+
+  useEffect(() => {
+    if (aiDictation.transcribing) {
+      setMessage("Transcribing with AI…");
+    }
+  }, [aiDictation.transcribing]);
 
   /*
    * Replace the last dictated phrase with one of the recogniser's other
@@ -442,6 +467,13 @@ export default function TelemedicineRoom() {
   }
 
   function startStt() {
+    if (aiMode) {
+      setError("");
+      void aiDictation.start();
+      flash("Recording. Press Stop when done and the words will appear below.");
+      return;
+    }
+
     if (!stt.isSupported) {
       setError(
         "Speech recognition is not supported in this browser. Please use Google Chrome."
@@ -455,6 +487,11 @@ export default function TelemedicineRoom() {
   }
 
   function stopStt() {
+    if (aiMode) {
+      aiDictation.stop();
+      return;
+    }
+
     stt.stopListening();
     flash("Speech-to-text stopped.");
   }
@@ -1020,7 +1057,7 @@ export default function TelemedicineRoom() {
               <button
                 type="button"
                 onClick={listening ? stopStt : startStt}
-                disabled={!canDocument}
+                disabled={!canDocument || aiDictation.transcribing}
                 title={
                   listening
                     ? "Listening... (click to stop voice input)"
@@ -1029,7 +1066,15 @@ export default function TelemedicineRoom() {
                 style={listening ? warningButtonStyle : secondaryButtonStyle}
               >
                 {listening ? <MicOff size={16} /> : <Mic size={16} />}
-                {listening ? "Stop STT" : "Start STT"}
+                {aiMode
+                  ? aiDictation.transcribing
+                    ? "Transcribing…"
+                    : listening
+                      ? `Stop & transcribe (${aiDictation.seconds}s)`
+                      : "Start AI dictation"
+                  : listening
+                    ? "Stop STT"
+                    : "Start STT"}
               </button>
 
               <button

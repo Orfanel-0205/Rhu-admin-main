@@ -64,6 +64,7 @@ import {
 import { registerAssistantListener, registerTutorialListener } from "../lib/tutorialBus";
 import CoachSpotlight from "./CoachSpotlight";
 import { useCoachVoice } from "../hooks/useCoachVoice";
+import { useAiDictation } from "../hooks/useAiDictation";
 // What the launcher wears once it is sitting still.
 //
 // The jumping duck belongs to the leap and nowhere else: looping it here
@@ -137,19 +138,23 @@ const VOICE_SILENCE_MS = 4000;
 // language being SPOKEN has to be choosable on its own.
 const LISTEN_LANGUAGE_KEY = "ka_agapay_admin_chatbot_listen_language";
 
-type ListenLanguage = "auto" | "en" | "fil";
+// "ai": recorded and transcribed by the AI (hooks/useAiDictation), the only
+// way to dictate Pangasinan, Ilocano or mixed speech. Words arrive after the
+// mic is pressed again, not live.
+type ListenLanguage = "auto" | "en" | "fil" | "ai";
 
 const LISTEN_OPTIONS: Array<{ value: ListenLanguage; label: string }> = [
   { value: "auto", label: "Listen: same as answer" },
   { value: "en", label: "Listen: English" },
   { value: "fil", label: "Listen: Tagalog" },
+  { value: "ai", label: "Listen: Pangasinan / Ilocano / mixed (AI)" },
 ];
 
 function readSavedListenLanguage(): ListenLanguage {
   try {
     const saved = window.localStorage.getItem(LISTEN_LANGUAGE_KEY);
 
-    if (saved === "auto" || saved === "en" || saved === "fil") {
+    if (saved === "auto" || saved === "en" || saved === "fil" || saved === "ai") {
       return saved;
     }
   } catch {
@@ -2060,9 +2065,16 @@ export default function AIChatAssistant() {
   const listenTag =
     listenLanguage === "en"
       ? "en-US"
-      : listenLanguage === "fil"
+      : listenLanguage === "fil" || listenLanguage === "ai"
         ? "fil-PH"
         : recognitionLanguage(lang);
+
+  const aiListening = listenLanguage === "ai";
+  const aiDictation = useAiDictation({
+    context: "chat",
+    hint: lang === "pag" ? "pag" : "auto",
+    onText: (text) => setInput((current) => (current ? `${current} ${text}` : text).trim()),
+  });
 
   const voice = useWebSpeechRecognition({
     lang: listenTag,
@@ -2213,8 +2225,28 @@ export default function AIChatAssistant() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The AI dictation's lifecycle, in the same voice UI state.
+  useEffect(() => {
+    if (!aiListening) return;
+    if (aiDictation.recording) {
+      setVoiceState("listening");
+      setVoiceMessage(`Recording… ${aiDictation.seconds}s. Press the mic again to stop.`);
+    } else if (aiDictation.transcribing) {
+      setVoiceState("processing");
+      setVoiceMessage("Transcribing with AI…");
+    } else if (aiDictation.error) {
+      setVoiceState("error");
+      setVoiceMessage(aiDictation.error);
+    } else if (inputRef.current.trim()) {
+      setVoiceState("idle");
+      setVoiceMessage("Check the words, then press Send.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiListening, aiDictation.recording, aiDictation.seconds, aiDictation.transcribing, aiDictation.error]);
+
   // Mirror the speech-recognition lifecycle into the existing voice UI state.
   useEffect(() => {
+    if (aiListening) return;
     if (voice.isListening) {
       setVoiceState("listening");
       // Showing the words as they are heard is the only way to tell that the
@@ -2907,6 +2939,13 @@ export default function AIChatAssistant() {
   };
 
   const startVoiceInput = () => {
+    if (aiListening) {
+      if (aiDictation.transcribing) return;
+      if (aiDictation.recording) aiDictation.stop();
+      else void aiDictation.start();
+      return;
+    }
+
     if (!voice.isSupported) {
       setVoiceState("error");
       setVoiceMessage(

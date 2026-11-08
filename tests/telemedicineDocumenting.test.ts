@@ -141,12 +141,23 @@ describe("dictation only offers languages that exist", () => {
     ).toEqual([]);
   });
 
-  it("says plainly that Pangasinense cannot be dictated", () => {
-    expect(
-      roomSource(),
-      "The note explaining that Pangasinense has no dictation support was " +
-        "removed. Without it, a clinician can only discover this by failing."
-    ).toContain("Pangasinense is not available for dictation");
+  /*
+   * Since Nov 2026 Pangasinan is dictated another way: recorded and
+   * transcribed by the AI (hooks/useAiDictation), never by passing the
+   * browser a tag it does not have. The picker must offer that option and
+   * the note must say how it works and where the recording goes.
+   */
+  it("offers Pangasinan through the AI, and says how it works", () => {
+    const source = roomSource();
+    const hook = fs.readFileSync(path.join(ROOT, "src", "hooks", "useAiDictation.ts"), "utf8");
+
+    expect(source).toContain("AI_DICTATION_OPTION");
+    expect(source).toContain("const NO_DICTATION_NOTE = AI_DICTATION_NOTE;");
+    expect(hook).toContain('label: "Pangasinan / Ilocano / mixed (AI)"');
+    expect(hook, "The note must say the recording goes to Google's Gemini AI.").toContain("Gemini");
+    expect(source, "AI mode must never hand the browser recogniser a made-up tag.").toContain(
+      'lang: aiMode ? "fil-PH" : dictationLang'
+    );
   });
 });
 

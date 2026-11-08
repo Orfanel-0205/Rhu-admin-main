@@ -261,14 +261,23 @@ export default function WalkInPatientModal({
     setSaving(true);
 
     try {
-      await issueQueueTicket({
-        resident_profile_id: patient.resident_profile_id,
-        service_type: serviceType,
-        rhu_id: rhuId,
-        is_emergency: isEmergency,
-        is_bhw_endorsed: isBhwEndorsed,
-        notes: notes.trim() || undefined,
-      });
+      const result = await issueQueueTicket(
+        {
+          resident_profile_id: patient.resident_profile_id,
+          service_type: serviceType,
+          rhu_id: rhuId,
+          is_emergency: isEmergency,
+          is_bhw_endorsed: isBhwEndorsed,
+          notes: notes.trim() || undefined,
+        },
+        `Queue ticket: ${patient.full_name}`
+      );
+
+      if (result.queued) {
+        // Kept on this computer: the number is given when it is sent.
+        onClose();
+        return;
+      }
 
       toast.success(`${patient.full_name} was added to the queue.`);
       onIssued();

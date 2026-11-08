@@ -41,6 +41,7 @@ import { getUnreadCount as getTeamChatUnread } from "../services/teamChat";
 import { openGettingStarted } from "../lib/tutorialBus";
 // Pages whose data the server serves to some roles only (see lib/roleAccess).
 import { canManageSms, pageAllowed } from "../lib/roleAccess";
+import { pendingOutboxCount } from "../lib/offlineOutbox";
 
 type SidebarProps = {
   collapsed?: boolean;
@@ -532,8 +533,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   }
 
   async function handleLogout() {
+    // Items saved offline stay on this computer under this account and are
+    // sent at its next sign-in here; say so before they are left behind.
+    const unsent = pendingOutboxCount();
     const confirmed = window.confirm(
-      safeText("logout_confirm", "Are you sure you want to logout?", lang)
+      unsent > 0
+        ? `${unsent === 1 ? "1 item" : `${unsent} items`} saved offline ${unsent === 1 ? "has" : "have"} not been sent yet. ` +
+            "They stay on this computer and are sent the next time you sign in here. Logout anyway?"
+        : safeText("logout_confirm", "Are you sure you want to logout?", lang)
     );
 
     if (!confirmed) return;

@@ -66,6 +66,10 @@ src/services         one file per API area — every server call goes through th
 src/lib/apiClient.ts axios with the token, error toasts, and the duck screens for 403/500/maintenance
 src/lib/tableFit.ts  each .responsive-table decides rows or cards by the space it has
 src/lib/idleSignOut  Settings → Session timeout: sign out after idle minutes
+src/lib/offlineOutbox.ts  saves kept with no connection and resent later (banner: components/OfflineBanner)
+src/lib/soapAutosave.ts   typed SOAP notes kept on the computer until the server has them
+src/hooks/useAiDictation  Pangasinan / Ilocano / mixed dictation through the AI (lib/wav converts the audio)
+src/components/SignatureCard  My Profile → My Signature (draw, or upload a photo; MHO and doctors)
 src/store            signed-in user and language
 src/i18n             English / Tagalog / Pangasinan strings
 src/styles/globals.css

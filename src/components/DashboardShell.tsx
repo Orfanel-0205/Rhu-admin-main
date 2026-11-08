@@ -31,6 +31,7 @@ import {
 import { useToast } from "../contexts/ToastContext";
 import { authService } from "../services/auth";
 import { useIdleSignOut } from "../lib/idleSignOut";
+import { OfflineBanner } from "./OfflineBanner";
 import { openAssistant, openGettingStarted } from "../lib/tutorialBus";
 import {
   isNotificationSoundEnabled,
@@ -936,6 +937,8 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             </button>
           </div>
         </div>
+
+        <OfflineBanner />
 
         <div className="page-enter">{children}</div>
       </main>

@@ -1,6 +1,7 @@
 // src/services/consultations.ts
 
 import apiClient from "../lib/apiClient";
+import { sendOrQueue, type SendResult } from "../lib/offlineOutbox";
 import { clinicalSubjective } from "../utils/clinicalText";
 import { getRecordLifecycleStatus, normalizeLifecycleValue } from "../lib/recordLifecycle";
 import type { LifecycleStatus } from "../lib/recordLifecycle";
@@ -308,6 +309,26 @@ export async function saveSoap(
 ): Promise<Consultation> {
   const res = await apiClient.put(`/admin/consultations/${id}/soap`, payload);
   return normalizeOne(res.data);
+}
+
+/**
+ * "Save Draft" on the SOAP page. With no connection the draft is kept on this
+ * computer and sent when it returns; a newer draft of the same consultation
+ * replaces a waiting one. Completing a record still needs a connection.
+ */
+export async function saveSoapDraft(
+  id: string | number,
+  payload: SoapPayload,
+  label: string
+): Promise<SendResult<Consultation>> {
+  const res = await sendOrQueue<any>({
+    method: "put",
+    url: `/admin/consultations/${id}/soap`,
+    data: payload,
+    label: `SOAP draft: ${label}`,
+    coalesceKey: `soap:${id}`,
+  });
+  return res.queued ? res : { queued: false, data: normalizeOne(res.data) };
 }
 
 /**

@@ -2,6 +2,7 @@
 // Staff follow-up reminders created from the SOAP page (+ optional SMS alert).
 
 import apiClient from "../lib/apiClient";
+import { sendOrQueue, type SendResult } from "../lib/offlineOutbox";
 
 export type FollowUpUrgency = "routine" | "watch" | "urgent";
 export type FollowUpStatus =
@@ -227,10 +228,18 @@ export function getFollowUpStatusMeta(
 }
 
 export async function saveFollowUp(
-  payload: SaveFollowUpPayload
-): Promise<FollowUpReminder | null> {
-  const res = await apiClient.post("/follow-up-reminders", payload);
-  return res.data?.data ?? null;
+  payload: SaveFollowUpPayload,
+  label = "Follow-up"
+): Promise<SendResult<FollowUpReminder | null>> {
+  const res = await sendOrQueue<any>({
+    method: "post",
+    url: "/follow-up-reminders",
+    data: payload,
+    label,
+    // A newer follow-up for the same consultation replaces a waiting one.
+    coalesceKey: payload.consultation_id ? `follow-up:${payload.consultation_id}` : undefined,
+  });
+  return res.queued ? res : { queued: false, data: res.data?.data ?? null };
 }
 
 export async function updateFollowUpStatus(

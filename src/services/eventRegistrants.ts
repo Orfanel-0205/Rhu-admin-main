@@ -1,6 +1,7 @@
 // src/services/eventRegistrants.ts
 
 import apiClient from "../lib/apiClient";
+import { sendOrQueue, type SendResult } from "../lib/offlineOutbox";
 
 export type EventRegistrantStatus =
   | "registered"
@@ -158,10 +159,17 @@ export async function getEventReport(eventId: number): Promise<EventReport> {
  */
 export async function addWalkIn(
   eventId: number,
-  person: { user_id: number } | { name: string; barangay_id?: number | null }
-): Promise<EventRegistrant> {
-  const res = await apiClient.post(`/admin/events/${eventId}/walk-ins`, person);
-  return res.data?.data as EventRegistrant;
+  person: { user_id: number } | { name: string; barangay_id?: number | null },
+  label: string
+): Promise<SendResult<EventRegistrant>> {
+  // Barangay events are where the signal drops: kept and sent later if so.
+  const res = await sendOrQueue<{ data: EventRegistrant }>({
+    method: "post",
+    url: `/admin/events/${eventId}/walk-ins`,
+    data: person,
+    label: `Event walk-in: ${label}`,
+  });
+  return res.queued ? res : { queued: false, data: res.data?.data as EventRegistrant };
 }
 
 /** Take back a walk-in added by mistake (only walk-ins can be removed). */

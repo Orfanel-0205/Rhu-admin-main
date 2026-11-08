@@ -83,7 +83,14 @@ export default function EventWalkInModal({
   async function record(person: { user_id: number } | { name: string; barangay_id?: number | null }) {
     setBusy(true);
     try {
-      const added = await addWalkIn(eventId, person);
+      const label = "name" in person ? person.name : (results ?? []).find((r: any) => r.user_id === person.user_id)?.full_name ?? `Patient #${person.user_id}`;
+      const result = await addWalkIn(eventId, person, label);
+      if (result.queued) {
+        // Kept on this computer; it joins the list once it is sent.
+        onClose();
+        return;
+      }
+      const added = result.data;
       toast.success(added?.is_walk_in ? "Walk-in added as came." : "They had registered: marked as came.");
       onAdded(added);
       onClose();

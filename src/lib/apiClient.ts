@@ -73,6 +73,13 @@ apiClient.interceptors.response.use(
     // visible toast even when a caller forgot to handle the error. Callers that
     // render their own error UI can opt out with { suppressErrorToast: true }.
     const config: any = error.config ?? {};
+
+    // A save that got no answer at all is kept by the offline outbox, which
+    // says so itself; an error toast here would tell staff it was lost.
+    if (config.outbox && !error.response) {
+      return Promise.reject(error);
+    }
+
     const method = String(config.method ?? "get").toLowerCase();
     const isMutation = ["post", "put", "patch", "delete"].includes(method);
     const canceled = axios.isCancel?.(error) || error.code === "ERR_CANCELED";

@@ -1,6 +1,7 @@
 // src/services/queue.ts
 
 import apiClient from "../lib/apiClient";
+import { sendOrQueue, type SendResult } from "../lib/offlineOutbox";
 import {
   calculateAge,
   normalizeBarangayName,
@@ -627,17 +628,24 @@ export const WALK_IN_SERVICE_TYPES: Array<{ value: string; label: string }> = [
  * rhu_id is sent for completeness only - the backend forces it through its own
  * scoped resolver, so a spoofed value cannot place a ticket in another RHU.
  */
-export async function issueQueueTicket(payload: {
-  resident_profile_id: number;
-  service_type: string;
-  rhu_id?: number;
-  is_emergency?: boolean;
-  is_bhw_endorsed?: boolean;
-  notes?: string;
-}): Promise<QueueTicket> {
-  const response = await apiClient.post("/queue/issue", payload);
+export async function issueQueueTicket(
+  payload: {
+    resident_profile_id: number;
+    service_type: string;
+    rhu_id?: number;
+    is_emergency?: boolean;
+    is_bhw_endorsed?: boolean;
+    notes?: string;
+  },
+  label = "Walk-in queue ticket"
+): Promise<SendResult<QueueTicket>> {
+  // With no connection the request is kept and the number is given when it
+  // is sent (lib/offlineOutbox).
+  const response = await sendOrQueue<any>({ method: "post", url: "/queue/issue", data: payload, label });
 
-  return normalizeTicketPayload(response.data?.data ?? response.data);
+  return response.queued
+    ? response
+    : { queued: false, data: normalizeTicketPayload(response.data?.data ?? response.data) };
 }
 
 /**
