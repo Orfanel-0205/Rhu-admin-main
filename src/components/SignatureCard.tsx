@@ -70,11 +70,15 @@ export function SignatureCard() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Set once a save or a removal answers: on a slow connection the first
+  // load can come back after it, and must not put the old signature back.
+  const changedHere = useRef(false);
+
   useEffect(() => {
     let cancelled = false;
     getMySignature()
-      .then((signature) => !cancelled && setCurrent(signature))
-      .catch(() => !cancelled && setError("Could not load your signature."))
+      .then((signature) => !cancelled && !changedHere.current && setCurrent(signature))
+      .catch(() => !cancelled && !changedHere.current && setError("Could not load your signature."))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -157,7 +161,9 @@ export function SignatureCard() {
     setBusy(true);
     try {
       const res = await saveMySignature(image, mode === "draw" ? "drawn" : "uploaded", password, strictness);
+      changedHere.current = true;
       setCurrent(res.signature);
+      setLoading(false);
       setMessage(res.message);
       setPassword("");
       setFile(null);
@@ -184,7 +190,9 @@ export function SignatureCard() {
     setBusy(true);
     try {
       const res = await removeMySignature(password);
+      changedHere.current = true;
       setCurrent(null);
+      setLoading(false);
       setMessage(res.message);
       setPassword("");
     } catch (err: any) {
