@@ -1611,6 +1611,11 @@ export default function Prescriptions() {
                       />
                       {t("rx_f_controlled", lang)}
                     </label>
+                    {medication.is_controlled ? (
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#B45309", marginTop: 4 }}>
+                        {t("rx_controlled_hint", lang)}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>

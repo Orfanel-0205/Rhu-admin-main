@@ -1795,10 +1795,18 @@ export const T: Record<string, Record<Lang, string>> = {
     tag: "Inumin pagkatapos kumain",
     pag: "Inomen kayari mangan",
   },
+  // "Controlled medicine" read as "a medicine we keep track of" and was
+  // ticked on ordinary prescriptions, which then printed without the
+  // prescriber's signature (Nov 2026). It means a dangerous drug (RA 9165).
   rx_controlled_med: {
-    en: "Controlled medicine",
-    tag: "Kontroladong gamot",
-    pag: "Kontrolado a tambal",
+    en: "Dangerous drug (S2): needs the DDB yellow prescription form",
+    tag: "Mapanganib na gamot (S2): kailangan ang DDB yellow prescription form",
+    pag: "Kontrolado a tambal (S2): kaukolan so DDB yellow prescription form",
+  },
+  rx_controlled_hint: {
+    en: "This prescription will print without your e-signature. Write the dangerous drug on the DDB form and sign it by hand.",
+    tag: "Ipi-print ang reseta na ito nang walang e-signature mo. Isulat ang gamot sa DDB form at pirmahan nang mano-mano.",
+    pag: "Ipi-print iyan a reseta ya anggapo so e-signature mo. Isulat so tambal ed DDB form tan pirmaan ed lima.",
   },
   rx_f_additional: {
     en: "Additional Instructions",
