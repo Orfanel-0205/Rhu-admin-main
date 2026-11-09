@@ -65,6 +65,8 @@ import { registerAssistantListener, registerTutorialListener } from "../lib/tuto
 import CoachSpotlight from "./CoachSpotlight";
 import { useCoachVoice } from "../hooks/useCoachVoice";
 import { useAiDictation } from "../hooks/useAiDictation";
+import { useAuthStore } from "../store/authStore";
+import { promptsForRole } from "../lib/rolePrompts";
 // What the launcher wears once it is sitting still.
 //
 // The jumping duck belongs to the leap and nowhere else: looping it here
@@ -763,13 +765,18 @@ const PAGE_HELP: Record<string, PageHelp> = {
   },
 };
 
-function getPageHelp(button: string): PageHelp {
-  return (
-    PAGE_HELP[button] ?? {
-      tip: "Tap a button name to learn what each RHU module does and what to do next.",
-      prompts: QUICK_PROMPTS,
-    }
-  );
+// On the Dashboard and on pages without their own help, the chips come from
+// the person's role (lib/rolePrompts): a nurse is not invited to ask about
+// SMS blasts or the analytics.
+function getPageHelp(button: string, rolePrompts: string[] | null): PageHelp {
+  const page = PAGE_HELP[button];
+
+  if (page && button !== "Dashboard") return page;
+
+  return {
+    tip: page?.tip ?? "Tap a button name to learn what each RHU module does and what to do next.",
+    prompts: rolePrompts ?? page?.prompts ?? QUICK_PROMPTS,
+  };
 }
 
 type TutorialWorkflowStep = {
@@ -2148,7 +2155,9 @@ export default function AIChatAssistant() {
     [location.pathname]
   );
 
-  const pageHelp = useMemo(() => getPageHelp(currentButton), [currentButton]);
+  const signedInUser = useAuthStore((state) => state.user);
+  const rolePrompts = useMemo(() => promptsForRole(signedInUser), [signedInUser]);
+  const pageHelp = useMemo(() => getPageHelp(currentButton, rolePrompts), [currentButton, rolePrompts]);
 
   useEffect(() => {
     if (open) {
