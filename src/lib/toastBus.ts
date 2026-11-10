@@ -34,6 +34,7 @@ export function emitToast(message: string, type: ToastType = "info", duration?: 
  */
 export function toUserErrorMessage(error: any, fallback = "Something went wrong. Please try again."): string {
   const raw =
+    fieldErrorMessage(error?.response?.data) ||
     error?.response?.data?.message ||
     error?.response?.data?.error ||
     error?.message ||
@@ -54,4 +55,24 @@ export function toUserErrorMessage(error: any, fallback = "Something went wrong.
   }
 
   return text.length > 220 ? `${text.slice(0, 217)}…` : text;
+}
+
+/**
+ * The server's 422 answer says only "Validation failed." and lists what was
+ * wrong under `errors` ({ email: ["The email field must be a valid email
+ * address."] }). Staff saw the bare "Validation failed." and could not tell
+ * which field to fix, so the toast shows the field messages instead.
+ */
+export function fieldErrorMessage(data: any): string {
+  const errors = data?.errors;
+  if (!errors || typeof errors !== "object") return "";
+
+  const messages = Object.values(errors)
+    .flatMap((value) => (Array.isArray(value) ? value : [value]))
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+  const unique = Array.from(new Set(messages));
+
+  if (unique.length === 0) return "";
+  return unique.length === 1 ? unique[0] : `${unique[0]} (and ${unique.length - 1} more)`;
 }

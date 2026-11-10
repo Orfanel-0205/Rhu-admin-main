@@ -48,6 +48,8 @@ import RegistrationInviteModal from "../components/RegistrationInviteModal";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import ModuleTabs from "../components/ui/ModuleTabs";
 import PasswordStrengthMeter from "../components/ui/PasswordStrengthMeter";
+import { toUserErrorMessage } from "../lib/toastBus";
+import { isValidOptionalEmail } from "../lib/userForm";
 import { checkPasswordStrength } from "../utils/passwordPolicy";
 import { useRhuStore } from "../store/rhuStore";
 import { useRhuOptions } from "../hooks/useRhuOptions";
@@ -507,6 +509,13 @@ export default function Users() {
       }
     }
 
+    if (!isValidOptionalEmail(form.email)) {
+      toast.warning(
+        "Email must be an email address, like name@example.com, or left blank. (Your browser may have filled it in: clear it.)"
+      );
+      return;
+    }
+
     // Typing ANY password commits the admin to confirming it. Server-side
     // 'confirmed' + the shared policy rule are still the real gate; these are
     // just fast, local messages.
@@ -593,11 +602,11 @@ export default function Users() {
       setForm(emptyForm);
       await loadUsers(true);
     } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Hindi ma-save ang user."
-      );
+      // The shared interceptor already raised a toast for a server answer;
+      // this one covers anything else, with the field that failed.
+      if (!err?.response) {
+        toast.error(toUserErrorMessage(err, "Hindi ma-save ang user."));
+      }
     } finally {
       setSaving(false);
     }
@@ -1005,8 +1014,17 @@ export default function Users() {
                     )}
                   </label>
 
+                  {/*
+                    The browser took this form for a sign-in page: it put the
+                    admin's saved number (their sign-in) into Email and their
+                    saved password into New Password, and the save failed with
+                    "Validation failed." These autocomplete values tell it that
+                    the fields belong to another person's account.
+                  */}
                   <Field
                     label="Mobile Number"
+                    name="account-mobile"
+                    autoComplete="off"
                     value={form.phone}
                     onChange={(value) => setForm({ ...form, phone: value })}
                     placeholder="09XXXXXXXXX"
@@ -1014,8 +1032,12 @@ export default function Users() {
 
                   <Field
                     label="Email Optional"
-                    value={form.email}
+                    type="email"
+                    name="account-email"
+                    autoComplete="off"
+                    value={form.email ?? ""}
                     onChange={(value) => setForm({ ...form, email: value })}
+                    placeholder="name@example.com"
                   />
 
                   <label>
@@ -1090,6 +1112,8 @@ export default function Users() {
 
                   <Field
                     label={editing ? "New Password (optional)" : "Password"}
+                    name="account-new-password"
+                    autoComplete="new-password"
                     value={form.password}
                     type="password"
                     onChange={(value) => setForm({ ...form, password: value })}
@@ -1112,6 +1136,8 @@ export default function Users() {
                   {form.password ? (
                     <Field
                       label="Confirm Password"
+                      name="account-confirm-password"
+                      autoComplete="new-password"
                       value={form.confirmPassword}
                       type="password"
                       onChange={(value) =>
@@ -1314,6 +1340,8 @@ function Field({
   placeholder,
   multiline = false,
   wide = false,
+  name,
+  autoComplete,
 }: {
   label: string;
   value: string;
@@ -1322,6 +1350,8 @@ function Field({
   placeholder?: string;
   multiline?: boolean;
   wide?: boolean;
+  name?: string;
+  autoComplete?: string;
 }) {
   return (
     <label style={wide ? wideFieldStyle : undefined}>
@@ -1336,6 +1366,8 @@ function Field({
       ) : (
         <input
           type={type}
+          name={name}
+          autoComplete={autoComplete}
           value={value}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
