@@ -27,11 +27,12 @@ afterEach(() => {
 });
 
 describe("who signs", () => {
-  it("offers My Signature to the MHO and doctors only", () => {
+  it("offers My Signature to the MHO, doctors and the Super Admin only", () => {
     expect(canSignDocuments({ role: "mho" })).toBe(true);
     expect(canSignDocuments({ role: "Doctor" })).toBe(true);
+    expect(canSignDocuments({ role: "super_admin" })).toBe(true);
     expect(canSignDocuments({ role: "nurse" })).toBe(false);
-    expect(canSignDocuments({ role: "super_admin" })).toBe(false);
+    expect(canSignDocuments({ role: "rhu_admin" })).toBe(false);
     expect(canSignDocuments(null)).toBe(false);
   });
 });
