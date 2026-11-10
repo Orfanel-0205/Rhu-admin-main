@@ -69,6 +69,8 @@ import {
 
 import { useLangStore } from "../store/langStore";
 import { useAuthStore } from "../store/authStore";
+import { canSignDocuments } from "../lib/roleAccess";
+import { PrescriberSignatureBox } from "../components/PrescriberSignatureBox";
 
 // Only Doctor, MHO, and Super Admin may create/issue prescriptions. Nurses,
 // midwives, BHWs, and head nurses can only release/dispense existing orders.
@@ -1815,6 +1817,16 @@ export default function Prescriptions() {
                   </label>
                 </div>
               )}
+
+              {canSignDocuments(authUser) ? (
+                <PrescriberSignatureBox
+                  isLabRequest={form.form_type === "lab_request"}
+                  hasDangerousDrug={
+                    form.form_type !== "lab_request" &&
+                    form.medications.some((medication) => Boolean(medication.is_controlled))
+                  }
+                />
+              ) : null}
 
               <button
                 type="submit"

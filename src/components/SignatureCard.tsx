@@ -53,7 +53,12 @@ async function uprightPng(file: File, maxSide = 1600): Promise<Blob> {
   }
 }
 
-export function SignatureCard() {
+type SignatureCardProps = {
+  /** Told after a save or a removal, e.g. by the prescription form's signature box. */
+  onChange?: (signature: StaffSignature | null) => void;
+};
+
+export function SignatureCard({ onChange }: SignatureCardProps = {}) {
   const padRef = useRef<SignaturePadHandle | null>(null);
   const [current, setCurrent] = useState<StaffSignature | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,6 +144,9 @@ export function SignatureCard() {
 
   async function save(event: FormEvent) {
     event.preventDefault();
+    // Opened from inside the prescription form, this submit must not also
+    // submit the prescription (React passes it up through the portal).
+    event.stopPropagation();
     setMessage("");
     setError("");
 
@@ -164,6 +172,7 @@ export function SignatureCard() {
       changedHere.current = true;
       setCurrent(res.signature);
       setLoading(false);
+      onChange?.(res.signature);
       setMessage(res.message);
       setPassword("");
       setFile(null);
@@ -193,6 +202,7 @@ export function SignatureCard() {
       changedHere.current = true;
       setCurrent(null);
       setLoading(false);
+      onChange?.(null);
       setMessage(res.message);
       setPassword("");
     } catch (err: any) {
